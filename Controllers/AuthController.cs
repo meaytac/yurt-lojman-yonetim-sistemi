@@ -49,6 +49,11 @@ public class AuthController(UserManager<AppUser> userManager, ITokenService toke
             return Unauthorized("E-posta veya sifre hatali.");
         }
 
+        if (await userManager.IsLockedOutAsync(user))
+        {
+            return Unauthorized("Hesap dondurulmus. Lutfen sistem yoneticisi ile iletisime gecin.");
+        }
+
         var token = await tokenService.CreateTokenAsync(user);
         return Ok(new AuthResponse(user.Id, user.FullName, user.Email!, user.Role, token));
     }

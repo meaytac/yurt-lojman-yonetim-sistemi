@@ -3,59 +3,189 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Admin Paneli</title>
-  <link rel="stylesheet" href="/css/styles.css">
+  <title>MTU Admin Portal</title>
+  <link rel="stylesheet" href="/css/admin.css">
 </head>
 <body>
-  <header class="topbar">
-    <div><strong>Admin Paneli</strong><span>Tesis, oda ve operasyon yonetimi</span></div>
-    <nav>
-      <a href="/index.html">Dashboard</a>
-      <a href="/application.html">Basvuru</a>
-    </nav>
-  </header>
-
-  <main class="shell columns">
-    <section class="panel">
-      <h1>Yurt Ekle</h1>
-      <form id="dormForm" class="stack">
-        <input name="name" placeholder="Yurt adi" required>
-        <input name="campusLocation" placeholder="Kampus konumu" required>
-        <input name="totalCapacity" type="number" value="100" min="0">
-        <label><input name="isActive" type="checkbox" checked> Aktif</label>
-        <button>Kaydet</button>
+  <div id="loginGate" class="login-gate">
+    <section class="login-card">
+      <div class="brand-lockup">
+        <img class="brand-logo" src="/img/mtu-amblem.png" alt="MTU amblem">
+        <div>
+          <strong>Admin Portal</strong>
+          <small>Lojman ve Yurt Yonetimi</small>
+        </div>
+      </div>
+      <form id="loginForm" class="form-grid">
+        <label>E-posta<input name="email" type="email" value="admin@ozal.edu.tr" required></label>
+        <label>Sifre<input name="password" type="password" value="Admin123!" required></label>
+        <button class="primary-btn" type="submit">Giris Yap</button>
       </form>
     </section>
+  </div>
 
-    <section class="panel">
-      <h1>Oda Ekle</h1>
-      <form id="roomForm" class="stack">
-        <input name="blockFloorId" type="number" value="1" min="1" placeholder="Kat Id" required>
-        <input name="roomNumber" placeholder="Oda no" required>
-        <input name="capacity" type="number" value="4" min="1">
-        <input name="price" type="number" value="2500" min="0" step="0.01">
-        <select name="status">
-          <option>Empty</option>
-          <option>Maintenance</option>
-        </select>
-        <button>Kaydet</button>
-      </form>
+  <div id="appShell" class="admin-shell" hidden>
+    <aside class="sidebar">
+      <div class="side-brand">
+        <img class="brand-logo mini" src="/img/mtu-amblem.png" alt="MTU amblem">
+        <div>
+          <strong>MTU</strong>
+          <small>Yonetim Paneli</small>
+        </div>
+      </div>
+      <nav class="side-nav" aria-label="Admin menusu">
+        <button class="nav-item active" data-section="dashboard"><span>⌂</span>Dashboard</button>
+        <button class="nav-item" data-section="facilities"><span>▦</span>Tesisler & Odalar</button>
+        <button class="nav-item" data-section="rooms"><span>▤</span>Oda & Kat</button>
+        <button class="nav-item" data-section="users"><span>◉</span>Kullanicilar</button>
+        <button class="nav-item" data-section="placements"><span>⇄</span>Yerlesim Takibi</button>
+        <button class="nav-item danger" id="logoutBtn"><span>↩</span>Cikis Yap</button>
+      </nav>
+    </aside>
+
+    <div class="main-area">
+      <header class="topbar">
+        <div>
+          <h1 id="sectionTitle">Dashboard</h1>
+          <p>Anlik tesis, basvuru, ariza ve borc durumu</p>
+        </div>
+        <div class="top-actions">
+          <button class="icon-btn" title="Bildirimler">●</button>
+          <div class="profile-chip">
+            <span id="adminName">Admin</span>
+            <small id="adminRole">Admin</small>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section id="dashboard" class="page-section active">
+          <div id="kpiGrid" class="kpi-grid"></div>
+          <div class="content-grid">
+            <article class="panel">
+              <div class="panel-head">
+                <h2>Son 5 Basvuru</h2>
+                <button class="ghost-btn" data-section-jump="users">Kullanicilar</button>
+              </div>
+              <div id="recentApplications" class="activity-list"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-head">
+                <h2>Son 5 Ariza Bildirimi</h2>
+                <button class="ghost-btn" data-section-jump="rooms">Odalar</button>
+              </div>
+              <div id="recentRequests" class="activity-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="facilities" class="page-section">
+          <div class="toolbar">
+            <div>
+              <h2>Tesis Yonetimi</h2>
+              <p>Yurt ve lojman kayitlarini yonetin.</p>
+            </div>
+            <div class="toolbar-actions">
+              <input id="facilitySearch" type="search" placeholder="Tesis ara">
+              <button class="primary-btn" data-modal="facilityModal">Yeni Tesis</button>
+              <button class="secondary-btn" data-modal="buildingModal">Blok Ekle</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Ad</th><th>Tur</th><th>Kampus</th><th>Kapasite</th><th>Blok</th><th>Durum</th><th>Aksiyon</th></tr></thead>
+              <tbody id="facilityRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="rooms" class="page-section">
+          <div class="toolbar">
+            <div>
+              <h2>Oda & Kat Yonetimi</h2>
+              <p>Oda kapasitesi, fiyat ve doluluk durumunu izleyin.</p>
+            </div>
+            <div class="toolbar-actions">
+              <input id="roomSearch" type="search" placeholder="Oda ara">
+              <select id="roomStatusFilter">
+                <option value="">Tum durumlar</option>
+                <option value="Empty">Bos</option>
+                <option value="PartiallyFull">Kismi dolu</option>
+                <option value="Full">Dolu</option>
+                <option value="Maintenance">Bakimda</option>
+              </select>
+              <button class="secondary-btn" data-modal="floorModal">Kat Ekle</button>
+              <button class="primary-btn" data-modal="roomModal">Yeni Oda</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Oda</th><th>Tesis</th><th>Blok/Kat</th><th>Kapasite</th><th>Doluluk</th><th>Fiyat</th><th>Durum</th><th>Aksiyon</th></tr></thead>
+              <tbody id="roomRows"></tbody>
+            </table>
+          </div>
+          <div id="roomPager" class="pager"></div>
+        </section>
+
+        <section id="users" class="page-section">
+          <div class="toolbar">
+            <div>
+              <h2>Kullanicilar & Roller</h2>
+              <p>Arama, rol filtreleme ve hesap durumu yonetimi.</p>
+            </div>
+            <div class="toolbar-actions">
+              <input id="userSearch" type="search" placeholder="Ad, e-posta, TC ara">
+              <select id="roleFilter">
+                <option value="">Tum roller</option>
+                <option value="Ogrenci">Ogrenci</option>
+                <option value="Personel">Personel</option>
+                <option value="Yetkili">Yetkili</option>
+                <option value="Admin">Admin</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Ad Soyad</th><th>E-posta</th><th>TC</th><th>No</th><th>Rol</th><th>Durum</th><th>Aksiyon</th></tr></thead>
+              <tbody id="userRows"></tbody>
+            </table>
+          </div>
+          <div id="userPager" class="pager"></div>
+        </section>
+
+        <section id="placements" class="page-section">
+          <div class="toolbar">
+            <div>
+              <h2>Konaklayanlar Listesi</h2>
+              <p>Manuel yerlestirme ve cikis islemleri.</p>
+            </div>
+            <div class="toolbar-actions">
+              <label class="inline-check"><input id="activePlacementsOnly" type="checkbox" checked> Sadece aktif</label>
+              <button class="primary-btn" data-modal="assignModal">Odaya Ata</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Kisi</th><th>Oda</th><th>Giris</th><th>Cikis</th><th>Durum</th><th>Aksiyon</th></tr></thead>
+              <tbody id="placementRows"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div id="modalBackdrop" class="modal-backdrop" hidden>
+    <section class="modal">
+      <header>
+        <h2 id="modalTitle">Form</h2>
+        <button class="icon-btn" id="closeModal" title="Kapat">×</button>
+      </header>
+      <div id="modalBody"></div>
     </section>
+  </div>
 
-    <section class="panel wide">
-      <h2>Odalar</h2>
-      <table>
-        <thead><tr><th>Oda</th><th>Kapasite</th><th>Doluluk</th><th>Durum</th><th>Ucret</th></tr></thead>
-        <tbody id="roomsTable"></tbody>
-      </table>
-    </section>
-  </main>
-
-  <script src="/js/app.js"></script>
-  <script>
-    bindJsonForm('dormForm', '/api/admin/dormitories', () => alert('Yurt kaydedildi.'));
-    bindJsonForm('roomForm', '/api/admin/rooms', loadRooms);
-    loadRooms();
-  </script>
+  <div id="toastHost" class="toast-host"></div>
+  <script src="/js/admin.js"></script>
 </body>
 </html>

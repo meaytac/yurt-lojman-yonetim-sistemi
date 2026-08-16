@@ -12,9 +12,19 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
+var useDemoDatabase = builder.Configuration.GetValue("DemoMode", true);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    if (useDemoDatabase)
+    {
+        options.UseInMemoryDatabase("YurtLojmanDemoDb");
+    }
+    else
+    {
+        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    }
+});
 
 builder.Services.AddIdentity<AppUser, AppRole>(options =>
     {
@@ -50,6 +60,7 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAccommodationService, AccommodationService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddCors(options =>
 {
@@ -84,9 +95,16 @@ app.MapControllers();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
+    if (useDemoDatabase)
+    {
+        await db.Database.EnsureCreatedAsync();
+    }
+    else
+    {
+        await db.Database.MigrateAsync();
+    }
 }
 
-await DataSeeder.SeedIdentityAsync(app.Services);
+await DataSeeder.SeedDemoAsync(app.Services);
 
 app.Run();

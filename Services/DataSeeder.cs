@@ -1,16 +1,29 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using yurt_lojman_yonetim_sistemi.Data;
 using yurt_lojman_yonetim_sistemi.Models;
 
 namespace yurt_lojman_yonetim_sistemi.Services;
 
 public static class DataSeeder
 {
-    public static async Task SeedIdentityAsync(IServiceProvider services)
+    public static async Task SeedDemoAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<AppRole>>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
 
+        await SeedRolesAsync(roleManager);
+        var users = await SeedUsersAsync(userManager);
+        await SeedFacilitiesAsync(db);
+        await SeedOperationalDataAsync(db, users);
+    }
+
+    public static Task SeedIdentityAsync(IServiceProvider services) => SeedDemoAsync(services);
+
+    private static async Task SeedRolesAsync(RoleManager<AppRole> roleManager)
+    {
         foreach (var role in AppRoles.All)
         {
             if (!await roleManager.RoleExistsAsync(role))
@@ -18,30 +31,289 @@ public static class DataSeeder
                 await roleManager.CreateAsync(new AppRole { Name = role });
             }
         }
+    }
 
-        const string adminEmail = "admin@ozal.edu.tr";
-        var admin = await userManager.FindByEmailAsync(adminEmail);
-        if (admin is not null)
+    private static async Task<DemoUsers> SeedUsersAsync(UserManager<AppUser> userManager)
+    {
+        var admin = await EnsureUserAsync(userManager, "admin@ozal.edu.tr", "Sistem Yoneticisi", "11111111111", "ADMIN-001", AppRoles.Admin, "+904220000001");
+        var officer = await EnsureUserAsync(userManager, "yetkili@ozal.edu.tr", "Yurt Isleri Yetkilisi", "22222222222", "PER-100", AppRoles.Yetkili, "+904220000002");
+        var student1 = await EnsureUserAsync(userManager, "ayse.yilmaz@ogr.ozal.edu.tr", "Ayse Yilmaz", "33333333333", "OGR-2026-001", AppRoles.Ogrenci, "+905550000001");
+        var student2 = await EnsureUserAsync(userManager, "mehmet.kaya@ogr.ozal.edu.tr", "Mehmet Kaya", "44444444444", "OGR-2026-002", AppRoles.Ogrenci, "+905550000002");
+        var student3 = await EnsureUserAsync(userManager, "zeynep.demir@ogr.ozal.edu.tr", "Zeynep Demir", "55555555555", "OGR-2026-003", AppRoles.Ogrenci, "+905550000003");
+        var staff1 = await EnsureUserAsync(userManager, "ali.celik@ozal.edu.tr", "Ali Celik", "66666666666", "PRS-2026-014", AppRoles.Personel, "+905550000004");
+        var staff2 = await EnsureUserAsync(userManager, "elif.sahin@ozal.edu.tr", "Elif Sahin", "77777777777", "PRS-2026-019", AppRoles.Personel, "+905550000005");
+
+        return new DemoUsers(admin, officer, student1, student2, student3, staff1, staff2);
+    }
+
+    private static async Task<AppUser> EnsureUserAsync(
+        UserManager<AppUser> userManager,
+        string email,
+        string fullName,
+        string tcNo,
+        string studentStaffNo,
+        string role,
+        string phoneNumber)
+    {
+        var user = await userManager.FindByEmailAsync(email);
+        if (user is null)
+        {
+            user = new AppUser
+            {
+                UserName = email,
+                Email = email,
+                EmailConfirmed = true,
+                FullName = fullName,
+                TcNo = tcNo,
+                StudentStaffNo = studentStaffNo,
+                Role = role,
+                PhoneNumber = phoneNumber,
+                LockoutEnabled = true
+            };
+
+            var createResult = await userManager.CreateAsync(user, "Admin123!");
+            if (!createResult.Succeeded)
+            {
+                throw new InvalidOperationException(string.Join(" ", createResult.Errors.Select(x => x.Description)));
+            }
+        }
+
+        var currentRoles = await userManager.GetRolesAsync(user);
+        if (!currentRoles.Contains(role))
+        {
+            if (currentRoles.Count > 0)
+            {
+                await userManager.RemoveFromRolesAsync(user, currentRoles);
+            }
+
+            var roleResult = await userManager.AddToRoleAsync(user, role);
+            if (!roleResult.Succeeded)
+            {
+                throw new InvalidOperationException(string.Join(" ", roleResult.Errors.Select(x => x.Description)));
+            }
+        }
+
+        user.Role = role;
+        user.LockoutEnd = null;
+        await userManager.UpdateAsync(user);
+        return user;
+    }
+
+    private static async Task SeedFacilitiesAsync(AppDbContext db)
+    {
+        var dormitory = await db.Dormitories.FirstOrDefaultAsync(x => x.Name == "MTU Merkez Ogrenci Yurdu")
+            ?? db.Dormitories.Add(new Dormitory
+            {
+                Name = "MTU Merkez Ogrenci Yurdu",
+                Type = AccommodationType.Yurt,
+                CampusLocation = "Battalgazi Yerleskesi",
+                TotalCapacity = 120,
+                IsActive = true
+            }).Entity;
+
+        var secondDormitory = await db.Dormitories.FirstOrDefaultAsync(x => x.Name == "Yesilyurt Kiz Ogrenci Yurdu")
+            ?? db.Dormitories.Add(new Dormitory
+            {
+                Name = "Yesilyurt Kiz Ogrenci Yurdu",
+                Type = AccommodationType.Yurt,
+                CampusLocation = "Yesilyurt Yerleskesi",
+                TotalCapacity = 96,
+                IsActive = true
+            }).Entity;
+
+        var housing = await db.HousingUnits.FirstOrDefaultAsync(x => x.Name == "MTU Personel Lojmanlari")
+            ?? db.HousingUnits.Add(new HousingUnit
+            {
+                Name = "MTU Personel Lojmanlari",
+                Type = AccommodationType.Lojman,
+                CampusLocation = "Battalgazi Yerleskesi",
+                TotalCapacity = 40,
+                IsActive = true
+            }).Entity;
+
+        await db.SaveChangesAsync();
+
+        var aBlock = await EnsureBuildingAsync(db, dormitory.Id, null, "A Blok");
+        var bBlock = await EnsureBuildingAsync(db, secondDormitory.Id, null, "B Blok");
+        var lBlock = await EnsureBuildingAsync(db, null, housing.Id, "L Blok");
+
+        var aFloor1 = await EnsureFloorAsync(db, aBlock.Id, 1);
+        var aFloor2 = await EnsureFloorAsync(db, aBlock.Id, 2);
+        var bFloor1 = await EnsureFloorAsync(db, bBlock.Id, 1);
+        var lFloor1 = await EnsureFloorAsync(db, lBlock.Id, 1);
+
+        await EnsureRoomAsync(db, aFloor1.Id, "101", 4, 2500, RoomStatus.Empty);
+        await EnsureRoomAsync(db, aFloor1.Id, "102", 4, 2500, RoomStatus.Empty);
+        await EnsureRoomAsync(db, aFloor2.Id, "201", 3, 2700, RoomStatus.Empty);
+        await EnsureRoomAsync(db, bFloor1.Id, "B-103", 4, 2400, RoomStatus.Empty);
+        await EnsureRoomAsync(db, bFloor1.Id, "B-104", 4, 2400, RoomStatus.Maintenance);
+        await EnsureRoomAsync(db, lFloor1.Id, "L101", 1, 5500, RoomStatus.Empty);
+        await EnsureRoomAsync(db, lFloor1.Id, "L102", 1, 5750, RoomStatus.Empty);
+
+        dormitory.TotalCapacity = await db.Rooms.Where(x => x.BlockFloor.Building.DormitoryId == dormitory.Id).SumAsync(x => x.Capacity);
+        secondDormitory.TotalCapacity = await db.Rooms.Where(x => x.BlockFloor.Building.DormitoryId == secondDormitory.Id).SumAsync(x => x.Capacity);
+        housing.TotalCapacity = await db.Rooms.Where(x => x.BlockFloor.Building.HousingUnitId == housing.Id).SumAsync(x => x.Capacity);
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task<Building> EnsureBuildingAsync(AppDbContext db, int? dormitoryId, int? housingUnitId, string blockName)
+    {
+        var building = await db.Buildings.FirstOrDefaultAsync(x =>
+            x.BlockName == blockName &&
+            x.DormitoryId == dormitoryId &&
+            x.HousingUnitId == housingUnitId);
+
+        if (building is not null)
+        {
+            return building;
+        }
+
+        building = new Building { DormitoryId = dormitoryId, HousingUnitId = housingUnitId, BlockName = blockName };
+        db.Buildings.Add(building);
+        await db.SaveChangesAsync();
+        return building;
+    }
+
+    private static async Task<Floor> EnsureFloorAsync(AppDbContext db, int buildingId, int floorNumber)
+    {
+        var floor = await db.Floors.FirstOrDefaultAsync(x => x.BuildingId == buildingId && x.FloorNumber == floorNumber);
+        if (floor is not null)
+        {
+            return floor;
+        }
+
+        floor = new Floor { BuildingId = buildingId, FloorNumber = floorNumber };
+        db.Floors.Add(floor);
+        await db.SaveChangesAsync();
+        return floor;
+    }
+
+    private static async Task<Room> EnsureRoomAsync(AppDbContext db, int floorId, string roomNumber, int capacity, decimal price, RoomStatus status)
+    {
+        var room = await db.Rooms.FirstOrDefaultAsync(x => x.BlockFloorId == floorId && x.RoomNumber == roomNumber);
+        if (room is null)
+        {
+            room = new Room
+            {
+                BlockFloorId = floorId,
+                RoomNumber = roomNumber,
+                Capacity = capacity,
+                Price = price,
+                Status = status,
+                CurrentOccupancy = 0
+            };
+            db.Rooms.Add(room);
+        }
+        else
+        {
+            room.Capacity = capacity;
+            room.Price = price;
+            if (status == RoomStatus.Maintenance)
+            {
+                room.Status = RoomStatus.Maintenance;
+            }
+        }
+
+        await db.SaveChangesAsync();
+        return room;
+    }
+
+    private static async Task SeedOperationalDataAsync(AppDbContext db, DemoUsers users)
+    {
+        if (!await db.Applications.AnyAsync(x => x.UserId == users.Student1.Id))
+        {
+            db.Applications.AddRange(
+                new AccommodationApplication { UserId = users.Student1.Id, AccommodationType = AccommodationType.Yurt, DocumentUrl = "/uploads/demo/ogrenci-belgesi-ayse.pdf", Status = ApplicationStatus.Pending, CreatedAt = DateTime.UtcNow.AddDays(-3) },
+                new AccommodationApplication { UserId = users.Student2.Id, AccommodationType = AccommodationType.Yurt, DocumentUrl = "/uploads/demo/ogrenci-belgesi-mehmet.pdf", Status = ApplicationStatus.Approved, CreatedAt = DateTime.UtcNow.AddDays(-5), UpdatedAt = DateTime.UtcNow.AddDays(-2) },
+                new AccommodationApplication { UserId = users.Staff1.Id, AccommodationType = AccommodationType.Lojman, DocumentUrl = "/uploads/demo/personel-gorev-yeri.pdf", Status = ApplicationStatus.Pending, CreatedAt = DateTime.UtcNow.AddDays(-2) },
+                new AccommodationApplication { UserId = users.Staff2.Id, AccommodationType = AccommodationType.Lojman, DocumentUrl = "/uploads/demo/personel-belgesi.pdf", Status = ApplicationStatus.Rejected, CreatedAt = DateTime.UtcNow.AddDays(-8), UpdatedAt = DateTime.UtcNow.AddDays(-6) },
+                new AccommodationApplication { UserId = users.Student3.Id, AccommodationType = AccommodationType.Yurt, DocumentUrl = "/uploads/demo/ogrenci-belgesi-zeynep.pdf", Status = ApplicationStatus.Pending, CreatedAt = DateTime.UtcNow.AddDays(-1) });
+        }
+
+        await db.SaveChangesAsync();
+
+        await EnsurePlacementAsync(db, users.Student2.Id, "101", DateTime.UtcNow.AddDays(-30));
+        await EnsurePlacementAsync(db, users.Student3.Id, "102", DateTime.UtcNow.AddDays(-18));
+        await EnsurePlacementAsync(db, users.Staff1.Id, "L101", DateTime.UtcNow.AddDays(-45));
+
+        if (!await db.Requests.AnyAsync())
+        {
+            var room101 = await db.Rooms.FirstAsync(x => x.RoomNumber == "101");
+            var room102 = await db.Rooms.FirstAsync(x => x.RoomNumber == "102");
+            var roomL101 = await db.Rooms.FirstAsync(x => x.RoomNumber == "L101");
+
+            db.Requests.AddRange(
+                new MaintenanceRequest { UserId = users.Student2.Id, RoomId = room101.Id, Category = "Elektrik", Description = "Calisma masasindaki priz calismiyor.", PhotoUrl = "/uploads/demo/priz.jpg", Status = RequestStatus.Open, CreatedAt = DateTime.UtcNow.AddHours(-8) },
+                new MaintenanceRequest { UserId = users.Student3.Id, RoomId = room102.Id, Category = "Isitma", Description = "Petek yeterince isinmiyor.", PhotoUrl = "/uploads/demo/petek.jpg", Status = RequestStatus.InProgress, CreatedAt = DateTime.UtcNow.AddDays(-1) },
+                new MaintenanceRequest { UserId = users.Staff1.Id, RoomId = roomL101.Id, Category = "Su Tesisati", Description = "Mutfak lavabosunda damlama var.", PhotoUrl = "/uploads/demo/lavabo.jpg", Status = RequestStatus.Open, CreatedAt = DateTime.UtcNow.AddDays(-2) },
+                new MaintenanceRequest { UserId = users.Student2.Id, RoomId = room101.Id, Category = "Mobilya", Description = "Dolap kapagi gevsemis.", Status = RequestStatus.Resolved, CreatedAt = DateTime.UtcNow.AddDays(-5) });
+        }
+
+        if (!await db.Payments.AnyAsync())
+        {
+            db.Payments.AddRange(
+                new Payment { UserId = users.Student2.Id, Amount = 2500, DueDate = DateTime.UtcNow.AddDays(-5), Status = PaymentStatus.Overdue, Description = "Agustos yurt ucreti" },
+                new Payment { UserId = users.Student3.Id, Amount = 2500, DueDate = DateTime.UtcNow.AddDays(10), Status = PaymentStatus.Unpaid, Description = "Agustos yurt ucreti" },
+                new Payment { UserId = users.Staff1.Id, Amount = 5500, DueDate = DateTime.UtcNow.AddDays(-2), Status = PaymentStatus.Overdue, Description = "Lojman kira tahakkuku" },
+                new Payment { UserId = users.Student2.Id, Amount = 2500, DueDate = DateTime.UtcNow.AddMonths(-1), PaidDate = DateTime.UtcNow.AddDays(-20), Status = PaymentStatus.Paid, Description = "Temmuz yurt ucreti" });
+        }
+
+        if (!await db.Announcements.AnyAsync(x => x.Title == "Demo Sunum Duyurusu"))
+        {
+            db.Announcements.Add(new Announcement
+            {
+                Title = "Demo Sunum Duyurusu",
+                Content = "Yurt ve lojman yonetim sistemi demo verileriyle calismaktadir.",
+                TargetRole = AnnouncementTargetRole.All,
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true
+            });
+        }
+
+        await db.SaveChangesAsync();
+        await RecalculateRoomsAsync(db);
+    }
+
+    private static async Task EnsurePlacementAsync(AppDbContext db, Guid userId, string roomNumber, DateTime checkInDate)
+    {
+        if (await db.Placements.AnyAsync(x => x.UserId == userId && x.IsActive))
         {
             return;
         }
 
-        admin = new AppUser
-        {
-            UserName = adminEmail,
-            Email = adminEmail,
-            EmailConfirmed = true,
-            FullName = "Sistem Yoneticisi",
-            TcNo = "11111111111",
-            StudentStaffNo = "ADMIN-001",
-            Role = AppRoles.Admin,
-            PhoneNumber = "+900000000000"
-        };
-
-        var result = await userManager.CreateAsync(admin, "Admin123!");
-        if (result.Succeeded)
-        {
-            await userManager.AddToRoleAsync(admin, AppRoles.Admin);
-        }
+        var room = await db.Rooms.FirstAsync(x => x.RoomNumber == roomNumber);
+        db.Placements.Add(new Placement { UserId = userId, RoomId = room.Id, CheckInDate = checkInDate, IsActive = true });
+        await db.SaveChangesAsync();
     }
+
+    private static async Task RecalculateRoomsAsync(AppDbContext db)
+    {
+        var rooms = await db.Rooms.Include(x => x.Placements).ToListAsync();
+        foreach (var room in rooms)
+        {
+            if (room.Status == RoomStatus.Maintenance)
+            {
+                room.CurrentOccupancy = 0;
+                continue;
+            }
+
+            room.CurrentOccupancy = room.Placements.Count(x => x.IsActive);
+            room.Status = room.CurrentOccupancy == 0
+                ? RoomStatus.Empty
+                : room.CurrentOccupancy >= room.Capacity
+                    ? RoomStatus.Full
+                    : RoomStatus.PartiallyFull;
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    private sealed record DemoUsers(
+        AppUser Admin,
+        AppUser Officer,
+        AppUser Student1,
+        AppUser Student2,
+        AppUser Student3,
+        AppUser Staff1,
+        AppUser Staff2);
 }
