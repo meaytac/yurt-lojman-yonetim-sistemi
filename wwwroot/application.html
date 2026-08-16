@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Basvuru</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div><strong>Konaklama Basvurusu</strong><span>Ogrenci ve personel islemleri</span></div>
+    <nav>
+      <a href="/index.html">Dashboard</a>
+      <a href="/admin.html">Admin</a>
+    </nav>
+  </header>
+
+  <main class="shell columns">
+    <section class="panel">
+      <h1>Yeni Basvuru</h1>
+      <form id="applicationForm" class="stack">
+        <select name="accommodationType">
+          <option>Yurt</option>
+          <option>Lojman</option>
+        </select>
+        <input name="documentUrl" placeholder="Belge URL">
+        <input name="document" type="file">
+        <button>Basvuru Gonder</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h1>Ariza / Talep</h1>
+      <form id="requestForm" class="stack">
+        <input name="roomId" type="number" value="1" min="1" required>
+        <input name="category" placeholder="Kategori" required>
+        <textarea name="description" placeholder="Aciklama" required></textarea>
+        <input name="photo" type="file">
+        <button>Talep Olustur</button>
+      </form>
+    </section>
+
+    <section class="panel wide">
+      <h2>Basvurularim</h2>
+      <div id="myApplications" class="list"></div>
+    </section>
+  </main>
+
+  <script src="/js/app.js"></script>
+  <script>
+    bindMultipartForm('applicationForm', '/api/applications', loadMyApplications);
+    bindMultipartForm('requestForm', '/api/requests', () => alert('Talep olusturuldu.'));
+    loadMyApplications();
+  </script>
+</body>
+</html>

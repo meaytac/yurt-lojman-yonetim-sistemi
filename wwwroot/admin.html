@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Paneli</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div><strong>Admin Paneli</strong><span>Tesis, oda ve operasyon yonetimi</span></div>
+    <nav>
+      <a href="/index.html">Dashboard</a>
+      <a href="/application.html">Basvuru</a>
+    </nav>
+  </header>
+
+  <main class="shell columns">
+    <section class="panel">
+      <h1>Yurt Ekle</h1>
+      <form id="dormForm" class="stack">
+        <input name="name" placeholder="Yurt adi" required>
+        <input name="campusLocation" placeholder="Kampus konumu" required>
+        <input name="totalCapacity" type="number" value="100" min="0">
+        <label><input name="isActive" type="checkbox" checked> Aktif</label>
+        <button>Kaydet</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h1>Oda Ekle</h1>
+      <form id="roomForm" class="stack">
+        <input name="blockFloorId" type="number" value="1" min="1" placeholder="Kat Id" required>
+        <input name="roomNumber" placeholder="Oda no" required>
+        <input name="capacity" type="number" value="4" min="1">
+        <input name="price" type="number" value="2500" min="0" step="0.01">
+        <select name="status">
+          <option>Empty</option>
+          <option>Maintenance</option>
+        </select>
+        <button>Kaydet</button>
+      </form>
+    </section>
+
+    <section class="panel wide">
+      <h2>Odalar</h2>
+      <table>
+        <thead><tr><th>Oda</th><th>Kapasite</th><th>Doluluk</th><th>Durum</th><th>Ucret</th></tr></thead>
+        <tbody id="roomsTable"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="/js/app.js"></script>
+  <script>
+    bindJsonForm('dormForm', '/api/admin/dormitories', () => alert('Yurt kaydedildi.'));
+    bindJsonForm('roomForm', '/api/admin/rooms', loadRooms);
+    loadRooms();
+  </script>
+</body>
+</html>

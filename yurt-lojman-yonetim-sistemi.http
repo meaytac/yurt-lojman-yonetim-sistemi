@@ -1,0 +1,6 @@
+@yurt_lojman_yonetim_sistemi_HostAddress = http://localhost:5125
+
+GET {{yurt_lojman_yonetim_sistemi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

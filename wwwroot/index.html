@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MTU Lojman ve Yurt Yonetimi</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <strong>Malatya Turgut Ozal Universitesi</strong>
+      <span>Lojman ve Yurt Yonetim Sistemi</span>
+    </div>
+    <nav>
+      <a href="/index.html">Dashboard</a>
+      <a href="/admin.html">Admin</a>
+      <a href="/application.html">Basvuru</a>
+      <a href="/swagger">Swagger</a>
+    </nav>
+  </header>
+
+  <main class="shell">
+    <section class="panel login-panel">
+      <h1>Oturum</h1>
+      <div class="grid two">
+        <input id="email" type="email" value="admin@ozal.edu.tr" placeholder="E-posta">
+        <input id="password" type="password" value="Admin123!" placeholder="Sifre">
+      </div>
+      <button id="loginBtn">Giris Yap</button>
+      <p id="loginState" class="muted"></p>
+    </section>
+
+    <section class="metrics">
+      <article>
+        <span>Toplam Kapasite</span>
+        <strong id="totalCapacity">-</strong>
+      </article>
+      <article>
+        <span>Doluluk</span>
+        <strong id="occupancyRate">-</strong>
+      </article>
+      <article>
+        <span>Bekleyen Basvuru</span>
+        <strong id="pendingApplications">-</strong>
+      </article>
+      <article>
+        <span>Acik Ariza</span>
+        <strong id="openRequests">-</strong>
+      </article>
+      <article>
+        <span>Odenmemis Borc</span>
+        <strong id="unpaidDebts">-</strong>
+      </article>
+    </section>
+
+    <section class="panel">
+      <h2>Son Duyurular</h2>
+      <div id="announcements" class="list"></div>
+    </section>
+  </main>
+
+  <script src="/js/app.js"></script>
+  <script>
+    document.getElementById('loginBtn').addEventListener('click', login);
+    loadDashboard();
+    loadAnnouncements();
+  </script>
+</body>
+</html>

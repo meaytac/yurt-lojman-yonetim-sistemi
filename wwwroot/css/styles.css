@@ -1,0 +1,102 @@
+:root {
+  color-scheme: light;
+  --bg: #f5f7f8;
+  --panel: #ffffff;
+  --line: #d8dee4;
+  --text: #1c232b;
+  --muted: #637083;
+  --accent: #0b6b58;
+  --accent-2: #b1352b;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.topbar {
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 24px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--line);
+}
+
+.topbar strong, .topbar span { display: block; }
+.topbar span { color: var(--muted); font-size: 13px; margin-top: 4px; }
+.topbar nav { display: flex; flex-wrap: wrap; gap: 8px; }
+.topbar a {
+  color: var(--accent);
+  text-decoration: none;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.shell { width: min(1180px, calc(100% - 32px)); margin: 24px auto; }
+.columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  margin-bottom: 18px;
+}
+.wide { grid-column: 1 / -1; }
+h1, h2 { margin: 0 0 14px; font-size: 22px; }
+h2 { font-size: 18px; }
+
+.grid { display: grid; gap: 10px; }
+.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.stack { display: grid; gap: 10px; }
+input, select, textarea, button {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 9px 10px;
+  font: inherit;
+}
+textarea { min-height: 96px; resize: vertical; }
+button {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.metrics article {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+}
+.metrics span { display: block; color: var(--muted); font-size: 13px; }
+.metrics strong { display: block; font-size: 28px; margin-top: 8px; color: var(--accent-2); }
+
+.list { display: grid; gap: 10px; }
+.item { border: 1px solid var(--line); border-radius: 6px; padding: 12px; background: #fbfcfd; }
+.item strong { display: block; margin-bottom: 5px; }
+.muted { color: var(--muted); }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 10px; border-bottom: 1px solid var(--line); text-align: left; }
+th { color: var(--muted); font-size: 13px; }
+
+@media (max-width: 760px) {
+  .topbar { align-items: flex-start; flex-direction: column; }
+  .columns, .two, .metrics { grid-template-columns: 1fr; }
+}
