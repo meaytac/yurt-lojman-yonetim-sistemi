@@ -24,21 +24,35 @@ const sectionTitles = {
 const mock = createMockStore();
 
 document.addEventListener('DOMContentLoaded', () => {
-  bindShell();
-  const token = localStorage.getItem(tokenKey);
-  if (token) {
-    openApp(token).catch(() => {
-      localStorage.removeItem(tokenKey);
-      showLoginView();
-      toast('Oturum doğrulanamadı. Tekrar giriş yapın.', true);
-    });
-  } else {
-    showLoginView();
+  const token = getStoredToken();
+  if (!isValidAdminToken(token)) {
+    clearStoredTokens();
+    window.location.href = '/index.html';
+    return;
   }
+
+  bindShell();
+  openApp(token);
 });
 
+function getStoredToken() {
+  return localStorage.getItem(tokenKey) || localStorage.getItem('admin_token');
+}
+
+function isValidAdminToken(token) {
+  if (!token) return false;
+
+  const claims = parseJwt(token);
+  const role = String(claims['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || claims.role || '').toLowerCase();
+  return Boolean(claims.sub) && (!claims.exp || claims.exp * 1000 > Date.now()) && (role === 'admin' || role === 'yetkili');
+}
+
+function clearStoredTokens() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('admin_token');
+}
+
 function bindShell() {
-  document.getElementById('loginForm').addEventListener('submit', handleLogin);
   document.getElementById('logoutBtn').addEventListener('click', logout);
   document.getElementById('closeModal').addEventListener('click', closeModal);
   document.getElementById('modalBackdrop').addEventListener('click', event => {
@@ -64,59 +78,18 @@ function bindShell() {
   document.getElementById('activePlacementsOnly').addEventListener('change', loadPlacements);
 }
 
-function showLoginView() {
-  document.getElementById('loginGate').style.display = 'grid';
-  document.getElementById('appShell').style.display = 'none';
-  document.body.classList.remove('admin-authenticated');
-}
-
-function showAdminView() {
-  document.getElementById('loginGate').style.display = 'none';
-  document.getElementById('appShell').style.display = 'grid';
-  document.body.classList.add('admin-authenticated');
-}
-
-async function handleLogin(event) {
-  event.preventDefault();
-  const form = new FormData(event.currentTarget);
-  const email = String(form.get('email') || '').trim();
-  const password = String(form.get('password') || '');
-
-  try {
-    const result = await loginRequest(email, password);
-    localStorage.setItem(tokenKey, result.token);
-    state.fallbackMode = false;
-    toast('Giriş başarılı.');
-    await openApp(result.token);
-  } catch (error) {
-    state.fallbackMode = true;
-    toast(error.message || 'Giriş sırasında hata oluştu.', true);
-    showLoginView();
-  }
-}
-
-function loginRequest(email, password) {
-  return api('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
-  }, false);
-}
-
 async function openApp(token) {
   const claims = parseJwt(token);
   const role = claims['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || claims.role || 'Admin';
   document.getElementById('adminName').textContent = claims.fullName || claims.name || 'Sistem Yöneticisi';
   document.getElementById('adminRole').textContent = role;
-  showAdminView();
   switchSection('dashboard');
   await Promise.allSettled([loadDashboard(), loadFacilities(), loadRooms(), loadApplications(), loadUsers(1), loadPlacements()]);
 }
 
 function logout() {
-  localStorage.removeItem(tokenKey);
-  showLoginView();
-  toast('Çıkış yapıldı.');
+  clearStoredTokens();
+  window.location.href = '/index.html';
 }
 
 function switchSection(id) {
@@ -638,13 +611,15 @@ async function checkout(id) {
 async function api(path, options = {}, attachToken = true) {
   const headers = { ...(options.headers || {}) };
   if (attachToken) {
-    const token = localStorage.getItem(tokenKey);
+    const token = getStoredToken();
     if (!token) throw new Error('Oturum bulunamadı.');
     headers.Authorization = `Bearer ${token}`;
   }
 
   const response = await fetch(path, { ...options, headers });
   if (response.status === 401 || response.status === 403) {
+    clearStoredTokens();
+    window.location.href = '/index.html';
     throw new Error('Yetkisiz oturum. Lütfen tekrar giriş yapın.');
   }
   if (!response.ok) {
