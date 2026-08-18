@@ -159,7 +159,7 @@ function renderDashboard() {
     <div class="activity-item">
       <div>
         <strong>${escapeHtml(item.fullName)}</strong>
-        <small>${escapeHtml(item.accommodationType)} - ${pillText(item.status)}</small>
+        <small>${escapeHtml(item.accommodationType)} - ${getStatusBadge(item.status)}</small>
       </div>
       <small>${date(item.createdAt)}</small>
     </div>
@@ -169,7 +169,7 @@ function renderDashboard() {
     <div class="activity-item">
       <div>
         <strong>${escapeHtml(item.category)} / Oda ${escapeHtml(item.roomNumber)}</strong>
-        <small>${escapeHtml(item.fullName)} - ${pillText(item.status)}</small>
+        <small>${escapeHtml(item.fullName)} - ${getStatusBadge(item.status)}</small>
       </div>
       <small>${date(item.createdAt)}</small>
     </div>
@@ -202,7 +202,7 @@ function renderFacilities() {
       <td>${escapeHtml(item.campusLocation)}</td>
       <td>${item.totalCapacity}</td>
       <td>${item.buildingCount ?? 0}</td>
-      <td>${pillText(item.isActive ? 'Aktif' : 'Pasif', item.isActive ? 'ok' : 'off')}</td>
+      <td>${getStatusBadge(item.isActive ? 'Aktif' : 'Pasif')}</td>
       <td>
         <button class="row-btn" onclick="editFacility('${item.type}', ${item.id})">Düzenle</button>
         <button class="row-btn warn" onclick="toggleFacility('${item.type}', ${item.id}, ${!item.isActive})">${item.isActive ? 'Pasifleştir' : 'Aktifleştir'}</button>
@@ -245,7 +245,7 @@ function renderRooms() {
       <td>${item.capacity}</td>
       <td>${item.currentOccupancy} / ${item.capacity}</td>
       <td>${money(item.price)}</td>
-      <td>${pillText(roomDisplayStatus(item.status), item.status)}</td>
+      <td>${getStatusBadge(item.status)}</td>
       <td>
         <button class="row-btn" onclick="editRoom(${item.id})">Düzenle</button>
         <button class="row-btn" onclick="showOccupants(${item.id})">Detay</button>
@@ -283,7 +283,7 @@ function renderUsers() {
           ${['Ogrenci', 'Personel', 'Yetkili', 'Admin'].map(role => `<option value="${role}" ${role === item.role ? 'selected' : ''}>${role}</option>`).join('')}
         </select>
       </td>
-      <td>${pillText(item.isActive ? 'Aktif' : 'Pasif', item.isActive ? 'ok' : 'off')}</td>
+      <td>${getStatusBadge(item.isActive ? 'Aktif' : 'Pasif')}</td>
       <td><button class="row-btn warn" onclick="setUserStatus('${item.id}', ${!item.isActive})">${item.isActive ? 'Dondur' : 'Aktif Et'}</button></td>
     </tr>
   `);
@@ -313,7 +313,7 @@ function renderPlacements() {
       <td>${escapeHtml(item.roomNumber)}</td>
       <td>${date(item.checkInDate)}</td>
       <td>${item.checkOutDate ? date(item.checkOutDate) : '-'}</td>
-      <td>${pillText(item.isActive ? 'Aktif' : 'Çıkış Yaptı', item.isActive ? 'ok' : 'off')}</td>
+      <td>${getStatusBadge(item.isActive ? 'Aktif' : 'Çıkış Yaptı')}</td>
       <td>${item.isActive ? `<button class="row-btn warn" onclick="checkout(${item.id})">Çıkış Yap</button>` : '-'}</td>
     </tr>
   `);
@@ -341,7 +341,7 @@ function renderApplications() {
       <td>${escapeHtml(item.tcNo)}</td>
       <td>${escapeHtml(item.studentStaffNo || '-')}</td>
       <td>${escapeHtml(item.accommodationType)}</td>
-      <td>${pillText(applicationStatusDisplay(item.status), item.status)}</td>
+      <td>${getStatusBadge(item.status)}</td>
       <td>${date(item.createdAt)}</td>
       <td>
         ${item.status === 'Pending' ? `<button class="row-btn" onclick="openAssignModal(${item.id}, '${item.userId}', '${escapeAttr(item.fullName)}', '${item.accommodationType}')">Odaya Yerleştir</button>` : '-'}
@@ -857,7 +857,7 @@ function renderPager(id, page, totalPages, onChange) {
   const host = document.getElementById(id);
   host.innerHTML = `
     <button class="ghost-btn" ${page <= 1 ? 'disabled' : ''}>Önceki</button>
-    <span class="status-pill">${page} / ${totalPages}</span>
+    <span class="badge badge-muted">${page} / ${totalPages}</span>
     <button class="ghost-btn" ${page >= totalPages ? 'disabled' : ''}>Sonraki</button>
   `;
   const [prev, next] = host.querySelectorAll('button');
@@ -873,24 +873,39 @@ function toast(message, isError = false) {
   setTimeout(() => el.remove(), 3600);
 }
 
-function pillText(text, tone = '') {
-  const normalized = String(text || '');
-  const toneMap = {
-    'Boş': 'off',
-    'Kısmen Dolu': 'warn',
-    'Dolu': 'ok',
-    'Bakımda': 'bad',
-    'Bekleyen': 'warn',
-    'Onaylandı': 'ok',
-    'Reddedildi': 'bad',
-    'Açık': 'warn',
-    'İşlemde': 'warn',
-    'Çözülmüş': 'ok',
-    'Aktif': 'ok',
-    'Pasif': 'off'
+function getStatusBadge(status) {
+  const map = {
+    Pending: ['Beklemede', 'badge-warning'],
+    Beklemede: ['Beklemede', 'badge-warning'],
+    Bekleyen: ['Beklemede', 'badge-warning'],
+    Approved: ['Onaylandı', 'badge-success'],
+    Onaylandı: ['Onaylandı', 'badge-success'],
+    Rejected: ['Reddedildi', 'badge-danger'],
+    Reddedildi: ['Reddedildi', 'badge-danger'],
+    Open: ['Açık', 'badge-info'],
+    Açık: ['Açık', 'badge-info'],
+    InProgress: ['İşlemde', 'badge-warning'],
+    İşlemde: ['İşlemde', 'badge-warning'],
+    Resolved: ['Çözüldü', 'badge-success'],
+    Completed: ['Çözüldü', 'badge-success'],
+    Çözüldü: ['Çözüldü', 'badge-success'],
+    Cancelled: ['İptal Edildi', 'badge-muted'],
+    'İptal Edildi': ['İptal Edildi', 'badge-muted'],
+    Empty: ['Boş', 'badge-muted'],
+    Boş: ['Boş', 'badge-muted'],
+    PartiallyFull: ['Kısmen Dolu', 'badge-warning'],
+    'Kısmen Dolu': ['Kısmen Dolu', 'badge-warning'],
+    Full: ['Dolu', 'badge-success'],
+    Dolu: ['Dolu', 'badge-success'],
+    Maintenance: ['Bakımda', 'badge-danger'],
+    Bakımda: ['Bakımda', 'badge-danger'],
+    Aktif: ['Aktif', 'badge-success'],
+    Pasif: ['Pasif', 'badge-muted'],
+    'Çıkış Yaptı': ['Çıkış Yaptı', 'badge-muted']
   };
-  const computedTone = tone || toneMap[normalized] || '';
-  return `<span class="status-pill ${computedTone}">${escapeHtml(normalized)}</span>`;
+  const normalized = String(status || '');
+  const [label, tone] = map[normalized] || [normalized, 'badge-muted'];
+  return `<span class="badge ${tone}">${escapeHtml(label)}</span>`;
 }
 
 function roomDisplayStatus(status) {

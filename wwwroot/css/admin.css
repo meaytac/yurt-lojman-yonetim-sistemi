@@ -63,6 +63,11 @@ img { max-width: 100%; }
   font-weight: 700;
   color: var(--primary-navy);
 }
+.side-brand strong {
+  color: #ffffff;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
 .brand-lockup small, .side-brand small {
   display: block;
   color: var(--text-secondary);
@@ -92,7 +97,7 @@ img { max-width: 100%; }
   flex-direction: column;
   gap: 22px;
 }
-.side-brand small { color: rgba(255,255,255,0.75); }
+.side-brand small { color: #94a3b8; }
 .side-nav { display: grid; gap: 8px; }
 .nav-item {
   min-height: 46px;
@@ -276,7 +281,7 @@ th {
 td { font-size: 0.92rem; color: var(--text-primary); }
 tr:hover td { background: rgba(56, 189, 248, 0.02); }
 
-.status-pill {
+.badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -285,13 +290,32 @@ tr:hover td { background: rgba(56, 189, 248, 0.02); }
   padding: 4px 10px;
   font-size: 0.73rem;
   font-weight: 700;
-  background: rgba(5, 150, 105, 0.12);
-  color: var(--success);
 }
-.status-pill.ok { background: rgba(5, 150, 105, 0.12); color: var(--success); }
-.status-pill.warn { background: rgba(245, 158, 11, 0.12); color: var(--warning); }
-.status-pill.bad { background: rgba(220, 38, 38, 0.12); color: var(--danger); }
-.status-pill.off { background: rgba(100, 116, 139, 0.12); color: var(--text-secondary); }
+.badge-warning {
+  background: #fef3c7;
+  color: #d97706;
+  border: 1px solid #fde68a;
+}
+.badge-success {
+  background: #d1fae5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+.badge-danger {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+.badge-info {
+  background: #e0f2fe;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
+}
+.badge-muted {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
 
 .activity-list { display: grid; gap: 12px; margin-top: 14px; }
 .activity-item {
