@@ -1,68 +1,154 @@
 <!doctype html>
 <html lang="tr">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MTU Lojman ve Yurt Yonetimi</title>
+  <title>MTÜ Lojman ve Yurt Yönetimi</title>
   <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
   <header class="topbar">
-    <div>
-      <strong>Malatya Turgut Ozal Universitesi</strong>
-      <span>Lojman ve Yurt Yonetim Sistemi</span>
+    <div class="brand-section">
+      <img class="brand-logo" src="/img/mtu-amblem.png" alt="MTÜ amblemi">
+      <div>
+        <strong>Malatya Turgut Özal Üniversitesi</strong>
+        <span>Lojman ve Yurt Yönetimi</span>
+      </div>
     </div>
     <nav>
-      <a href="/index.html">Dashboard</a>
-      <a href="/admin.html">Admin</a>
-      <a href="/application.html">Basvuru</a>
-      <a href="/swagger">Swagger</a>
+      <a href="/index.html" class="active">Ana Sayfa</a>
+      <a href="/admin.html">Yönetim Paneli</a>
+      <a href="/application.html">Başvuru</a>
+      <a href="/swagger">API Dokümantasyonu</a>
     </nav>
   </header>
 
   <main class="shell">
-    <section class="panel login-panel">
-      <h1>Oturum</h1>
-      <div class="grid two">
-        <input id="email" type="email" value="admin@ozal.edu.tr" placeholder="E-posta">
-        <input id="password" type="password" value="Admin123!" placeholder="Sifre">
+    <section class="hero-section">
+      <div class="hero-content">
+        <h1>Yurt ve Lojman Başvuru &amp; Yönetim Sistemi</h1>
+        <p>Malatya Turgut Özal Üniversitesi öğrencisi ve personeli için modern konaklama çözümleri</p>
       </div>
-      <button id="loginBtn">Giris Yap</button>
-      <p id="loginState" class="muted"></p>
     </section>
 
-    <section class="metrics">
-      <article>
-        <span>Toplam Kapasite</span>
-        <strong id="totalCapacity">-</strong>
-      </article>
-      <article>
-        <span>Doluluk</span>
-        <strong id="occupancyRate">-</strong>
-      </article>
-      <article>
-        <span>Bekleyen Basvuru</span>
-        <strong id="pendingApplications">-</strong>
-      </article>
-      <article>
-        <span>Acik Ariza</span>
-        <strong id="openRequests">-</strong>
-      </article>
-      <article>
-        <span>Odenmemis Borc</span>
-        <strong id="unpaidDebts">-</strong>
-      </article>
+    <section class="panel login-panel">
+      <div class="panel-header">
+        <h2>Oturum Aç</h2>
+        <p>Sisteme erişim için giriş yapınız.</p>
+      </div>
+      <form id="loginForm" class="login-form">
+        <div class="form-group">
+          <label for="email">E-posta Adresi</label>
+          <input id="email" type="email" value="admin@ozal.edu.tr" placeholder="ornek@ozal.edu.tr" required>
+        </div>
+        <div class="form-group">
+          <label for="password">Şifre</label>
+          <input id="password" type="password" value="Admin123!" placeholder="••••••••" required>
+        </div>
+        <div class="form-options">
+          <label class="checkbox-label">
+            <input type="checkbox" id="rememberMe">
+            <span>Beni Hatırla</span>
+          </label>
+        </div>
+        <button type="submit" class="btn-primary">Giriş Yap</button>
+        <p id="loginState" class="login-message"></p>
+      </form>
     </section>
 
-    <section class="panel">
-      <h2>Son Duyurular</h2>
-      <div id="announcements" class="list"></div>
+    <section class="metrics-section">
+      <h2>Genel İstatistikler</h2>
+      <div class="metrics">
+        <article class="metric-card metric-capacity">
+          <div class="metric-icon">🏢</div>
+          <div class="metric-content">
+            <span>Toplam Kapasite</span>
+            <strong id="totalCapacity">-</strong>
+          </div>
+        </article>
+        <article class="metric-card metric-occupancy">
+          <div class="metric-icon">📊</div>
+          <div class="metric-content">
+            <span>Doluluk Oranı</span>
+            <strong id="occupancyRate">-</strong>
+          </div>
+        </article>
+        <article class="metric-card metric-applications">
+          <div class="metric-icon">📝</div>
+          <div class="metric-content">
+            <span>Bekleyen Başvuru</span>
+            <strong id="pendingApplications">-</strong>
+          </div>
+        </article>
+        <article class="metric-card metric-requests">
+          <div class="metric-icon">🔧</div>
+          <div class="metric-content">
+            <span>Açık Arıza</span>
+            <strong id="openRequests">-</strong>
+          </div>
+        </article>
+        <article class="metric-card metric-debt">
+          <div class="metric-icon">💰</div>
+          <div class="metric-content">
+            <span>Ödenmemiş Borç</span>
+            <strong id="unpaidDebts">-</strong>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel announcements-panel">
+      <div class="panel-header">
+        <h2>Son Duyurular</h2>
+        <p>Yurt ve lojman ile ilgili güncel duyurular</p>
+      </div>
+      <div id="announcements" class="announcements-list"></div>
+    </section>
+
+    <section class="quick-access">
+      <h2>Hızlı Erişim</h2>
+      <div class="quick-access-grid">
+        <a href="/application.html" class="quick-access-card">
+          <div class="card-icon">📋</div>
+          <h3>Yeni Başvuru</h3>
+          <p>Yurt veya lojman için başvuru yapın.</p>
+        </a>
+        <a href="/admin.html" class="quick-access-card">
+          <div class="card-icon">⚙️</div>
+          <h3>Yönetim Paneli</h3>
+          <p>Sistem yöneticileri için</p>
+        </a>
+        <a href="#" class="quick-access-card">
+          <div class="card-icon">📅</div>
+          <h3>Başvuru Takvimi</h3>
+          <p>Başvuru tarihleri ve süreçler</p>
+        </a>
+        <a href="#" class="quick-access-card">
+          <div class="card-icon">❓</div>
+          <h3>Yardım Merkezi</h3>
+          <p>Sıkça sorulan sorular</p>
+        </a>
+      </div>
     </section>
   </main>
 
+  <footer class="main-footer">
+    <div class="footer-content">
+      <p>&copy; 2024 Malatya Turgut Özal Üniversitesi. Tüm hakları saklıdır.</p>
+      <div class="footer-links">
+        <a href="#">İletişim</a>
+        <a href="#">Gizlilik Politikası</a>
+        <a href="#">Kullanım Koşulları</a>
+      </div>
+    </div>
+  </footer>
+
   <script src="/js/app.js"></script>
   <script>
-    document.getElementById('loginBtn').addEventListener('click', login);
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      login();
+    });
     loadDashboard();
     loadAnnouncements();
   </script>

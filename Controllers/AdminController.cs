@@ -223,6 +223,11 @@ public class AdminController(
     [HttpPost("placements/assign")]
     public async Task<ActionResult<AdminPlacementListItemDto>> Assign(AdminPlacementAssignRequest request, CancellationToken cancellationToken)
     {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
         try
         {
             var placement = await accommodationService.PlaceUserAsync(request.UserId, request.AccommodationType, request.RoomId, cancellationToken);
@@ -239,6 +244,10 @@ public class AdminController(
         {
             return BadRequest(ex.Message);
         }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+        }
     }
 
     [HttpPost("placements/{id:int}/checkout")]
@@ -252,6 +261,14 @@ public class AdminController(
         catch (KeyNotFoundException ex)
         {
             return NotFound(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
         }
     }
 }

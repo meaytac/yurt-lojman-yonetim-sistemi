@@ -11,34 +11,50 @@ namespace yurt_lojman_yonetim_sistemi.Controllers;
 public class AuthController(UserManager<AppUser> userManager, ITokenService tokenService) : ControllerBase
 {
     [HttpPost("register")]
-    public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
+public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
+{
+    if (request.Role is not (AppRoles.Ogrenci or AppRoles.Personel))
     {
-        if (!AppRoles.All.Contains(request.Role))
-        {
-            return BadRequest("Gecersiz rol.");
-        }
-
-        var user = new AppUser
-        {
-            UserName = request.Email,
-            Email = request.Email,
-            FullName = request.FullName,
-            TcNo = request.TcNo,
-            StudentStaffNo = request.StudentStaffNo,
-            PhoneNumber = request.PhoneNumber,
-            Role = request.Role
-        };
-
-        var result = await userManager.CreateAsync(user, request.Password);
-        if (!result.Succeeded)
-        {
-            return BadRequest(result.Errors);
-        }
-
-        await userManager.AddToRoleAsync(user, request.Role);
-        var token = await tokenService.CreateTokenAsync(user);
-        return Ok(new AuthResponse(user.Id, user.FullName, user.Email!, request.Role, token));
+        return BadRequest("Kayıt sırasında yalnızca öğrenci veya personel rolü seçilebilir.");
     }
+
+    var user = new AppUser
+    {
+        UserName = request.Email,
+        Email = request.Email,
+        FullName = request.FullName,
+        TcNo = request.TcNo,
+        StudentStaffNo = request.StudentStaffNo,
+        PhoneNumber = request.PhoneNumber,
+        Role = request.Role
+    };
+
+    var result = await userManager.CreateAsync(user, request.Password);
+
+    if (!result.Succeeded)
+    {
+        return BadRequest(result.Errors);
+    }
+
+    var roleResult = await userManager.AddToRoleAsync(user, request.Role);
+
+    if (!roleResult.Succeeded)
+    {
+        await userManager.DeleteAsync(user);
+
+        return BadRequest(roleResult.Errors);
+    }
+
+    var token = await tokenService.CreateTokenAsync(user);
+
+    return Ok(
+        new AuthResponse(
+            user.Id,
+            user.FullName,
+            user.Email!,
+            request.Role,
+            token));
+}
 
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)

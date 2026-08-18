@@ -5,6 +5,7 @@ const state = {
   facilities: [],
   rooms: [],
   users: { items: [], page: 1, pageSize: 10, totalCount: 0 },
+  applications: [],
   placements: [],
   roomPage: 1,
   roomPageSize: 10,
@@ -12,11 +13,12 @@ const state = {
 };
 
 const sectionTitles = {
-  dashboard: 'Dashboard',
-  facilities: 'Tesisler & Odalar',
-  rooms: 'Oda & Kat Yonetimi',
-  users: 'Kullanicilar',
-  placements: 'Yerlesim Takibi'
+  dashboard: 'Kontrol Paneli',
+  facilities: 'Tesisler',
+  rooms: 'Oda & Kat Yönetimi',
+  applications: 'Başvuru Yönetimi',
+  users: 'Kullanıcılar & Roller',
+  placements: 'Yerleşim Takibi'
 };
 
 const mock = createMockStore();
@@ -25,9 +27,13 @@ document.addEventListener('DOMContentLoaded', () => {
   bindShell();
   const token = localStorage.getItem(tokenKey);
   if (token) {
-    openApp(token);
+    openApp(token).catch(() => {
+      localStorage.removeItem(tokenKey);
+      showLoginView();
+      toast('Oturum doğrulanamadı. Tekrar giriş yapın.', true);
+    });
   } else {
-    autoDemoLogin();
+    showLoginView();
   }
 });
 
@@ -52,40 +58,40 @@ function bindShell() {
   document.getElementById('facilitySearch').addEventListener('input', renderFacilities);
   document.getElementById('roomSearch').addEventListener('input', () => { state.roomPage = 1; renderRooms(); });
   document.getElementById('roomStatusFilter').addEventListener('change', () => { state.roomPage = 1; renderRooms(); });
+  document.getElementById('applicationStatusFilter').addEventListener('change', loadApplications);
   document.getElementById('userSearch').addEventListener('input', debounce(() => loadUsers(1), 350));
   document.getElementById('roleFilter').addEventListener('change', () => loadUsers(1));
   document.getElementById('activePlacementsOnly').addEventListener('change', loadPlacements);
 }
 
-async function autoDemoLogin() {
-  try {
-    const result = await loginRequest('admin@ozal.edu.tr', 'Admin123!');
-    localStorage.setItem(tokenKey, result.token);
-    await openApp(result.token);
-  } catch {
-    state.fallbackMode = true;
-    const token = createDemoToken();
-    localStorage.setItem(tokenKey, token);
-    await openApp(token);
-    toast('API gecikmesi algilandi; panel yedek demo veriyle acildi.');
-  }
+function showLoginView() {
+  document.getElementById('loginGate').style.display = 'grid';
+  document.getElementById('appShell').style.display = 'none';
+  document.body.classList.remove('admin-authenticated');
+}
+
+function showAdminView() {
+  document.getElementById('loginGate').style.display = 'none';
+  document.getElementById('appShell').style.display = 'grid';
+  document.body.classList.add('admin-authenticated');
 }
 
 async function handleLogin(event) {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
+  const email = String(form.get('email') || '').trim();
+  const password = String(form.get('password') || '');
+
   try {
-    const result = await loginRequest(form.get('email'), form.get('password'));
+    const result = await loginRequest(email, password);
     localStorage.setItem(tokenKey, result.token);
     state.fallbackMode = false;
-    toast('Giris basarili.');
+    toast('Giriş başarılı.');
     await openApp(result.token);
   } catch (error) {
     state.fallbackMode = true;
-    const token = createDemoToken();
-    localStorage.setItem(tokenKey, token);
-    toast(`${error.message} Demo veriyle devam ediliyor.`, true);
-    await openApp(token);
+    toast(error.message || 'Giriş sırasında hata oluştu.', true);
+    showLoginView();
   }
 }
 
@@ -100,32 +106,32 @@ function loginRequest(email, password) {
 async function openApp(token) {
   const claims = parseJwt(token);
   const role = claims['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || claims.role || 'Admin';
-  document.getElementById('adminName').textContent = claims.fullName || claims.name || 'Sistem Yoneticisi';
+  document.getElementById('adminName').textContent = claims.fullName || claims.name || 'Sistem Yöneticisi';
   document.getElementById('adminRole').textContent = role;
-  document.getElementById('loginGate').hidden = true;
-  document.getElementById('appShell').hidden = false;
-  await Promise.allSettled([loadDashboard(), loadFacilities(), loadRooms(), loadUsers(1), loadPlacements()]);
+  showAdminView();
+  switchSection('dashboard');
+  await Promise.allSettled([loadDashboard(), loadFacilities(), loadRooms(), loadApplications(), loadUsers(1), loadPlacements()]);
 }
 
 function logout() {
   localStorage.removeItem(tokenKey);
-  document.getElementById('appShell').hidden = true;
-  document.getElementById('loginGate').hidden = false;
+  showLoginView();
+  toast('Çıkış yapıldı.');
 }
 
 function switchSection(id) {
   document.querySelectorAll('.page-section').forEach(section => section.classList.toggle('active', section.id === id));
   document.querySelectorAll('.nav-item[data-section]').forEach(button => button.classList.toggle('active', button.dataset.section === id));
-  document.getElementById('sectionTitle').textContent = sectionTitles[id] || 'Admin Portal';
+  document.getElementById('sectionTitle').textContent = sectionTitles[id] || 'Yönetim Paneli';
 }
 
 async function loadDashboard() {
   try {
-    state.stats = state.fallbackMode ? getMockStats() : await api('/api/admin/dashboard-stats');
+    state.stats = await api('/api/admin/dashboard-stats');
   } catch {
     state.fallbackMode = true;
     state.stats = getMockStats();
-    toast('Dashboard yedek demo veriyle dolduruldu.', true);
+    toast('Sunucu yanıt vermediği için demo veri yüklendi.', true);
   }
   renderDashboard();
 }
@@ -133,33 +139,41 @@ async function loadDashboard() {
 function renderDashboard() {
   const s = state.stats || getMockStats();
   const cards = [
-    ['Doluluk Orani', `${s.occupancyRate}%`, '◌'],
-    ['Toplam Oda', s.totalRoomCount, '▦'],
-    ['Bekleyen Basvuru', s.pendingApplicationCount, '⌁'],
-    ['Odenmemis Borc', money(s.totalUnpaidAndOverdueDebt), '₺'],
-    ['Yurt / Lojman', `${s.dormitoryCount} / ${s.housingUnitCount}`, '⌂'],
-    ['Toplam Kapasite', s.totalCapacity, '▤'],
-    ['Bakimdaki Oda', s.maintenanceRoomCount, '⚙'],
-    ['Acik Talep', s.openRequestCount, '●']
+    ['Doluluk Oranı', `${s.occupancyRate ?? 0}%`, '📊'],
+    ['Bekleyen Başvuru', s.pendingApplicationCount ?? 0, '📝'],
+    ['Açık Arıza', s.openRequestCount ?? 0, '🔧'],
+    ['Ödenmemiş Borç', money(s.totalUnpaidAndOverdueDebt ?? 0), '💰']
   ];
 
   document.getElementById('kpiGrid').innerHTML = cards.map(([label, value, icon]) => `
     <article class="kpi-card">
-      <div class="kpi-top"><span class="kpi-label">${label}</span><span class="kpi-icon">${icon}</span></div>
+      <div class="kpi-top">
+        <span class="kpi-label">${label}</span>
+        <span class="kpi-icon">${icon}</span>
+      </div>
       <div class="kpi-value">${value}</div>
-    </article>`).join('');
+    </article>
+  `).join('');
 
-  document.getElementById('recentApplications').innerHTML = emptyOr(s.recentApplications, item => `
+  document.getElementById('recentApplications').innerHTML = emptyOr(s.recentApplications || [], item => `
     <div class="activity-item">
-      <div><strong>${escapeHtml(item.fullName)}</strong><small>${item.accommodationType} - ${item.status}</small></div>
+      <div>
+        <strong>${escapeHtml(item.fullName)}</strong>
+        <small>${escapeHtml(item.accommodationType)} - ${pillText(item.status)}</small>
+      </div>
       <small>${date(item.createdAt)}</small>
-    </div>`);
+    </div>
+  `);
 
-  document.getElementById('recentRequests').innerHTML = emptyOr(s.recentRequests, item => `
+  document.getElementById('recentRequests').innerHTML = emptyOr(s.recentRequests || [], item => `
     <div class="activity-item">
-      <div><strong>${escapeHtml(item.category)} / Oda ${escapeHtml(item.roomNumber)}</strong><small>${escapeHtml(item.fullName)} - ${item.status}</small></div>
+      <div>
+        <strong>${escapeHtml(item.category)} / Oda ${escapeHtml(item.roomNumber)}</strong>
+        <small>${escapeHtml(item.fullName)} - ${pillText(item.status)}</small>
+      </div>
       <small>${date(item.createdAt)}</small>
-    </div>`);
+    </div>
+  `);
 }
 
 async function loadFacilities() {
@@ -174,23 +188,28 @@ async function loadFacilities() {
 
 function renderFacilities() {
   const term = document.getElementById('facilitySearch').value.toLowerCase();
-  const rows = state.facilities.filter(x =>
-    !term || x.name.toLowerCase().includes(term) || x.campusLocation.toLowerCase().includes(term) || x.type.toLowerCase().includes(term));
+  const rows = state.facilities.filter(x => {
+    const name = String(x.name || '').toLowerCase();
+    const campus = String(x.campusLocation || '').toLowerCase();
+    const type = String(x.type || '').toLowerCase();
+    return !term || name.includes(term) || campus.includes(term) || type.includes(term);
+  });
 
   document.getElementById('facilityRows').innerHTML = emptyTable(rows, item => `
     <tr>
       <td><strong>${escapeHtml(item.name)}</strong></td>
-      <td>${item.type}</td>
+      <td>${escapeHtml(item.type)}</td>
       <td>${escapeHtml(item.campusLocation)}</td>
       <td>${item.totalCapacity}</td>
-      <td>${item.buildingCount}</td>
-      <td>${pill(item.isActive ? 'Aktif' : 'Pasif', item.isActive ? 'ok' : 'off')}</td>
+      <td>${item.buildingCount ?? 0}</td>
+      <td>${pillText(item.isActive ? 'Aktif' : 'Pasif', item.isActive ? 'ok' : 'off')}</td>
       <td>
-        <button class="row-btn" onclick="editFacility('${item.type}', ${item.id})">Duzenle</button>
-        <button class="row-btn warn" onclick="toggleFacility('${item.type}', ${item.id}, ${!item.isActive})">${item.isActive ? 'Pasiflestir' : 'Aktiflestir'}</button>
+        <button class="row-btn" onclick="editFacility('${item.type}', ${item.id})">Düzenle</button>
+        <button class="row-btn warn" onclick="toggleFacility('${item.type}', ${item.id}, ${!item.isActive})">${item.isActive ? 'Pasifleştir' : 'Aktifleştir'}</button>
         <button class="row-btn danger" onclick="deleteFacility('${item.type}', ${item.id})">Sil</button>
       </td>
-    </tr>`);
+    </tr>
+  `);
 }
 
 async function loadRooms() {
@@ -206,9 +225,12 @@ async function loadRooms() {
 function renderRooms() {
   const term = document.getElementById('roomSearch').value.toLowerCase();
   const status = document.getElementById('roomStatusFilter').value;
-  const filtered = state.rooms.filter(x =>
-    (!term || x.roomNumber.toLowerCase().includes(term) || x.facilityName.toLowerCase().includes(term) || x.blockName.toLowerCase().includes(term)) &&
-    (!status || x.status === status));
+  const filtered = state.rooms.filter(x => {
+    const roomText = String(x.roomNumber || '').toLowerCase();
+    const facilityText = String(x.facilityName || '').toLowerCase();
+    const blockText = String(x.blockName || '').toLowerCase();
+    return (!term || roomText.includes(term) || facilityText.includes(term) || blockText.includes(term)) && (!status || x.status === status);
+  });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / state.roomPageSize));
   state.roomPage = Math.min(state.roomPage, totalPages);
@@ -221,15 +243,16 @@ function renderRooms() {
       <td>${escapeHtml(item.facilityName)}</td>
       <td>${escapeHtml(item.blockName)} / ${item.floorNumber}</td>
       <td>${item.capacity}</td>
-      <td>${item.currentOccupancy}</td>
+      <td>${item.currentOccupancy} / ${item.capacity}</td>
       <td>${money(item.price)}</td>
-      <td>${pill(item.status, item.status === 'Maintenance' ? 'bad' : item.status === 'Empty' ? 'off' : 'ok')}</td>
+      <td>${pillText(roomDisplayStatus(item.status), item.status)}</td>
       <td>
-        <button class="row-btn" onclick="editRoom(${item.id})">Duzenle</button>
+        <button class="row-btn" onclick="editRoom(${item.id})">Düzenle</button>
         <button class="row-btn" onclick="showOccupants(${item.id})">Detay</button>
         <button class="row-btn danger" onclick="deleteRoom(${item.id})">Sil</button>
       </td>
-    </tr>`);
+    </tr>
+  `);
 
   renderPager('roomPager', state.roomPage, totalPages, next => { state.roomPage = next; renderRooms(); });
 }
@@ -249,7 +272,7 @@ async function loadUsers(page = state.users.page) {
 }
 
 function renderUsers() {
-  document.getElementById('userRows').innerHTML = emptyTable(state.users.items, item => `
+  document.getElementById('userRows').innerHTML = emptyTable(state.users.items || [], item => `
     <tr>
       <td><strong>${escapeHtml(item.fullName)}</strong></td>
       <td>${escapeHtml(item.email)}</td>
@@ -260,12 +283,13 @@ function renderUsers() {
           ${['Ogrenci', 'Personel', 'Yetkili', 'Admin'].map(role => `<option value="${role}" ${role === item.role ? 'selected' : ''}>${role}</option>`).join('')}
         </select>
       </td>
-      <td>${pill(item.isActive ? 'Aktif' : 'Donuk', item.isActive ? 'ok' : 'bad')}</td>
+      <td>${pillText(item.isActive ? 'Aktif' : 'Pasif', item.isActive ? 'ok' : 'off')}</td>
       <td><button class="row-btn warn" onclick="setUserStatus('${item.id}', ${!item.isActive})">${item.isActive ? 'Dondur' : 'Aktif Et'}</button></td>
-    </tr>`);
+    </tr>
+  `);
 
-  const totalPages = Math.max(1, Math.ceil(state.users.totalCount / state.users.pageSize));
-  renderPager('userPager', state.users.page, totalPages, loadUsers);
+  const totalPages = Math.max(1, Math.ceil((state.users.totalCount || 0) / (state.users.pageSize || 10)));
+  renderPager('userPager', state.users.page || 1, totalPages, loadUsers);
 }
 
 async function loadPlacements() {
@@ -283,15 +307,47 @@ async function loadPlacements() {
 }
 
 function renderPlacements() {
-  document.getElementById('placementRows').innerHTML = emptyTable(state.placements, item => `
+  document.getElementById('placementRows').innerHTML = emptyTable(state.placements || [], item => `
     <tr>
       <td><strong>${escapeHtml(item.fullName)}</strong></td>
       <td>${escapeHtml(item.roomNumber)}</td>
       <td>${date(item.checkInDate)}</td>
       <td>${item.checkOutDate ? date(item.checkOutDate) : '-'}</td>
-      <td>${pill(item.isActive ? 'Aktif' : 'Cikis Yapti', item.isActive ? 'ok' : 'off')}</td>
-      <td>${item.isActive ? `<button class="row-btn warn" onclick="checkout(${item.id})">Cikis</button>` : '-'}</td>
-    </tr>`);
+      <td>${pillText(item.isActive ? 'Aktif' : 'Çıkış Yaptı', item.isActive ? 'ok' : 'off')}</td>
+      <td>${item.isActive ? `<button class="row-btn warn" onclick="checkout(${item.id})">Çıkış Yap</button>` : '-'}</td>
+    </tr>
+  `);
+}
+
+async function loadApplications() {
+  try {
+    const status = document.getElementById('applicationStatusFilter').value;
+    const statusParam = status ? `?status=${status}` : '';
+    state.applications = state.fallbackMode
+      ? clone(mock.recentApplications).filter(x => !status || x.status === status)
+      : await api(`/api/admin/applications${statusParam}`);
+  } catch {
+    state.fallbackMode = true;
+    const status = document.getElementById('applicationStatusFilter').value;
+    state.applications = clone(mock.recentApplications).filter(x => !status || x.status === status);
+  }
+  renderApplications();
+}
+
+function renderApplications() {
+  document.getElementById('applicationRows').innerHTML = emptyTable(state.applications || [], item => `
+    <tr>
+      <td><strong>${escapeHtml(item.fullName)}</strong></td>
+      <td>${escapeHtml(item.tcNo)}</td>
+      <td>${escapeHtml(item.studentStaffNo || '-')}</td>
+      <td>${escapeHtml(item.accommodationType)}</td>
+      <td>${pillText(applicationStatusDisplay(item.status), item.status)}</td>
+      <td>${date(item.createdAt)}</td>
+      <td>
+        ${item.status === 'Pending' ? `<button class="row-btn" onclick="openAssignModal(${item.id}, '${item.userId}', '${escapeAttr(item.fullName)}', '${item.accommodationType}')">Odaya Yerleştir</button>` : '-'}
+      </td>
+    </tr>
+  `);
 }
 
 function openNamedModal(name) {
@@ -302,14 +358,18 @@ function openNamedModal(name) {
     roomModal: roomForm(),
     assignModal: assignForm()
   };
+  if (!forms[name]) return;
   openModal(forms[name].title, forms[name].html, forms[name].bind);
 }
 
 function facilityForm(item = null, type = 'Yurt') {
   return {
-    title: item ? 'Tesis Duzenle' : 'Yeni Tesis',
+    title: item ? 'Tesis Düzenle' : 'Yeni Tesis',
     html: `<form id="facilityForm" class="form-grid two">
-      <label>Tur<select name="type" ${item ? 'disabled' : ''}><option ${type === 'Yurt' ? 'selected' : ''}>Yurt</option><option ${type === 'Lojman' ? 'selected' : ''}>Lojman</option></select></label>
+      <label>Tür<select name="type" ${item ? 'disabled' : ''}>
+        <option ${type === 'Yurt' ? 'selected' : ''}>Yurt</option>
+        <option ${type === 'Lojman' ? 'selected' : ''}>Lojman</option>
+      </select></label>
       <label>Durum<select name="isActive"><option value="true" ${item?.isActive !== false ? 'selected' : ''}>Aktif</option><option value="false" ${item?.isActive === false ? 'selected' : ''}>Pasif</option></select></label>
       <label class="full">Ad<input name="name" value="${escapeAttr(item?.name)}" required></label>
       <label class="full">Kampus<input name="campusLocation" value="${escapeAttr(item?.campusLocation)}" required></label>
@@ -326,13 +386,11 @@ function buildingForm() {
   return {
     title: 'Blok / Bina Ekle',
     html: `<form id="buildingForm" class="form-grid">
-      <label>Bagli Tesis
-        <select name="facility">
-          ${dorms.map(x => `<option value="d-${x.id}">Yurt - ${escapeHtml(x.name)}</option>`).join('')}
-          ${units.map(x => `<option value="h-${x.id}">Lojman - ${escapeHtml(x.name)}</option>`).join('')}
-        </select>
-      </label>
-      <label>Blok Adi<input name="blockName" required placeholder="A Blok"></label>
+      <label>Bağlı Tesis<select name="facility">
+        ${dorms.map(x => `<option value="d-${x.id}">Yurt - ${escapeHtml(x.name)}</option>`).join('')}
+        ${units.map(x => `<option value="h-${x.id}">Lojman - ${escapeHtml(x.name)}</option>`).join('')}
+      </select></label>
+      <label>Blok Adı<input name="blockName" required placeholder="A Blok"></label>
       <button class="primary-btn" type="submit">Kaydet</button>
     </form>`,
     bind: () => document.getElementById('buildingForm').addEventListener('submit', submitBuilding)
@@ -343,7 +401,7 @@ function floorForm() {
   return {
     title: 'Kat Ekle',
     html: `<form id="floorForm" class="form-grid">
-      <label>Bina/Blok Id<input name="buildingId" type="number" min="1" value="1" required></label>
+      <label>Bina / Blok Id<input name="buildingId" type="number" min="1" value="1" required></label>
       <label>Kat No<input name="floorNumber" type="number" min="0" value="1" required></label>
       <button class="primary-btn" type="submit">Kaydet</button>
     </form>`,
@@ -353,14 +411,14 @@ function floorForm() {
 
 function roomForm(item = null) {
   return {
-    title: item ? 'Oda Duzenle' : 'Yeni Oda',
+    title: item ? 'Oda Düzenle' : 'Yeni Oda',
     html: `<form id="roomForm" class="form-grid two">
       <label>Kat Id<input name="blockFloorId" type="number" min="1" value="${item?.blockFloorId ?? 1}" required></label>
       <label>Oda No<input name="roomNumber" value="${escapeAttr(item?.roomNumber)}" required></label>
       <label>Kapasite<input name="capacity" type="number" min="1" value="${item?.capacity ?? 1}" required></label>
       <label>Fiyat<input name="price" type="number" min="0" step="0.01" value="${item?.price ?? 0}" required></label>
       <label class="full">Durum<select name="status">
-        ${['Empty', 'PartiallyFull', 'Full', 'Maintenance'].map(x => `<option ${x === item?.status ? 'selected' : ''}>${x}</option>`).join('')}
+        ${['Empty', 'PartiallyFull', 'Full', 'Maintenance'].map(x => `<option value="${x}" ${x === item?.status ? 'selected' : ''}>${roomDisplayStatus(x)}</option>`).join('')}
       </select></label>
       <button class="primary-btn full" type="submit">Kaydet</button>
     </form>`,
@@ -371,31 +429,49 @@ function roomForm(item = null) {
 function assignForm() {
   const assignableUsers = state.users.items.length ? state.users.items : mock.users;
   return {
-    title: 'Kullaniciyi Odaya Ata',
+    title: 'Kullanıcıyı Odaya Ata',
     html: `<form id="assignForm" class="form-grid">
-      <label>Kullanici
-        <select name="userId">${assignableUsers.map(x => `<option value="${x.id}">${escapeHtml(x.fullName)} - ${x.role}</option>`).join('')}</select>
-      </label>
-      <label>Oda
-        <select name="roomId">${state.rooms.filter(x => x.status !== 'Maintenance' && x.currentOccupancy < x.capacity).map(x => `<option value="${x.id}">${escapeHtml(x.roomNumber)} - ${escapeHtml(x.facilityName)}</option>`).join('')}</select>
-      </label>
-      <label>Konaklama Turu<select name="accommodationType"><option>Yurt</option><option>Lojman</option></select></label>
+      <label>Kullanıcı<select name="userId">${assignableUsers.map(x => `<option value="${x.id}">${escapeHtml(x.fullName)} - ${escapeHtml(x.role)}</option>`).join('')}</select></label>
+      <label>Oda<select name="roomId">${state.rooms.filter(x => x.status !== 'Maintenance' && x.currentOccupancy < x.capacity).map(x => `<option value="${x.id}">${escapeHtml(x.roomNumber)} - ${escapeHtml(x.facilityName)}</option>`).join('')}</select></label>
+      <label>Konaklama Türü<select name="accommodationType"><option value="Yurt">Yurt</option><option value="Lojman">Lojman</option></select></label>
       <button class="primary-btn" type="submit">Ata</button>
     </form>`,
     bind: () => document.getElementById('assignForm').addEventListener('submit', submitAssign)
   };
 }
 
+function openAssignModal(applicationId, userId, fullName, accommodationType) {
+  const availableRooms = state.rooms.filter(x => x.status !== 'Maintenance' && x.currentOccupancy < x.capacity);
+  const form = {
+    title: `${fullName} - Odaya Yerleştir`,
+    html: `<form id="assignForm" class="form-grid">
+      <input type="hidden" name="applicationId" value="${applicationId}">
+      <input type="hidden" name="userId" value="${userId}">
+      <input type="hidden" name="accommodationType" value="${accommodationType}">
+      <label>Oda Seç<select name="roomId">${availableRooms.map(x => `<option value="${x.id}">${escapeHtml(x.roomNumber)} - ${escapeHtml(x.facilityName)} (${x.currentOccupancy}/${x.capacity})</option>`).join('')}</select></label>
+      <button class="primary-btn" type="submit">Odaya Yerleştir</button>
+    </form>`,
+    bind: () => document.getElementById('assignForm').addEventListener('submit', submitApplicationAssign)
+  };
+  openModal(form.title, form.html, form.bind);
+}
+
 function openModal(title, html, bind) {
   document.getElementById('modalTitle').textContent = title;
   document.getElementById('modalBody').innerHTML = html;
-  document.getElementById('modalBackdrop').hidden = false;
+  const backdrop = document.getElementById('modalBackdrop');
+  backdrop.style.display = 'grid';
+  setTimeout(() => backdrop.classList.add('show'), 20);
   bind();
 }
 
 function closeModal() {
-  document.getElementById('modalBackdrop').hidden = true;
-  document.getElementById('modalBody').innerHTML = '';
+  const backdrop = document.getElementById('modalBackdrop');
+  backdrop.classList.remove('show');
+  setTimeout(() => {
+    backdrop.style.display = 'none';
+    document.getElementById('modalBody').innerHTML = '';
+  }, 180);
 }
 
 function bindFacilitySubmit(item) {
@@ -462,6 +538,14 @@ async function submitAssign(event) {
   }, async () => Promise.all([loadRooms(), loadPlacements(), loadDashboard()]));
 }
 
+async function submitApplicationAssign(event) {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  await saveAndRefresh(`/api/admin/applications/${data.applicationId}/assign`, 'POST', {
+    roomId: Number(data.roomId)
+  }, async () => Promise.all([loadApplications(), loadRooms(), loadPlacements(), loadDashboard()]));
+}
+
 async function saveAndRefresh(url, method, body, refresh) {
   try {
     const options = { method, headers: { 'Content-Type': 'application/json' } };
@@ -470,25 +554,27 @@ async function saveAndRefresh(url, method, body, refresh) {
     }
     await api(url, options);
     closeModalIfOpen();
-    toast('Islem basarili.');
+    toast('İşlem başarılı.');
     await refresh();
   } catch (error) {
     state.fallbackMode = true;
     applyMockMutation(url, method, body);
     closeModalIfOpen();
-    toast('Demo modda islem uygulandi ve tablo guncellendi.');
+    toast(error.message || 'Demo modda işlem uygulandı.', true);
     await refresh();
   }
 }
 
 function closeModalIfOpen() {
-  if (!document.getElementById('modalBackdrop').hidden) {
+  const backdrop = document.getElementById('modalBackdrop');
+  if (backdrop.style.display !== 'none') {
     closeModal();
   }
 }
 
 function editFacility(type, id) {
   const item = state.facilities.find(x => x.type === type && x.id === id);
+  if (!item) return;
   const form = facilityForm(item, type);
   openModal(form.title, form.html, form.bind);
 }
@@ -506,12 +592,12 @@ async function deleteFacility(type, id) {
 
 function editRoom(id) {
   const item = state.rooms.find(x => x.id === id);
-  const form = roomForm(item);
-  openModal(form.title, form.html, form.bind);
+  if (!item) return;
+  openModal('Oda Düzenle', roomForm(item).html, roomForm(item).bind);
 }
 
 async function deleteRoom(id) {
-  if (!confirm('Bu odayi silmek istiyor musunuz?')) return;
+  if (!confirm('Bu odayı silmek istiyor musunuz?')) return;
   await saveAndRefresh(`/api/admin/rooms/${id}`, 'DELETE', null, loadRooms);
 }
 
@@ -520,20 +606,29 @@ async function showOccupants(id) {
     const data = state.fallbackMode ? getMockOccupants(id) : await api(`/api/admin/rooms/${id}/occupants`);
     openModal(`Oda ${data.roomNumber} Sakinleri`, `
       <div class="activity-list">
-        ${emptyOr(data.occupants, x => `<div class="activity-item"><div><strong>${escapeHtml(x.fullName)}</strong><small>${escapeHtml(x.role)} - ${escapeHtml(x.tcNo)}</small></div><small>${date(x.checkInDate)}</small></div>`)}
-      </div>`, () => {});
+        ${emptyOr(data.occupants || [], x => `
+          <div class="activity-item">
+            <div>
+              <strong>${escapeHtml(x.fullName)}</strong>
+              <small>${escapeHtml(x.role)} - ${escapeHtml(x.tcNo)}</small>
+            </div>
+            <small>${date(x.checkInDate)}</small>
+          </div>
+        `)}
+      </div>
+    `, () => {});
   } catch {
     const data = getMockOccupants(id);
-    openModal(`Oda ${data.roomNumber} Sakinleri`, `<div class="activity-list">${emptyOr(data.occupants, x => `<div class="activity-item"><div><strong>${escapeHtml(x.fullName)}</strong><small>${escapeHtml(x.role)} - ${escapeHtml(x.tcNo)}</small></div><small>${date(x.checkInDate)}</small></div>`)}</div>`, () => {});
+    openModal(`Oda ${data.roomNumber} Sakinleri`, `<div class="activity-list">${emptyOr(data.occupants || [], x => `<div class="activity-item"><div><strong>${escapeHtml(x.fullName)}</strong><small>${escapeHtml(x.role)} - ${escapeHtml(x.tcNo)}</small></div><small>${date(x.checkInDate)}</small></div>`)}</div>`, () => {});
   }
 }
 
 async function changeUserRole(id, role) {
-  await saveAndRefresh(`/api/admin/users/${id}/role`, 'PATCH', { role }, () => loadUsers(state.users.page));
+  await saveAndRefresh(`/api/admin/users/${id}/role`, 'PATCH', { role }, () => loadUsers(state.users.page || 1));
 }
 
 async function setUserStatus(id, isActive) {
-  await saveAndRefresh(`/api/admin/users/${id}/status`, 'PATCH', { isActive }, () => loadUsers(state.users.page));
+  await saveAndRefresh(`/api/admin/users/${id}/status`, 'PATCH', { isActive }, () => loadUsers(state.users.page || 1));
 }
 
 async function checkout(id) {
@@ -544,20 +639,21 @@ async function api(path, options = {}, attachToken = true) {
   const headers = { ...(options.headers || {}) };
   if (attachToken) {
     const token = localStorage.getItem(tokenKey);
-    if (!token) throw new Error('Oturum bulunamadi.');
+    if (!token) throw new Error('Oturum bulunamadı.');
     headers.Authorization = `Bearer ${token}`;
   }
 
   const response = await fetch(path, { ...options, headers });
   if (response.status === 401 || response.status === 403) {
-    throw new Error('Yetkisiz oturum. Lutfen tekrar giris yapin.');
+    throw new Error('Yetkisiz oturum. Lütfen tekrar giriş yapın.');
   }
   if (!response.ok) {
     const text = await response.text();
     throw new Error(text || response.statusText);
   }
   if (response.status === 204) return null;
-  return response.json();
+  const contentType = response.headers.get('content-type') || '';
+  return contentType.includes('application/json') ? response.json() : null;
 }
 
 function applyMockMutation(url, method, body) {
@@ -611,11 +707,37 @@ function applyMockMutation(url, method, body) {
         room.status = room.currentOccupancy === 0 ? 'Empty' : 'PartiallyFull';
       }
     }
+  } else if (url.includes('/applications/') && url.endsWith('/assign') && body) {
+    const application = mock.recentApplications.find(x => x.id === id);
+    if (application && application.status === 'Pending') {
+      application.status = 'Approved';
+      const room = mock.rooms.find(x => x.id === body.roomId);
+      if (room) {
+        room.currentOccupancy = Math.min(room.capacity, room.currentOccupancy + 1);
+        room.status = room.currentOccupancy >= room.capacity ? 'Full' : 'PartiallyFull';
+        const user = mock.users.find(x => x.id === application.userId);
+        if (user) {
+          const placementId = Math.max(...mock.placements.map(x => x.id), 0) + 1;
+          mock.placements.unshift({
+            id: placementId,
+            userId: user.id,
+            fullName: user.fullName,
+            roomId: room.id,
+            roomNumber: room.roomNumber,
+            checkInDate: new Date().toISOString(),
+            checkOutDate: null,
+            isActive: true
+          });
+        }
+      }
+    }
   } else if (url.includes('/users/') && url.endsWith('/role') && body) {
-    const user = mock.users.find(x => url.includes(x.id));
+    const matches = url.match(/\/users\/([^\/]+)/);
+    const user = mock.users.find(x => x.id === matches?.[1]);
     if (user) user.role = body.role;
   } else if (url.includes('/users/') && url.endsWith('/status') && body) {
-    const user = mock.users.find(x => url.includes(x.id));
+    const matches = url.match(/\/users\/([^\/]+)/);
+    const user = mock.users.find(x => x.id === matches?.[1]);
     if (user) user.isActive = body.isActive;
   } else if ((url.includes('/dormitories') || url.includes('/housing-units')) && method === 'POST' && body) {
     const type = url.includes('/dormitories') ? 'Yurt' : 'Lojman';
@@ -688,44 +810,44 @@ function createMockStore() {
   const isoDaysAgo = days => new Date(now.getTime() - days * 86400000).toISOString();
   return {
     facilities: [
-      { id: 1, name: 'MTU Merkez Ogrenci Yurdu', type: 'Yurt', campusLocation: 'Battalgazi Yerleskesi', totalCapacity: 11, isActive: true, buildingCount: 1 },
-      { id: 2, name: 'Yesilyurt Kiz Ogrenci Yurdu', type: 'Yurt', campusLocation: 'Yesilyurt Yerleskesi', totalCapacity: 8, isActive: true, buildingCount: 1 },
-      { id: 3, name: 'MTU Personel Lojmanlari', type: 'Lojman', campusLocation: 'Battalgazi Yerleskesi', totalCapacity: 2, isActive: true, buildingCount: 1 }
+      { id: 1, name: 'MTÜ Merkez Öğrenci Yurdu', type: 'Yurt', campusLocation: 'Battalgazi Yerleşkesi', totalCapacity: 11, isActive: true, buildingCount: 1 },
+      { id: 2, name: 'Yeşilyurt Kız Öğrenci Yurdu', type: 'Yurt', campusLocation: 'Yeşilyurt Yerleşkesi', totalCapacity: 8, isActive: true, buildingCount: 1 },
+      { id: 3, name: 'MTÜ Personel Lojmanları', type: 'Lojman', campusLocation: 'Battalgazi Yerleşkesi', totalCapacity: 2, isActive: true, buildingCount: 1 }
     ],
     rooms: [
-      { id: 1, blockFloorId: 1, facilityName: 'MTU Merkez Ogrenci Yurdu', blockName: 'A Blok', floorNumber: 1, roomNumber: '101', capacity: 4, currentOccupancy: 1, status: 'PartiallyFull', price: 2500 },
-      { id: 2, blockFloorId: 1, facilityName: 'MTU Merkez Ogrenci Yurdu', blockName: 'A Blok', floorNumber: 1, roomNumber: '102', capacity: 4, currentOccupancy: 1, status: 'PartiallyFull', price: 2500 },
-      { id: 3, blockFloorId: 2, facilityName: 'MTU Merkez Ogrenci Yurdu', blockName: 'A Blok', floorNumber: 2, roomNumber: '201', capacity: 3, currentOccupancy: 0, status: 'Empty', price: 2700 },
-      { id: 4, blockFloorId: 3, facilityName: 'Yesilyurt Kiz Ogrenci Yurdu', blockName: 'B Blok', floorNumber: 1, roomNumber: 'B-103', capacity: 4, currentOccupancy: 0, status: 'Empty', price: 2400 },
-      { id: 5, blockFloorId: 3, facilityName: 'Yesilyurt Kiz Ogrenci Yurdu', blockName: 'B Blok', floorNumber: 1, roomNumber: 'B-104', capacity: 4, currentOccupancy: 0, status: 'Maintenance', price: 2400 },
-      { id: 6, blockFloorId: 4, facilityName: 'MTU Personel Lojmanlari', blockName: 'L Blok', floorNumber: 1, roomNumber: 'L101', capacity: 1, currentOccupancy: 1, status: 'Full', price: 5500 },
-      { id: 7, blockFloorId: 4, facilityName: 'MTU Personel Lojmanlari', blockName: 'L Blok', floorNumber: 1, roomNumber: 'L102', capacity: 1, currentOccupancy: 0, status: 'Empty', price: 5750 }
+      { id: 1, blockFloorId: 1, facilityName: 'MTÜ Merkez Öğrenci Yurdu', blockName: 'A Blok', floorNumber: 1, roomNumber: '101', capacity: 4, currentOccupancy: 1, status: 'PartiallyFull', price: 2500 },
+      { id: 2, blockFloorId: 1, facilityName: 'MTÜ Merkez Öğrenci Yurdu', blockName: 'A Blok', floorNumber: 1, roomNumber: '102', capacity: 4, currentOccupancy: 1, status: 'PartiallyFull', price: 2500 },
+      { id: 3, blockFloorId: 2, facilityName: 'MTÜ Merkez Öğrenci Yurdu', blockName: 'A Blok', floorNumber: 2, roomNumber: '201', capacity: 3, currentOccupancy: 0, status: 'Empty', price: 2700 },
+      { id: 4, blockFloorId: 3, facilityName: 'Yeşilyurt Kız Öğrenci Yurdu', blockName: 'B Blok', floorNumber: 1, roomNumber: 'B-103', capacity: 4, currentOccupancy: 0, status: 'Empty', price: 2400 },
+      { id: 5, blockFloorId: 3, facilityName: 'Yeşilyurt Kız Öğrenci Yurdu', blockName: 'B Blok', floorNumber: 1, roomNumber: 'B-104', capacity: 4, currentOccupancy: 0, status: 'Maintenance', price: 2400 },
+      { id: 6, blockFloorId: 4, facilityName: 'MTÜ Personel Lojmanları', blockName: 'L Blok', floorNumber: 1, roomNumber: 'L101', capacity: 1, currentOccupancy: 1, status: 'Full', price: 5500 },
+      { id: 7, blockFloorId: 4, facilityName: 'MTÜ Personel Lojmanları', blockName: 'L Blok', floorNumber: 1, roomNumber: 'L102', capacity: 1, currentOccupancy: 0, status: 'Empty', price: 5750 }
     ],
     users: [
-      { id: '11111111-1111-1111-1111-111111111111', fullName: 'Sistem Yoneticisi', email: 'admin@ozal.edu.tr', phoneNumber: '+904220000001', tcNo: '11111111111', studentStaffNo: 'ADMIN-001', role: 'Admin', isActive: true, createdAt: isoDaysAgo(20) },
-      { id: '22222222-2222-2222-2222-222222222222', fullName: 'Yurt Isleri Yetkilisi', email: 'yetkili@ozal.edu.tr', phoneNumber: '+904220000002', tcNo: '22222222222', studentStaffNo: 'PER-100', role: 'Yetkili', isActive: true, createdAt: isoDaysAgo(18) },
-      { id: '33333333-3333-3333-3333-333333333333', fullName: 'Ayse Yilmaz', email: 'ayse.yilmaz@ogr.ozal.edu.tr', phoneNumber: '+905550000001', tcNo: '33333333333', studentStaffNo: 'OGR-2026-001', role: 'Ogrenci', isActive: true, createdAt: isoDaysAgo(15) },
+      { id: '11111111-1111-1111-1111-111111111111', fullName: 'Sistem Yöneticisi', email: 'admin@ozal.edu.tr', phoneNumber: '+904220000001', tcNo: '11111111111', studentStaffNo: 'ADMIN-001', role: 'Admin', isActive: true, createdAt: isoDaysAgo(20) },
+      { id: '22222222-2222-2222-2222-222222222222', fullName: 'Yurt İşleri Yetkilisi', email: 'yetkili@ozal.edu.tr', phoneNumber: '+904220000002', tcNo: '22222222222', studentStaffNo: 'PER-100', role: 'Yetkili', isActive: true, createdAt: isoDaysAgo(18) },
+      { id: '33333333-3333-3333-3333-333333333333', fullName: 'Ayşe Yılmaz', email: 'ayse.yilmaz@ogr.ozal.edu.tr', phoneNumber: '+905550000001', tcNo: '33333333333', studentStaffNo: 'OGR-2026-001', role: 'Ogrenci', isActive: true, createdAt: isoDaysAgo(15) },
       { id: '44444444-4444-4444-4444-444444444444', fullName: 'Mehmet Kaya', email: 'mehmet.kaya@ogr.ozal.edu.tr', phoneNumber: '+905550000002', tcNo: '44444444444', studentStaffNo: 'OGR-2026-002', role: 'Ogrenci', isActive: true, createdAt: isoDaysAgo(15) },
       { id: '55555555-5555-5555-5555-555555555555', fullName: 'Zeynep Demir', email: 'zeynep.demir@ogr.ozal.edu.tr', phoneNumber: '+905550000003', tcNo: '55555555555', studentStaffNo: 'OGR-2026-003', role: 'Ogrenci', isActive: true, createdAt: isoDaysAgo(12) },
-      { id: '66666666-6666-6666-6666-666666666666', fullName: 'Ali Celik', email: 'ali.celik@ozal.edu.tr', phoneNumber: '+905550000004', tcNo: '66666666666', studentStaffNo: 'PRS-2026-014', role: 'Personel', isActive: true, createdAt: isoDaysAgo(10) },
-      { id: '77777777-7777-7777-7777-777777777777', fullName: 'Elif Sahin', email: 'elif.sahin@ozal.edu.tr', phoneNumber: '+905550000005', tcNo: '77777777777', studentStaffNo: 'PRS-2026-019', role: 'Personel', isActive: true, createdAt: isoDaysAgo(9) }
+      { id: '66666666-6666-6666-6666-666666666666', fullName: 'Ali Çelik', email: 'ali.celik@ozal.edu.tr', phoneNumber: '+905550000004', tcNo: '66666666666', studentStaffNo: 'PRS-2026-014', role: 'Personel', isActive: true, createdAt: isoDaysAgo(10) },
+      { id: '77777777-7777-7777-7777-777777777777', fullName: 'Elif Şahin', email: 'elif.sahin@ozal.edu.tr', phoneNumber: '+905550000005', tcNo: '77777777777', studentStaffNo: 'PRS-2026-019', role: 'Personel', isActive: true, createdAt: isoDaysAgo(9) }
     ],
     placements: [
       { id: 1, userId: '44444444-4444-4444-4444-444444444444', fullName: 'Mehmet Kaya', roomId: 1, roomNumber: '101', checkInDate: isoDaysAgo(30), checkOutDate: null, isActive: true },
       { id: 2, userId: '55555555-5555-5555-5555-555555555555', fullName: 'Zeynep Demir', roomId: 2, roomNumber: '102', checkInDate: isoDaysAgo(18), checkOutDate: null, isActive: true },
-      { id: 3, userId: '66666666-6666-6666-6666-666666666666', fullName: 'Ali Celik', roomId: 6, roomNumber: 'L101', checkInDate: isoDaysAgo(45), checkOutDate: null, isActive: true }
+      { id: 3, userId: '66666666-6666-6666-6666-666666666666', fullName: 'Ali Çelik', roomId: 6, roomNumber: 'L101', checkInDate: isoDaysAgo(45), checkOutDate: null, isActive: true }
     ],
     recentApplications: [
       { id: 5, userId: '55555555-5555-5555-5555-555555555555', fullName: 'Zeynep Demir', tcNo: '55555555555', accommodationType: 'Yurt', status: 'Pending', createdAt: isoDaysAgo(1) },
-      { id: 3, userId: '66666666-6666-6666-6666-666666666666', fullName: 'Ali Celik', tcNo: '66666666666', accommodationType: 'Lojman', status: 'Pending', createdAt: isoDaysAgo(2) },
-      { id: 1, userId: '33333333-3333-3333-3333-333333333333', fullName: 'Ayse Yilmaz', tcNo: '33333333333', accommodationType: 'Yurt', status: 'Pending', createdAt: isoDaysAgo(3) },
+      { id: 3, userId: '66666666-6666-6666-6666-666666666666', fullName: 'Ali Çelik', tcNo: '66666666666', accommodationType: 'Lojman', status: 'Pending', createdAt: isoDaysAgo(2) },
+      { id: 1, userId: '33333333-3333-3333-3333-333333333333', fullName: 'Ayşe Yılmaz', tcNo: '33333333333', accommodationType: 'Yurt', status: 'Pending', createdAt: isoDaysAgo(3) },
       { id: 2, userId: '44444444-4444-4444-4444-444444444444', fullName: 'Mehmet Kaya', tcNo: '44444444444', accommodationType: 'Yurt', status: 'Approved', createdAt: isoDaysAgo(5) },
-      { id: 4, userId: '77777777-7777-7777-7777-777777777777', fullName: 'Elif Sahin', tcNo: '77777777777', accommodationType: 'Lojman', status: 'Rejected', createdAt: isoDaysAgo(8) }
+      { id: 4, userId: '77777777-7777-7777-7777-777777777777', fullName: 'Elif Şahin', tcNo: '77777777777', accommodationType: 'Lojman', status: 'Rejected', createdAt: isoDaysAgo(8) }
     ],
     recentRequests: [
       { id: 1, userId: '44444444-4444-4444-4444-444444444444', fullName: 'Mehmet Kaya', roomNumber: '101', category: 'Elektrik', status: 'Open', createdAt: isoDaysAgo(0) },
-      { id: 2, userId: '55555555-5555-5555-5555-555555555555', fullName: 'Zeynep Demir', roomNumber: '102', category: 'Isitma', status: 'InProgress', createdAt: isoDaysAgo(1) },
-      { id: 3, userId: '66666666-6666-6666-6666-666666666666', fullName: 'Ali Celik', roomNumber: 'L101', category: 'Su Tesisati', status: 'Open', createdAt: isoDaysAgo(2) },
+      { id: 2, userId: '55555555-5555-5555-5555-555555555555', fullName: 'Zeynep Demir', roomNumber: '102', category: 'Isıtma', status: 'InProgress', createdAt: isoDaysAgo(1) },
+      { id: 3, userId: '66666666-6666-6666-6666-666666666666', fullName: 'Ali Çelik', roomNumber: 'L101', category: 'Su Tesisatı', status: 'Open', createdAt: isoDaysAgo(2) },
       { id: 4, userId: '44444444-4444-4444-4444-444444444444', fullName: 'Mehmet Kaya', roomNumber: '101', category: 'Mobilya', status: 'Resolved', createdAt: isoDaysAgo(5) }
     ]
   };
@@ -734,9 +856,10 @@ function createMockStore() {
 function renderPager(id, page, totalPages, onChange) {
   const host = document.getElementById(id);
   host.innerHTML = `
-    <button class="ghost-btn" ${page <= 1 ? 'disabled' : ''}>Onceki</button>
+    <button class="ghost-btn" ${page <= 1 ? 'disabled' : ''}>Önceki</button>
     <span class="status-pill">${page} / ${totalPages}</span>
-    <button class="ghost-btn" ${page >= totalPages ? 'disabled' : ''}>Sonraki</button>`;
+    <button class="ghost-btn" ${page >= totalPages ? 'disabled' : ''}>Sonraki</button>
+  `;
   const [prev, next] = host.querySelectorAll('button');
   prev.addEventListener('click', () => onChange(page - 1));
   next.addEventListener('click', () => onChange(page + 1));
@@ -750,16 +873,51 @@ function toast(message, isError = false) {
   setTimeout(() => el.remove(), 3600);
 }
 
-function pill(text, tone = '') {
-  return `<span class="status-pill ${tone}">${escapeHtml(text)}</span>`;
+function pillText(text, tone = '') {
+  const normalized = String(text || '');
+  const toneMap = {
+    'Boş': 'off',
+    'Kısmen Dolu': 'warn',
+    'Dolu': 'ok',
+    'Bakımda': 'bad',
+    'Bekleyen': 'warn',
+    'Onaylandı': 'ok',
+    'Reddedildi': 'bad',
+    'Açık': 'warn',
+    'İşlemde': 'warn',
+    'Çözülmüş': 'ok',
+    'Aktif': 'ok',
+    'Pasif': 'off'
+  };
+  const computedTone = tone || toneMap[normalized] || '';
+  return `<span class="status-pill ${computedTone}">${escapeHtml(normalized)}</span>`;
+}
+
+function roomDisplayStatus(status) {
+  const map = {
+    Empty: 'Boş',
+    PartiallyFull: 'Kısmen Dolu',
+    Full: 'Dolu',
+    Maintenance: 'Bakımda'
+  };
+  return map[status] || status;
+}
+
+function applicationStatusDisplay(status) {
+  const map = {
+    Pending: 'Bekleyen',
+    Approved: 'Onaylandı',
+    Rejected: 'Reddedildi'
+  };
+  return map[status] || status;
 }
 
 function emptyTable(items, renderer) {
-  return items.length ? items.map(renderer).join('') : '<tr><td colspan="8">Kayit bulunamadi.</td></tr>';
+  return (items || []).length ? (items || []).map(renderer).join('') : '<tr><td colspan="8">Kayıt bulunamadı.</td></tr>';
 }
 
 function emptyOr(items, renderer) {
-  return items.length ? items.map(renderer).join('') : '<p class="muted">Kayit bulunamadi.</p>';
+  return (items || []).length ? (items || []).map(renderer).join('') : '<p class="muted">Kayıt bulunamadı.</p>';
 }
 
 function parseJwt(token) {
@@ -769,12 +927,6 @@ function parseJwt(token) {
   } catch {
     return {};
   }
-}
-
-function createDemoToken() {
-  const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' })).replace(/=/g, '');
-  const payload = btoa(JSON.stringify({ fullName: 'Sistem Yoneticisi', role: 'Admin' })).replace(/=/g, '');
-  return `${header}.${payload}.demo`;
 }
 
 function clone(value) {

@@ -31,10 +31,12 @@ async function login() {
       body: JSON.stringify({ email, password })
     });
     localStorage.setItem(tokenKey, result.token);
-    state.textContent = `${result.fullName} olarak giris yapildi.`;
+    state.textContent = `${result.fullName} olarak giriş yapıldı.`;
+    state.className = 'login-message success';
     await loadDashboard();
   } catch (error) {
     state.textContent = error.message;
+    state.className = 'login-message error';
   }
 }
 
@@ -42,22 +44,31 @@ async function loadDashboard() {
   const ids = ['totalCapacity', 'occupancyRate', 'pendingApplications', 'openRequests', 'unpaidDebts'];
   if (!document.getElementById(ids[0])) return;
   try {
-    const data = await api('/api/admin/dashboard');
+    const data = await api('/api/admin/dashboard-stats');
     document.getElementById('totalCapacity').textContent = data.totalCapacity;
     document.getElementById('occupancyRate').textContent = `${data.occupancyRate}%`;
-    document.getElementById('pendingApplications').textContent = data.pendingApplications;
-    document.getElementById('openRequests').textContent = data.openRequests;
-    document.getElementById('unpaidDebts').textContent = data.unpaidDebts;
+    document.getElementById('pendingApplications').textContent = data.pendingApplicationCount;
+    document.getElementById('openRequests').textContent = data.openRequestCount;
+    document.getElementById('unpaidDebts').textContent = `${data.totalUnpaidAndOverdueDebt} TL`;
   } catch {
-    ids.forEach(id => document.getElementById(id).textContent = 'Giris gerekli');
+    ids.forEach(id => document.getElementById(id).textContent = 'Giriş gerekli');
   }
 }
 
 async function loadAnnouncements() {
   const root = document.getElementById('announcements');
   if (!root) return;
-  const items = await api('/api/announcements');
-  root.innerHTML = items.map(x => `<article class="item"><strong>${escapeHtml(x.title)}</strong><span>${escapeHtml(x.content)}</span></article>`).join('');
+  try {
+    const items = await api('/api/announcements');
+    root.innerHTML = items.map(x => `
+      <article class="announcement-item">
+        <strong>${escapeHtml(x.title)}</strong>
+        <span>${escapeHtml(x.content)}</span>
+        <span class="announcement-date">${new Date(x.createdAt || Date.now()).toLocaleDateString('tr-TR')}</span>
+      </article>`).join('');
+  } catch (error) {
+    root.innerHTML = `<p class="muted">${escapeHtml(error.message)}</p>`;
+  }
 }
 
 async function loadRooms() {

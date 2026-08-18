@@ -156,11 +156,44 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
     [HttpPost("rooms")]
     public async Task<ActionResult<RoomResponse>> CreateRoom(RoomRequest request)
     {
-        var room = new Room { BlockFloorId = request.BlockFloorId, RoomNumber = request.RoomNumber, Capacity = request.Capacity, Status = request.Status, Price = request.Price };
-        accommodationService.RefreshRoomStatus(room);
-        db.Rooms.Add(room);
-        await db.SaveChangesAsync();
-        return Ok(new RoomResponse(room.Id, room.BlockFloorId, room.RoomNumber, room.Capacity, room.CurrentOccupancy, room.Status, room.Price));
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        try
+        {
+            var blockFloorExists = await db.Floors.AnyAsync(x => x.Id == request.BlockFloorId);
+            if (!blockFloorExists)
+            {
+                return BadRequest("Geçersiz kat / blok bilgisi. Önce bina ve kat oluşturulmalıdır.");
+            }
+
+            var roomExists = await db.Rooms.AnyAsync(x => x.BlockFloorId == request.BlockFloorId && x.RoomNumber == request.RoomNumber);
+            if (roomExists)
+            {
+                return Conflict("Aynı kat içinde aynı oda numarası mevcut.");
+            }
+
+            var room = new Room
+            {
+                BlockFloorId = request.BlockFloorId,
+                RoomNumber = request.RoomNumber,
+                Capacity = request.Capacity,
+                Status = request.Status,
+                Price = request.Price
+            };
+
+            accommodationService.RefreshRoomStatus(room);
+            db.Rooms.Add(room);
+            await db.SaveChangesAsync();
+
+            return Ok(new RoomResponse(room.Id, room.BlockFloorId, room.RoomNumber, room.Capacity, room.CurrentOccupancy, room.Status, room.Price));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+        }
     }
 
     [HttpPut("rooms/{id:int}")]
