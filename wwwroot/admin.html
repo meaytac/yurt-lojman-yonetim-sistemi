@@ -1,11 +1,13 @@
 <!doctype html>
 <html lang="tr">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MTÜ Yönetim Paneli</title>
   <link rel="stylesheet" href="/css/admin.css">
 </head>
+
 <body>
   <div id="loginGate" class="login-gate">
     <section class="login-card" aria-label="Yönetim girişi">
@@ -101,7 +103,17 @@
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Ad</th><th>Tür</th><th>Kampus</th><th>Kapasite</th><th>Blok</th><th>Durum</th><th>Aksiyon</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Ad</th>
+                  <th>Tür</th>
+                  <th>Kampus</th>
+                  <th>Kapasite</th>
+                  <th>Blok</th>
+                  <th>Durum</th>
+                  <th>Aksiyon</th>
+                </tr>
+              </thead>
               <tbody id="facilityRows"></tbody>
             </table>
           </div>
@@ -128,7 +140,18 @@
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Oda</th><th>Tesis</th><th>Blok/Kat</th><th>Kapasite</th><th>Doluluk</th><th>Fiyat</th><th>Durum</th><th>Aksiyon</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Oda</th>
+                  <th>Tesis</th>
+                  <th>Blok/Kat</th>
+                  <th>Kapasite</th>
+                  <th>Doluluk</th>
+                  <th>Fiyat</th>
+                  <th>Durum</th>
+                  <th>Aksiyon</th>
+                </tr>
+              </thead>
               <tbody id="roomRows"></tbody>
             </table>
           </div>
@@ -154,7 +177,17 @@
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Ad Soyad</th><th>E-posta</th><th>TC</th><th>No</th><th>Rol</th><th>Durum</th><th>Aksiyon</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Ad Soyad</th>
+                  <th>E-posta</th>
+                  <th>TC</th>
+                  <th>No</th>
+                  <th>Rol</th>
+                  <th>Durum</th>
+                  <th>Aksiyon</th>
+                </tr>
+              </thead>
               <tbody id="userRows"></tbody>
             </table>
           </div>
@@ -178,7 +211,17 @@
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Ad Soyad</th><th>TC</th><th>No</th><th>Tür</th><th>Durum</th><th>Tarih</th><th>Aksiyon</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Ad Soyad</th>
+                  <th>TC</th>
+                  <th>No</th>
+                  <th>Tür</th>
+                  <th>Durum</th>
+                  <th>Tarih</th>
+                  <th>Aksiyon</th>
+                </tr>
+              </thead>
               <tbody id="applicationRows"></tbody>
             </table>
           </div>
@@ -197,7 +240,16 @@
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Kişi</th><th>Oda</th><th>Giriş</th><th>Çıkış</th><th>Durum</th><th>Aksiyon</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Kişi</th>
+                  <th>Oda</th>
+                  <th>Giriş</th>
+                  <th>Çıkış</th>
+                  <th>Durum</th>
+                  <th>Aksiyon</th>
+                </tr>
+              </thead>
               <tbody id="placementRows"></tbody>
             </table>
           </div>
@@ -219,4 +271,5 @@
   <div id="toastHost" class="toast-host"></div>
   <script src="/js/admin.js"></script>
 </body>
+
 </html>

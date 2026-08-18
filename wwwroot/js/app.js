@@ -1,4 +1,4 @@
-const tokenKey = 'mtu_token';
+const tokenKey = 'token';
 
 function authHeaders(extra = {}) {
   const token = localStorage.getItem(tokenKey);
@@ -25,15 +25,21 @@ async function login() {
   const password = document.getElementById('password').value;
   const state = document.getElementById('loginState');
   try {
-    const result = await api('/api/auth/login', {
+    const data = await api('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    localStorage.setItem(tokenKey, result.token);
-    state.textContent = `${result.fullName} olarak giriş yapıldı.`;
+    localStorage.setItem('token', data.token);
+    state.textContent = `${data.fullName} olarak giriş yapıldı.`;
     state.className = 'login-message success';
-    await loadDashboard();
+
+    const role = String(data.role || '').trim().toLowerCase();
+    const isAdmin = role === 'admin' || role === 'yetkili' || email.trim().toLowerCase() === 'admin@ozal.edu.tr';
+    const target = isAdmin ? '/admin.html' : '/application.html';
+    window.setTimeout(() => {
+      window.location.href = target;
+    }, 250);
   } catch (error) {
     state.textContent = error.message;
     state.className = 'login-message error';

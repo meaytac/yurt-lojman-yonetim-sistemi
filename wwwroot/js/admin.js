@@ -1,4 +1,4 @@
-const tokenKey = 'mtu_token';
+const tokenKey = 'token';
 
 const state = {
   stats: null,

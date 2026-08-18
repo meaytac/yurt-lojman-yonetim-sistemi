@@ -74,14 +74,14 @@ body {
 
 /* Hero Section */
 .hero-layout {
-  display: grid;
-  grid-template-columns: 1.4fr 0.9fr;
+  display: flex;
   gap: 24px;
   align-items: stretch;
   margin-bottom: 32px;
 }
 
 .hero-section {
+  flex: 1.4 1 0;
   background: linear-gradient(135deg, var(--primary-navy) 0%, #1e3a5f 100%);
   border-radius: var(--radius-lg);
   padding: 48px 32px;
@@ -98,20 +98,6 @@ body {
   width: 100%;
 }
 
-.eyebrow {
-  display: inline-flex;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-size: 11px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.8);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  padding: 8px 12px;
-  margin-bottom: 18px;
-}
-
 .hero-content h1 {
   margin: 0 0 14px;
   font-size: clamp(2rem, 2vw + 1rem, 3.2rem);
@@ -120,39 +106,11 @@ body {
 }
 
 .hero-content p {
-  margin: 0 0 28px;
+  margin: 0;
   font-size: 1.08rem;
   line-height: 1.7;
   max-width: 620px;
   opacity: 0.94;
-}
-
-.hero-features {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.hero-features > div {
-  flex: 1 1 180px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: var(--radius-md);
-  padding: 16px 18px;
-  backdrop-filter: blur(4px);
-}
-
-.hero-features strong {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 0.96rem;
-  color: #ffffff;
-}
-
-.hero-features span {
-  display: block;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.82rem;
 }
 
 /* Panels */
@@ -184,6 +142,7 @@ body {
 
 /* Login Form */
 .login-panel {
+  flex: 0.9 1 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -373,9 +332,9 @@ input:focus, select:focus, textarea:focus {
 .wide { grid-column: 1 / -1; }
 
 /* Responsive */
-@media (max-width: 1024px) {
+@media (max-width: 900px) {
   .hero-layout {
-    grid-template-columns: 1fr;
+    flex-direction: column;
   }
 }
 
@@ -393,10 +352,6 @@ input:focus, select:focus, textarea:focus {
 
   .hero-section {
     padding: 32px 20px;
-  }
-
-  .hero-layout {
-    gap: 18px;
   }
 
   .hero-content h1 {
