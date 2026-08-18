@@ -15,86 +15,53 @@
         <span>Lojman ve Yurt Yönetimi</span>
       </div>
     </div>
-    <nav>
-      <a href="/index.html" class="active">Ana Sayfa</a>
-      <a href="/admin.html">Yönetim Paneli</a>
-      <a href="/application.html">Başvuru</a>
-      <a href="/swagger">API Dokümantasyonu</a>
-    </nav>
   </header>
 
   <main class="shell">
-    <section class="hero-section">
-      <div class="hero-content">
-        <h1>Yurt ve Lojman Başvuru &amp; Yönetim Sistemi</h1>
-        <p>Malatya Turgut Özal Üniversitesi öğrencisi ve personeli için modern konaklama çözümleri</p>
-      </div>
-    </section>
+    <section class="hero-layout">
+      <div class="hero-section hero-spotlight">
+        <div class="hero-content">
+          <span class="eyebrow">Kurumsal Konaklama Yönetimi</span>
+          <h1>Yurt ve Lojman Başvuru &amp; Yönetim Sistemi</h1>
+          <p>Malatya Turgut Özal Üniversitesi öğrencisi ve personeli için güvenli, hızlı ve modern konaklama çözümleri sunar.</p>
 
-    <section class="panel login-panel">
-      <div class="panel-header">
-        <h2>Oturum Aç</h2>
-        <p>Sisteme erişim için giriş yapınız.</p>
+          <div class="hero-features">
+            <div>
+              <strong>Hızlı Başvuru</strong>
+              <span>Kolay ve pratik online süreç</span>
+            </div>
+            <div>
+              <strong>Güvenli Yönetim</strong>
+              <span>Kurumsal kontrol ve erişim</span>
+            </div>
+          </div>
+        </div>
       </div>
-      <form id="loginForm" class="login-form">
-        <div class="form-group">
-          <label for="email">E-posta Adresi</label>
-          <input id="email" type="email" value="admin@ozal.edu.tr" placeholder="ornek@ozal.edu.tr" required>
-        </div>
-        <div class="form-group">
-          <label for="password">Şifre</label>
-          <input id="password" type="password" value="Admin123!" placeholder="••••••••" required>
-        </div>
-        <div class="form-options">
-          <label class="checkbox-label">
-            <input type="checkbox" id="rememberMe">
-            <span>Beni Hatırla</span>
-          </label>
-        </div>
-        <button type="submit" class="btn-primary">Giriş Yap</button>
-        <p id="loginState" class="login-message"></p>
-      </form>
-    </section>
 
-    <section class="metrics-section">
-      <h2>Genel İstatistikler</h2>
-      <div class="metrics">
-        <article class="metric-card metric-capacity">
-          <div class="metric-icon">🏢</div>
-          <div class="metric-content">
-            <span>Toplam Kapasite</span>
-            <strong id="totalCapacity">-</strong>
+      <section class="panel login-panel">
+        <div class="panel-header">
+          <h2>Oturum Aç</h2>
+          <p>Sisteme erişim için giriş yapınız.</p>
+        </div>
+        <form id="loginForm" class="login-form">
+          <div class="form-group">
+            <label for="email">E-posta Adresi</label>
+            <input id="email" type="email" value="admin@ozal.edu.tr" placeholder="ornek@ozal.edu.tr" required>
           </div>
-        </article>
-        <article class="metric-card metric-occupancy">
-          <div class="metric-icon">📊</div>
-          <div class="metric-content">
-            <span>Doluluk Oranı</span>
-            <strong id="occupancyRate">-</strong>
+          <div class="form-group">
+            <label for="password">Şifre</label>
+            <input id="password" type="password" value="Admin123!" placeholder="••••••••" required>
           </div>
-        </article>
-        <article class="metric-card metric-applications">
-          <div class="metric-icon">📝</div>
-          <div class="metric-content">
-            <span>Bekleyen Başvuru</span>
-            <strong id="pendingApplications">-</strong>
+          <div class="form-options">
+            <label class="checkbox-label">
+              <input type="checkbox" id="rememberMe">
+              <span>Beni Hatırla</span>
+            </label>
           </div>
-        </article>
-        <article class="metric-card metric-requests">
-          <div class="metric-icon">🔧</div>
-          <div class="metric-content">
-            <span>Açık Arıza</span>
-            <strong id="openRequests">-</strong>
-          </div>
-        </article>
-        <article class="metric-card metric-debt">
-          <div class="metric-icon">💰</div>
-          <div class="metric-content">
-            <span>Ödenmemiş Borç</span>
-            <strong id="unpaidDebts">-</strong>
-          </div>
-        </article>
-      </div>
+          <button type="submit" class="btn-primary">Giriş Yap</button>
+          <p id="loginState" class="login-message"></p>
+        </form>
+      </section>
     </section>
 
     <section class="panel announcements-panel">
@@ -103,32 +70,6 @@
         <p>Yurt ve lojman ile ilgili güncel duyurular</p>
       </div>
       <div id="announcements" class="announcements-list"></div>
-    </section>
-
-    <section class="quick-access">
-      <h2>Hızlı Erişim</h2>
-      <div class="quick-access-grid">
-        <a href="/application.html" class="quick-access-card">
-          <div class="card-icon">📋</div>
-          <h3>Yeni Başvuru</h3>
-          <p>Yurt veya lojman için başvuru yapın.</p>
-        </a>
-        <a href="/admin.html" class="quick-access-card">
-          <div class="card-icon">⚙️</div>
-          <h3>Yönetim Paneli</h3>
-          <p>Sistem yöneticileri için</p>
-        </a>
-        <a href="#" class="quick-access-card">
-          <div class="card-icon">📅</div>
-          <h3>Başvuru Takvimi</h3>
-          <p>Başvuru tarihleri ve süreçler</p>
-        </a>
-        <a href="#" class="quick-access-card">
-          <div class="card-icon">❓</div>
-          <h3>Yardım Merkezi</h3>
-          <p>Sıkça sorulan sorular</p>
-        </a>
-      </div>
     </section>
   </main>
 
