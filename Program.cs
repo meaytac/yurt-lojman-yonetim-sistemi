@@ -22,7 +22,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     }
     else
     {
-        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+        options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
     }
 });
 

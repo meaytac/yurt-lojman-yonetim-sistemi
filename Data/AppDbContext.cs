@@ -25,7 +25,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.Entity<AppUser>(entity =>
         {
             entity.HasIndex(x => x.TcNo).IsUnique();
-            entity.Property(x => x.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+            entity.Property(x => x.CreatedAt).HasDefaultValueSql("datetime('now')");
         });
 
         builder.Entity<Dormitory>()
@@ -73,7 +73,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             entity.ToTable("Applications");
             entity.Property(x => x.AccommodationType).HasConversion<string>();
             entity.Property(x => x.Status).HasConversion<string>();
-            entity.Property(x => x.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+            entity.Property(x => x.CreatedAt).HasDefaultValueSql("datetime('now')");
             entity.HasOne(x => x.User).WithMany(x => x.Applications).HasForeignKey(x => x.UserId);
         });
 
