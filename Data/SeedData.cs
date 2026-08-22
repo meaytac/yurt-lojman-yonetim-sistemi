@@ -58,25 +58,67 @@ public static class SeedData
 
     private static List<AppUser> CreateUsers(Random random, DateTime now)
     {
-        var firstNames = new[] { "Ahmet", "Ayse", "Burak", "Ceren", "Deniz", "Ece", "Emre", "Fatma", "Gokhan", "Irem" };
-        var lastNames = new[] { "Yilmaz", "Kaya", "Demir", "Sahin", "Celik", "Aydin", "Arslan", "Koc", "Polat", "Dogan" };
+        var firstNames = new[]
+        {
+            "Ahmet", "Mehmet", "Mustafa", "Ali", "Hüseyin", "İbrahim", "İsmail", "Yusuf", "Ömer", "Osman",
+            "Murat", "Ramazan", "Halil", "Süleyman", "Bekir", "Fatih", "Mahmut", "Salih", "Kemal", "Hakan",
+            "Adem", "Metin", "Yasin", "Emre", "Burak", "Gökhan", "Onur", "Serkan", "Volkan", "Mesut",
+            "Erdal", "Turan", "Uğur", "Oğuz", "Cihan", "Sinan", "Tarık", "Levent", "Umut", "Barış",
+            "Erkan", "Deniz", "Can", "Kerem", "Efe", "Kaan", "Arda", "Ege", "Doruk", "Alp",
+            "Ayşe", "Fatma", "Hatice", "Zeynep", "Elif", "Merve", "Büşra", "Kübra", "Esra", "Sümeyye",
+            "Gözde", "Selin", "İrem", "Büşra", "Melike", "Ceren", "Ezgi", "Bahar", "Derya", "Ebru",
+            "Gamze", "Gizem", "Hande", "Pınar", "Sinem", "Tuğba", "Yasemin", "Özlem", "Eda", "Sevgi",
+            "Sultan", "Ayten", "Hacer", "Meryem", "Rukiye", "Emine", "Şerife", "Gül", "Figen", "Nur",
+            "Betül", "Tuba", "Dilek", "Arzu", "Burcu", "Demet", "Fulya", "Gülşah", "Necla", "Nihal"
+        };
+        var lastNames = new[]
+        {
+            "Yılmaz", "Kaya", "Demir", "Çelik", "Şahin", "Yıldız", "Yıldırım", "Öztürk", "Aydın", "Özdemir",
+            "Arslan", "Doğan", "Kılıç", "Aslan", "Çetin", "Kara", "Koç", "Kurt", "Özcan", "Şimşek",
+            "Polat", "Özkan", "Erdoğan", "Yavuz", "Çakır", "Aksoy", "Güler", "Tekin", "Acar", "Can",
+            "Dündar", "Ertürk", "Koçak", "Korkmaz", "Güneş", "Bulut", "Keskin", "Yalçın", "Topal", "Eren",
+            "Gündoğdu", "Avcı", "Sönmez", "Özkan", "Aktaş", "Atalay", "Baş", "Bayrak", "Çiftçi", "Demirci",
+            "Dinç", "Durmaz", "Gök", "Gözüpek", "Güven", "Işık", "Kaplan", "Kartal", "Kesici", "Köse",
+            "Oğuz", "pek", "Sarıkaya", "Savaş", "Sezer", "Turan", "Uçar", "Ünal", "Yalçın", "Yaman",
+            "Yaşar", "Yener", "Yeşilyurt", "Yiğit", "Yüksel", "Zengin", "Alkan", "Altun", "Ay", "Başaran",
+            "Bayram", "Bozkurt", "Ceylan", "Çoban", "Demirel", "Dikmen", "Diler", "Ergin", "Gazioğlu", "Gümüş",
+            "İnce", "Kahraman", "Kalaycı", "Karaca", "Karakurt", "Kart", "Kaygusuz", "Koca", "Küçük"
+        };
         var passwordHasher = new PasswordHasher<AppUser>();
         var users = new List<AppUser>(100);
+        var usedTcNumbers = new HashSet<string>();
+        var usedFullNames = new HashSet<string>(StringComparer.Ordinal);
 
         for (var index = 1; index <= 100; index++)
         {
+            string fullName;
+            do
+            {
+                var firstName = firstNames[random.Next(firstNames.Length)];
+                var lastName = lastNames[random.Next(lastNames.Length)];
+                fullName = $"{firstName} {lastName}";
+            } while (!usedFullNames.Add(fullName));
+
+            var emailName = ToEmailName(fullName);
+            var role = index <= 80 ? AppRoles.Ogrenci : AppRoles.Personel;
+            var studentStaffNo = role == AppRoles.Ogrenci
+                ? $"OGR-2026-{index:000}"
+                : $"PER-2026-{index - 80:000}";
+            var tcNo = CreateValidTcNo(random, usedTcNumbers);
+            var email = $"{emailName}@ozal.edu.tr";
+
             var user = new AppUser
             {
                 Id = Guid.NewGuid(),
-                UserName = $"demo{index:000}@ozal.edu.tr",
-                Email = $"demo{index:000}@ozal.edu.tr",
-                NormalizedUserName = $"DEMO{index:000}@OZAL.EDU.TR",
-                NormalizedEmail = $"DEMO{index:000}@OZAL.EDU.TR",
+                UserName = email,
+                Email = email,
+                NormalizedUserName = email.ToUpperInvariant(),
+                NormalizedEmail = email.ToUpperInvariant(),
                 EmailConfirmed = true,
-                FullName = $"{firstNames[(index - 1) % firstNames.Length]} {lastNames[(index - 1) % lastNames.Length]}",
-                TcNo = $"9900000{index:0000}",
-                StudentStaffNo = $"OGR-2026-{index:000}",
-                Role = AppRoles.Ogrenci,
+                FullName = fullName,
+                TcNo = tcNo,
+                StudentStaffNo = studentStaffNo,
+                Role = role,
                 PhoneNumber = $"+90555000{index:0000}",
                 CreatedAt = now.AddDays(-random.Next(10, 365)),
                 SecurityStamp = Guid.NewGuid().ToString(),
@@ -89,6 +131,34 @@ public static class SeedData
         }
 
         return users;
+    }
+
+    private static string ToEmailName(string fullName) => fullName
+        .ToLowerInvariant()
+        .Replace("ç", "c").Replace("ğ", "g").Replace("ı", "i")
+        .Replace("ö", "o").Replace("ş", "s").Replace("ü", "u")
+        .Replace(" ", ".");
+
+    private static string CreateValidTcNo(Random random, HashSet<string> usedNumbers)
+    {
+        string tcNo;
+        do
+        {
+            var digits = new int[11];
+            digits[0] = random.Next(1, 10);
+            for (var index = 1; index < 9; index++)
+            {
+                digits[index] = random.Next(10);
+            }
+
+            digits[9] = ((digits[0] + digits[2] + digits[4] + digits[6] + digits[8]) * 7
+                - (digits[1] + digits[3] + digits[5] + digits[7])) % 10;
+            if (digits[9] < 0) digits[9] += 10;
+            digits[10] = digits.Take(10).Sum() % 10;
+            tcNo = string.Concat(digits);
+        } while (!usedNumbers.Add(tcNo));
+
+        return tcNo;
     }
 
     private static List<Dormitory> CreateDormitories() => new()

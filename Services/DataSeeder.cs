@@ -36,16 +36,74 @@ public static class DataSeeder
 
     private static async Task<DemoUsers> SeedUsersAsync(UserManager<AppUser> userManager)
     {
-        var admin = await EnsureUserAsync(userManager, "admin@ozal.edu.tr", "Sistem Yoneticisi", "11111111111", "ADMIN-001", AppRoles.Admin, "+904220000001");
-        var officer = await EnsureUserAsync(userManager, "yetkili@ozal.edu.tr", "Yurt Isleri Yetkilisi", "22222222222", "PER-100", AppRoles.Yetkili, "+904220000002");
-        var student1 = await EnsureUserAsync(userManager, "ayse.yilmaz@ogr.ozal.edu.tr", "Ayse Yilmaz", "33333333333", "OGR-2026-001", AppRoles.Ogrenci, "+905550000001");
-        var student2 = await EnsureUserAsync(userManager, "mehmet.kaya@ogr.ozal.edu.tr", "Mehmet Kaya", "44444444444", "OGR-2026-002", AppRoles.Ogrenci, "+905550000002");
-        var student3 = await EnsureUserAsync(userManager, "zeynep.demir@ogr.ozal.edu.tr", "Zeynep Demir", "55555555555", "OGR-2026-003", AppRoles.Ogrenci, "+905550000003");
-        var staff1 = await EnsureUserAsync(userManager, "ali.celik@ozal.edu.tr", "Ali Celik", "66666666666", "PRS-2026-014", AppRoles.Personel, "+905550000004");
-        var staff2 = await EnsureUserAsync(userManager, "elif.sahin@ozal.edu.tr", "Elif Sahin", "77777777777", "PRS-2026-019", AppRoles.Personel, "+905550000005");
+        var random = new Random(20260823);
+        var firstNames = new[]
+        {
+            "Ahmet", "Mehmet", "Mustafa", "Ali", "Hüseyin", "İbrahim", "İsmail", "Yusuf", "Ömer", "Osman",
+            "Murat", "Ramazan", "Halil", "Süleyman", "Bekir", "Fatih", "Mahmut", "Salih", "Kemal", "Hakan",
+            "Adem", "Metin", "Yasin", "Emre", "Burak", "Gökhan", "Onur", "Serkan", "Volkan", "Mesut",
+            "Erdal", "Turan", "Uğur", "Oğuz", "Cihan", "Sinan", "Tarık", "Levent", "Umut", "Barış",
+            "Erkan", "Deniz", "Can", "Kerem", "Efe", "Kaan", "Arda", "Ege", "Doruk", "Alp",
+            "Ayşe", "Fatma", "Hatice", "Zeynep", "Elif", "Merve", "Büşra", "Kübra", "Esra", "Sümeyye",
+            "Gözde", "Selin", "İrem", "Büşra", "Melike", "Ceren", "Ezgi", "Bahar", "Derya", "Ebru",
+            "Gamze", "Gizem", "Hande", "Pınar", "Sinem", "Tuğba", "Yasemin", "Özlem", "Eda", "Sevgi",
+            "Sultan", "Ayten", "Hacer", "Meryem", "Rukiye", "Emine", "Şerife", "Gül", "Figen", "Nur",
+            "Betül", "Tuba", "Dilek", "Arzu", "Burcu", "Demet", "Fulya", "Gülşah", "Necla", "Nihal"
+        };
+        var lastNames = new[]
+        {
+            "Yılmaz", "Kaya", "Demir", "Çelik", "Şahin", "Yıldız", "Yıldırım", "Öztürk", "Aydın", "Özdemir",
+            "Arslan", "Doğan", "Kılıç", "Aslan", "Çetin", "Kara", "Koç", "Kurt", "Özcan", "Şimşek",
+            "Polat", "Özkan", "Erdoğan", "Yavuz", "Çakır", "Aksoy", "Güler", "Tekin", "Acar", "Can",
+            "Dündar", "Ertürk", "Koçak", "Korkmaz", "Güneş", "Bulut", "Keskin", "Yalçın", "Topal", "Eren",
+            "Gündoğdu", "Avcı", "Sönmez", "Özkan", "Aktaş", "Atalay", "Baş", "Bayrak", "Çiftçi", "Demirci",
+            "Dinç", "Durmaz", "Gök", "Gözüpek", "Güven", "Işık", "Kaplan", "Kartal", "Kesici", "Köse",
+            "Oğuz", "pek", "Sarıkaya", "Savaş", "Sezer", "Turan", "Uçar", "Ünal", "Yalçın", "Yaman",
+            "Yaşar", "Yener", "Yeşilyurt", "Yiğit", "Yüksel", "Zengin", "Alkan", "Altun", "Ay", "Başaran",
+            "Bayram", "Bozkurt", "Ceylan", "Çoban", "Demirel", "Dikmen", "Diler", "Ergin", "Gazioğlu", "Gümüş",
+            "İnce", "Kahraman", "Kalaycı", "Karaca", "Karakurt", "Kart", "Kaygusuz", "Koca", "Küçük"
+        };
+        var usedFullNames = new HashSet<string>(StringComparer.Ordinal);
+        var usedTcNumbers = (await userManager.Users
+            .Select(x => x.TcNo)
+            .ToListAsync())
+            .ToHashSet(StringComparer.Ordinal);
+
+        (string FullName, string Email) NextIdentity()
+        {
+            string fullName;
+            do
+            {
+                fullName = $"{firstNames[random.Next(firstNames.Length)]} {lastNames[random.Next(lastNames.Length)]}";
+            } while (!usedFullNames.Add(fullName));
+
+            return (fullName, $"{ToEmailName(fullName)}@ozal.edu.tr");
+        }
+
+        var adminIdentity = NextIdentity();
+        var officerIdentity = NextIdentity();
+        var student1Identity = NextIdentity();
+        var student2Identity = NextIdentity();
+        var student3Identity = NextIdentity();
+        var staff1Identity = NextIdentity();
+        var staff2Identity = NextIdentity();
+
+        var admin = await EnsureUserAsync(userManager, adminIdentity.Email, adminIdentity.FullName, CreateValidTcNo(random, usedTcNumbers), "ADMIN-001", AppRoles.Admin, "+904220000001");
+        var officer = await EnsureUserAsync(userManager, officerIdentity.Email, officerIdentity.FullName, CreateValidTcNo(random, usedTcNumbers), "YET-2026-001", AppRoles.Yetkili, "+904220000002");
+        var student1 = await EnsureUserAsync(userManager, student1Identity.Email, student1Identity.FullName, CreateValidTcNo(random, usedTcNumbers), "OGR-2026-201", AppRoles.Ogrenci, "+905550000001");
+        var student2 = await EnsureUserAsync(userManager, student2Identity.Email, student2Identity.FullName, CreateValidTcNo(random, usedTcNumbers), "OGR-2026-202", AppRoles.Ogrenci, "+905550000002");
+        var student3 = await EnsureUserAsync(userManager, student3Identity.Email, student3Identity.FullName, CreateValidTcNo(random, usedTcNumbers), "OGR-2026-203", AppRoles.Ogrenci, "+905550000003");
+        var staff1 = await EnsureUserAsync(userManager, staff1Identity.Email, staff1Identity.FullName, CreateValidTcNo(random, usedTcNumbers), "PER-2026-101", AppRoles.Personel, "+905550000004");
+        var staff2 = await EnsureUserAsync(userManager, staff2Identity.Email, staff2Identity.FullName, CreateValidTcNo(random, usedTcNumbers), "PER-2026-102", AppRoles.Personel, "+905550000005");
 
         return new DemoUsers(admin, officer, student1, student2, student3, staff1, staff2);
     }
+
+    private static string ToEmailName(string fullName) => fullName
+        .ToLowerInvariant()
+        .Replace("ç", "c").Replace("ğ", "g").Replace("ı", "i")
+        .Replace("ö", "o").Replace("ş", "s").Replace("ü", "u")
+        .Replace(" ", ".");
 
     private static async Task<AppUser> EnsureUserAsync(
         UserManager<AppUser> userManager,
@@ -56,7 +114,8 @@ public static class DataSeeder
         string role,
         string phoneNumber)
     {
-        var user = await userManager.FindByEmailAsync(email);
+        var user = await userManager.FindByEmailAsync(email)
+            ?? userManager.Users.FirstOrDefault(x => x.StudentStaffNo == studentStaffNo);
         if (user is null)
         {
             user = new AppUser
@@ -79,6 +138,15 @@ public static class DataSeeder
             }
         }
 
+        user.UserName = email;
+        user.Email = email;
+        user.FullName = fullName;
+        user.TcNo = tcNo;
+        user.StudentStaffNo = studentStaffNo;
+        user.Role = role;
+        user.PhoneNumber = phoneNumber;
+        user.EmailConfirmed = true;
+
         var currentRoles = await userManager.GetRolesAsync(user);
         if (!currentRoles.Contains(role))
         {
@@ -98,6 +166,28 @@ public static class DataSeeder
         user.LockoutEnd = null;
         await userManager.UpdateAsync(user);
         return user;
+    }
+
+    private static string CreateValidTcNo(Random random, HashSet<string> usedNumbers)
+    {
+        string tcNo;
+        do
+        {
+            var digits = new int[11];
+            digits[0] = random.Next(1, 10);
+            for (var index = 1; index < 9; index++)
+            {
+                digits[index] = random.Next(10);
+            }
+
+            digits[9] = ((digits[0] + digits[2] + digits[4] + digits[6] + digits[8]) * 7
+                - (digits[1] + digits[3] + digits[5] + digits[7])) % 10;
+            if (digits[9] < 0) digits[9] += 10;
+            digits[10] = digits.Take(10).Sum() % 10;
+            tcNo = string.Concat(digits);
+        } while (!usedNumbers.Add(tcNo));
+
+        return tcNo;
     }
 
     private static async Task SeedFacilitiesAsync(AppDbContext db)
