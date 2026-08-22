@@ -53,7 +53,26 @@ public static class SeedData
         db.Requests.AddRange(requests);
         await db.SaveChangesAsync();
 
+        await RecalculateRoomsAsync(db);
+
         return true;
+    }
+
+    private static async Task RecalculateRoomsAsync(AppDbContext db)
+    {
+        var rooms = await db.Rooms.Include(x => x.Placements).ToListAsync();
+        foreach (var room in rooms)
+        {
+            room.CurrentOccupancy = room.Placements.Count(x => x.IsActive);
+            if (room.Status != RoomStatus.Maintenance)
+            {
+                room.Status = room.CurrentOccupancy == 0
+                    ? RoomStatus.Empty
+                    : room.CurrentOccupancy >= room.Capacity ? RoomStatus.Full : RoomStatus.PartiallyFull;
+            }
+        }
+
+        await db.SaveChangesAsync();
     }
 
     private static List<AppUser> CreateUsers(Random random, DateTime now)

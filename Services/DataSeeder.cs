@@ -222,6 +222,23 @@ public static class DataSeeder
 
         await db.SaveChangesAsync();
 
+        var targetDormitoryIds = new[] { dormitory.Id, secondDormitory.Id };
+        var targetHousingUnitIds = new[] { housing.Id };
+        var extraDormitories = await db.Dormitories
+            .Where(x => !targetDormitoryIds.Contains(x.Id))
+            .ToListAsync();
+        var extraHousingUnits = await db.HousingUnits
+            .Where(x => !targetHousingUnitIds.Contains(x.Id))
+            .ToListAsync();
+        var extraBuildings = await db.Buildings
+            .Where(x => (x.DormitoryId.HasValue && !targetDormitoryIds.Contains(x.DormitoryId.Value)) ||
+                        (x.HousingUnitId.HasValue && !targetHousingUnitIds.Contains(x.HousingUnitId.Value)))
+            .ToListAsync();
+        await RemoveBuildingsAsync(db, extraBuildings);
+        db.Dormitories.RemoveRange(extraDormitories);
+        db.HousingUnits.RemoveRange(extraHousingUnits);
+        await db.SaveChangesAsync();
+
         var expectedBuildings = new (int? DormitoryId, int? HousingUnitId, string BlockName)[]
         {
             (dormitory.Id, (int?)null, "A Blok"), (dormitory.Id, (int?)null, "B Blok"), (dormitory.Id, (int?)null, "C Blok"),
@@ -229,8 +246,6 @@ public static class DataSeeder
             ((int?)null, housing.Id, "L Blok")
         };
 
-        var targetDormitoryIds = new[] { dormitory.Id, secondDormitory.Id };
-        var targetHousingUnitIds = new[] { housing.Id };
         var existingBuildings = await db.Buildings
             .Where(x => (x.DormitoryId.HasValue && targetDormitoryIds.Contains(x.DormitoryId.Value)) ||
                         (x.HousingUnitId.HasValue && targetHousingUnitIds.Contains(x.HousingUnitId.Value)))
@@ -403,6 +418,7 @@ public static class DataSeeder
 
         await EnsureAnnouncementsAsync(db);
         await db.SaveChangesAsync();
+        await RecalculateRoomsAsync(db);
     }
 
     private static async Task EnsureAnnouncementsAsync(AppDbContext db)
@@ -434,6 +450,23 @@ public static class DataSeeder
 
         var room = await db.Rooms.FirstAsync(x => x.RoomNumber == roomNumber);
         db.Placements.Add(new Placement { UserId = userId, RoomId = room.Id, CheckInDate = checkInDate, IsActive = true });
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task RecalculateRoomsAsync(AppDbContext db)
+    {
+        var rooms = await db.Rooms.Include(x => x.Placements).ToListAsync();
+        foreach (var room in rooms)
+        {
+            room.CurrentOccupancy = room.Placements.Count(x => x.IsActive);
+            if (room.Status != RoomStatus.Maintenance)
+            {
+                room.Status = room.CurrentOccupancy == 0
+                    ? RoomStatus.Empty
+                    : room.CurrentOccupancy >= room.Capacity ? RoomStatus.Full : RoomStatus.PartiallyFull;
+            }
+        }
+
         await db.SaveChangesAsync();
     }
 

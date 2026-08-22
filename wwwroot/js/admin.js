@@ -219,6 +219,7 @@ function renderRooms() {
       <td>${getStatusBadge(item.status)}</td>
       <td>
         <button class="row-btn" onclick="editRoom(${item.id})">Düzenle</button>
+        <button class="row-btn" onclick="showOccupants(${item.id})">Detay</button>
       </td>
     </tr>
   `);
@@ -574,23 +575,28 @@ async function deleteRoom(id) {
 async function showOccupants(id) {
   try {
     const data = state.fallbackMode ? getMockOccupants(id) : await api(`/api/admin/rooms/${id}/occupants`);
-    openModal(`Oda ${data.roomNumber} Sakinleri`, `
-      <div class="activity-list">
-        ${emptyOr(data.occupants || [], x => `
-          <div class="activity-item">
-            <div>
-              <strong>${escapeHtml(x.fullName)}</strong>
-              <small>${escapeHtml(x.role)} - ${escapeHtml(x.tcNo)}</small>
-            </div>
-            <small>${date(x.checkInDate)}</small>
-          </div>
-        `)}
-      </div>
-    `, () => {});
+    openOccupantsModal(data);
   } catch {
-    const data = getMockOccupants(id);
-    openModal(`Oda ${data.roomNumber} Sakinleri`, `<div class="activity-list">${emptyOr(data.occupants || [], x => `<div class="activity-item"><div><strong>${escapeHtml(x.fullName)}</strong><small>${escapeHtml(x.role)} - ${escapeHtml(x.tcNo)}</small></div><small>${date(x.checkInDate)}</small></div>`)}</div>`, () => {});
+    state.fallbackMode = true;
+    openOccupantsModal(getMockOccupants(id));
   }
+}
+
+function openOccupantsModal(data) {
+  const occupants = data.currentOccupancy > 0 ? (data.occupants || []) : [];
+  const content = occupants.length
+    ? `<div class="activity-list">${occupants.map(x => `
+        <div class="activity-item">
+          <div>
+            <strong>${escapeHtml(x.fullName)}</strong>
+            <small>${escapeHtml(x.role)} - ${escapeHtml(x.tcNo)}</small>
+          </div>
+          <small>${date(x.checkInDate)}</small>
+        </div>
+      `).join('')}</div>`
+    : '<p class="muted">Bu odada henüz kalan sakin bulunmamaktadır.</p>';
+
+  openModal(`Oda ${escapeHtml(data.roomNumber)} Sakinleri`, content, () => {});
 }
 
 async function changeUserRole(id, role) {
@@ -758,7 +764,11 @@ function getMockUsers(page = 1) {
 }
 
 function getMockOccupants(roomId) {
-  const room = mock.rooms.find(x => x.id === roomId) || mock.rooms[0];
+  const room = mock.rooms.find(x => x.id === roomId);
+  if (!room) {
+    return { roomId, roomNumber: '-', capacity: 0, currentOccupancy: 0, status: 'Empty', occupants: [] };
+  }
+
   const occupants = mock.placements
     .filter(x => x.roomId === room.id && x.isActive)
     .map(x => {

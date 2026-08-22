@@ -113,39 +113,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             new AppRole { Id = Guid.Parse("10000000-0000-0000-0000-000000000003"), Name = AppRoles.Ogrenci, NormalizedName = AppRoles.Ogrenci.ToUpperInvariant(), ConcurrencyStamp = "role-ogrenci-v1" },
             new AppRole { Id = Guid.Parse("10000000-0000-0000-0000-000000000004"), Name = AppRoles.Personel, NormalizedName = AppRoles.Personel.ToUpperInvariant(), ConcurrencyStamp = "role-personel-v1" });
 
-        builder.Entity<Dormitory>().HasData(new Dormitory
-        {
-            Id = 1,
-            Name = "MTU Merkez Ogrenci Yurdu",
-            Type = AccommodationType.Yurt,
-            CampusLocation = "Battalgazi Yerleskesi",
-            TotalCapacity = 120,
-            IsActive = true
-        });
-
-        builder.Entity<HousingUnit>().HasData(new HousingUnit
-        {
-            Id = 1,
-            Name = "MTU Personel Lojmanlari",
-            Type = AccommodationType.Lojman,
-            CampusLocation = "Battalgazi Yerleskesi",
-            TotalCapacity = 40,
-            IsActive = true
-        });
-
-        builder.Entity<Building>().HasData(
-            new Building { Id = 1, DormitoryId = 1, BlockName = "A Blok" },
-            new Building { Id = 2, HousingUnitId = 1, BlockName = "L Blok" });
-
-        builder.Entity<Floor>().HasData(
-            new Floor { Id = 1, BuildingId = 1, FloorNumber = 1 },
-            new Floor { Id = 2, BuildingId = 2, FloorNumber = 1 });
-
-        builder.Entity<Room>().HasData(
-            new Room { Id = 1, BlockFloorId = 1, RoomNumber = "101", Capacity = 4, CurrentOccupancy = 0, Status = RoomStatus.Empty, Price = 2500 },
-            new Room { Id = 2, BlockFloorId = 1, RoomNumber = "102", Capacity = 4, CurrentOccupancy = 0, Status = RoomStatus.Empty, Price = 2500 },
-            new Room { Id = 3, BlockFloorId = 2, RoomNumber = "L101", Capacity = 1, CurrentOccupancy = 0, Status = RoomStatus.Empty, Price = 5500 });
-
         builder.Entity<Announcement>().HasData(new Announcement
         {
             Id = 1,

@@ -113,7 +113,14 @@ public class AdminService(AppDbContext db, UserManager<AppUser> userManager) : I
             .Select(x => new AdminRoomOccupantDto(x.Id, x.UserId, x.User.FullName, x.User.TcNo, x.User.StudentStaffNo, x.User.Role, x.CheckInDate))
             .ToListAsync(cancellationToken);
 
-        return new AdminRoomOccupantsResponse(room.Id, room.RoomNumber, room.Capacity, room.CurrentOccupancy, room.Status, occupants);
+        var currentOccupancy = occupants.Count;
+        var status = room.Status == RoomStatus.Maintenance
+            ? RoomStatus.Maintenance
+            : currentOccupancy == 0
+                ? RoomStatus.Empty
+                : currentOccupancy >= room.Capacity ? RoomStatus.Full : RoomStatus.PartiallyFull;
+
+        return new AdminRoomOccupantsResponse(room.Id, room.RoomNumber, room.Capacity, currentOccupancy, status, occupants);
     }
 
     public async Task<AdminPagedResponse<AdminUserListItemDto>> GetUsersAsync(AdminUserQuery query, CancellationToken cancellationToken)
