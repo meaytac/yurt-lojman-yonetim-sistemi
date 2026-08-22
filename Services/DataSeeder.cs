@@ -80,7 +80,7 @@ public static class DataSeeder
             return (fullName, $"{ToEmailName(fullName)}@ozal.edu.tr");
         }
 
-        var adminIdentity = NextIdentity();
+        var adminIdentity = (FullName: "Sistem Yöneticisi", Email: "admin@ozal.edu.tr");
         var officerIdentity = NextIdentity();
         var student1Identity = NextIdentity();
         var student2Identity = NextIdentity();
@@ -88,7 +88,7 @@ public static class DataSeeder
         var staff1Identity = NextIdentity();
         var staff2Identity = NextIdentity();
 
-        var admin = await EnsureUserAsync(userManager, adminIdentity.Email, adminIdentity.FullName, CreateValidTcNo(random, usedTcNumbers), "ADMIN-001", AppRoles.Admin, "+904220000001");
+        var admin = await EnsureUserAsync(userManager, adminIdentity.Email, adminIdentity.FullName, CreateValidTcNo(random, usedTcNumbers), "ADMIN-001", AppRoles.Admin, "+904220000001", "Demo123!");
         var officer = await EnsureUserAsync(userManager, officerIdentity.Email, officerIdentity.FullName, CreateValidTcNo(random, usedTcNumbers), "YET-2026-001", AppRoles.Yetkili, "+904220000002");
         var student1 = await EnsureUserAsync(userManager, student1Identity.Email, student1Identity.FullName, CreateValidTcNo(random, usedTcNumbers), "OGR-2026-201", AppRoles.Ogrenci, "+905550000001");
         var student2 = await EnsureUserAsync(userManager, student2Identity.Email, student2Identity.FullName, CreateValidTcNo(random, usedTcNumbers), "OGR-2026-202", AppRoles.Ogrenci, "+905550000002");
@@ -112,7 +112,8 @@ public static class DataSeeder
         string tcNo,
         string studentStaffNo,
         string role,
-        string phoneNumber)
+        string phoneNumber,
+        string password = "Admin123!")
     {
         var user = await userManager.FindByEmailAsync(email)
             ?? userManager.Users.FirstOrDefault(x => x.StudentStaffNo == studentStaffNo);
@@ -131,7 +132,7 @@ public static class DataSeeder
                 LockoutEnabled = true
             };
 
-            var createResult = await userManager.CreateAsync(user, "Admin123!");
+            var createResult = await userManager.CreateAsync(user, password);
             if (!createResult.Succeeded)
             {
                 throw new InvalidOperationException(string.Join(" ", createResult.Errors.Select(x => x.Description)));

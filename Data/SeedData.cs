@@ -108,7 +108,29 @@ public static class SeedData
         var usedTcNumbers = new HashSet<string>();
         var usedFullNames = new HashSet<string>(StringComparer.Ordinal);
 
-        for (var index = 1; index <= 100; index++)
+        var admin = new AppUser
+        {
+            Id = Guid.NewGuid(),
+            UserName = "admin@ozal.edu.tr",
+            Email = "admin@ozal.edu.tr",
+            NormalizedUserName = "ADMIN@OZAL.EDU.TR",
+            NormalizedEmail = "ADMIN@OZAL.EDU.TR",
+            EmailConfirmed = true,
+            FullName = "Sistem Yöneticisi",
+            TcNo = CreateValidTcNo(random, usedTcNumbers),
+            StudentStaffNo = "ADMIN-001",
+            Role = AppRoles.Admin,
+            PhoneNumber = "+904220000001",
+            CreatedAt = now,
+            SecurityStamp = Guid.NewGuid().ToString(),
+            ConcurrencyStamp = Guid.NewGuid().ToString(),
+            LockoutEnabled = true
+        };
+        admin.PasswordHash = passwordHasher.HashPassword(admin, "Demo123!");
+        users.Add(admin);
+        usedFullNames.Add(admin.FullName);
+
+        for (var index = 1; index <= 99; index++)
         {
             string fullName;
             do

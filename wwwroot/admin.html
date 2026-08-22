@@ -19,12 +19,16 @@
         </div>
       </div>
       <nav class="side-nav" aria-label="Admin menüsü">
-        <button class="nav-item active" data-section="dashboard"><span>📊</span>Kontrol Paneli</button>
-        <button class="nav-item" data-section="facilities"><span>🏢</span>Tesisler</button>
-        <button class="nav-item" data-section="rooms"><span>🚪</span>Odalar</button>
-        <button class="nav-item" data-section="applications"><span>📝</span>Başvurular</button>
-        <button class="nav-item" data-section="users"><span>👥</span>Kullanıcılar &amp; Roller</button>
-        <button class="nav-item" data-section="placements"><span>🏠</span>Yerleşimler</button>
+        <div class="nav-main">
+          <button class="nav-item active" data-section="dashboard"><span>📊</span>Kontrol Paneli</button>
+          <button class="nav-item" data-section="facilities"><span>🏢</span>Tesisler</button>
+          <button class="nav-item" data-section="rooms"><span>🚪</span>Odalar</button>
+          <button class="nav-item" data-section="applications"><span>📝</span>Başvurular</button>
+          <button class="nav-item" data-section="users"><span>👥</span>Kullanıcılar &amp; Roller</button>
+          <button class="nav-item" data-section="placements"><span>🏠</span>Yerleşimler</button>
+          <button class="nav-item" data-section="announcements"><span>📢</span>Duyurular</button>
+          <button class="nav-item" data-section="requests"><span>🛠️</span>Arıza Talepleri</button>
+        </div>
         <button class="nav-item danger" id="logoutBtn"><span>🚪</span>Çıkış Yap</button>
       </nav>
     </aside>
@@ -58,7 +62,7 @@
             <article class="panel">
               <div class="panel-head">
                 <h2>Son Arıza Talepleri</h2>
-                <button class="ghost-btn" data-section-jump="rooms">Odalar</button>
+                <button class="ghost-btn" data-section-jump="requests">Arıza Talepleri</button>
               </div>
               <div id="recentRequests" class="activity-list"></div>
             </article>
@@ -227,6 +231,57 @@
                 </tr>
               </thead>
               <tbody id="placementRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="announcements" class="page-section">
+          <div class="toolbar">
+            <div>
+              <h2>Duyuru Yönetimi</h2>
+              <p>Yeni duyurular yayınlayın ve mevcut duyuruları yönetin.</p>
+            </div>
+            <div class="toolbar-actions">
+              <button class="primary-btn" data-modal="announcementModal">Yeni Duyuru</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Başlık</th>
+                  <th>İçerik</th>
+                  <th>Hedef</th>
+                  <th>Tarih</th>
+                  <th>Durum</th>
+                  <th>Aksiyon</th>
+                </tr>
+              </thead>
+              <tbody id="announcementRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="requests" class="page-section">
+          <div class="toolbar">
+            <div>
+              <h2>Arıza Talepleri</h2>
+              <p>Öğrenci ve personel taleplerini inceleyin, durumlarını güncelleyin.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Kategori</th>
+                  <th>Açıklama</th>
+                  <th>Kullanıcı</th>
+                  <th>Oda</th>
+                  <th>Tarih</th>
+                  <th>Durum</th>
+                </tr>
+              </thead>
+              <tbody id="requestRows"></tbody>
             </table>
           </div>
         </section>

@@ -25,7 +25,9 @@ public record MaintenanceStatusUpdateRequest(RequestStatus Status);
 public record MaintenanceRequestResponse(
     int Id,
     Guid UserId,
+    string UserName,
     int RoomId,
+    string RoomNumber,
     string Category,
     string Description,
     string? PhotoUrl,
