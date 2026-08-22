@@ -65,13 +65,24 @@ async function loadAnnouncements() {
   const root = document.getElementById('announcements');
   if (!root) return;
   try {
-    const items = await api('/api/announcements');
-    root.innerHTML = items.map(x => `
+    const items = (await api('/api/announcements'))
+      .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
+      .slice(0, 5);
+    root.innerHTML = items.map(x => {
+      const date = new Date(x.createdAt || Date.now());
+      return `
       <article class="announcement-item">
-        <strong>${escapeHtml(x.title)}</strong>
-        <span>${escapeHtml(x.content)}</span>
-        <span class="announcement-date">${new Date(x.createdAt || Date.now()).toLocaleDateString('tr-TR')}</span>
-      </article>`).join('');
+        <time class="announcement-date" datetime="${date.toISOString()}">
+          <span>${date.toLocaleDateString('tr-TR', { day: '2-digit' })}</span>
+          <small>${date.toLocaleDateString('tr-TR', { month: 'short' }).replace('.', '')}</small>
+        </time>
+        <div class="announcement-copy">
+          <strong>${escapeHtml(x.title)}</strong>
+          <span>${escapeHtml(x.content)}</span>
+        </div>
+        <span class="announcement-arrow" aria-hidden="true">→</span>
+      </article>`;
+    }).join('');
   } catch (error) {
     root.innerHTML = `<p class="muted">${escapeHtml(error.message)}</p>`;
   }

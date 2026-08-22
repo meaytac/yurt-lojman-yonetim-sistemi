@@ -102,37 +102,68 @@ public static class DataSeeder
 
     private static async Task SeedFacilitiesAsync(AppDbContext db)
     {
-        var dormitory = await db.Dormitories.FirstOrDefaultAsync(x => x.Name == "MTU Merkez Ogrenci Yurdu")
+        var dormitory = await db.Dormitories.FirstOrDefaultAsync(x => x.Name == "MTÜ Erkek Öğrenci Yurdu")
             ?? db.Dormitories.Add(new Dormitory
             {
-                Name = "MTU Merkez Ogrenci Yurdu",
+            Name = "MTÜ Erkek Öğrenci Yurdu",
                 Type = AccommodationType.Yurt,
-                CampusLocation = "Battalgazi Yerleskesi",
+            CampusLocation = "Battalgazi Yerleşkesi",
                 TotalCapacity = 120,
                 IsActive = true
             }).Entity;
 
-        var secondDormitory = await db.Dormitories.FirstOrDefaultAsync(x => x.Name == "Yesilyurt Kiz Ogrenci Yurdu")
+        var secondDormitory = await db.Dormitories.FirstOrDefaultAsync(x => x.Name == "MTÜ Kız Öğrenci Yurdu")
             ?? db.Dormitories.Add(new Dormitory
             {
-                Name = "Yesilyurt Kiz Ogrenci Yurdu",
+            Name = "MTÜ Kız Öğrenci Yurdu",
                 Type = AccommodationType.Yurt,
-                CampusLocation = "Yesilyurt Yerleskesi",
+            CampusLocation = "Yeşilyurt Yerleşkesi",
                 TotalCapacity = 96,
                 IsActive = true
             }).Entity;
 
-        var housing = await db.HousingUnits.FirstOrDefaultAsync(x => x.Name == "MTU Personel Lojmanlari")
+        var housing = await db.HousingUnits.FirstOrDefaultAsync(x => x.Name == "MTÜ Akademik Personel Lojmanı")
             ?? db.HousingUnits.Add(new HousingUnit
             {
-                Name = "MTU Personel Lojmanlari",
+            Name = "MTÜ Akademik Personel Lojmanı",
                 Type = AccommodationType.Lojman,
-                CampusLocation = "Battalgazi Yerleskesi",
+            CampusLocation = "Battalgazi Yerleşkesi",
                 TotalCapacity = 40,
                 IsActive = true
             }).Entity;
 
         await db.SaveChangesAsync();
+
+        var extraDormitories = await db.Dormitories
+            .Where(x => x.Name != "MTÜ Erkek Öğrenci Yurdu" && x.Name != "MTÜ Kız Öğrenci Yurdu")
+            .ToListAsync();
+        var extraHousingUnits = await db.HousingUnits
+            .Where(x => x.Name != "MTÜ Akademik Personel Lojmanı")
+            .ToListAsync();
+        if (extraDormitories.Count > 0 || extraHousingUnits.Count > 0)
+        {
+            var extraBuildings = await db.Buildings
+                .Where(x => (x.DormitoryId.HasValue && extraDormitories.Select(d => d.Id).Contains(x.DormitoryId.Value)) ||
+                            (x.HousingUnitId.HasValue && extraHousingUnits.Select(h => h.Id).Contains(x.HousingUnitId.Value)))
+                .ToListAsync();
+            var extraBuildingIds = extraBuildings.Select(x => x.Id).ToList();
+            var extraFloorIds = await db.Floors
+                .Where(x => extraBuildingIds.Contains(x.BuildingId))
+                .Select(x => x.Id)
+                .ToListAsync();
+            var extraRoomIds = await db.Rooms
+                .Where(x => extraFloorIds.Contains(x.BlockFloorId))
+                .Select(x => x.Id)
+                .ToListAsync();
+            db.Placements.RemoveRange(await db.Placements.Where(x => extraRoomIds.Contains(x.RoomId)).ToListAsync());
+            db.Requests.RemoveRange(await db.Requests.Where(x => extraRoomIds.Contains(x.RoomId)).ToListAsync());
+            db.Rooms.RemoveRange(await db.Rooms.Where(x => extraRoomIds.Contains(x.Id)).ToListAsync());
+            db.Floors.RemoveRange(await db.Floors.Where(x => extraFloorIds.Contains(x.Id)).ToListAsync());
+            db.Buildings.RemoveRange(extraBuildings);
+            db.Dormitories.RemoveRange(extraDormitories);
+            db.HousingUnits.RemoveRange(extraHousingUnits);
+            await db.SaveChangesAsync();
+        }
 
         var aBlock = await EnsureBuildingAsync(db, dormitory.Id, null, "A Blok");
         var bBlock = await EnsureBuildingAsync(db, secondDormitory.Id, null, "B Blok");
@@ -259,20 +290,29 @@ public static class DataSeeder
                 new Payment { UserId = users.Student2.Id, Amount = 2500, DueDate = DateTime.UtcNow.AddMonths(-1), PaidDate = DateTime.UtcNow.AddDays(-20), Status = PaymentStatus.Paid, Description = "Temmuz yurt ucreti" });
         }
 
-        if (!await db.Announcements.AnyAsync(x => x.Title == "Demo Sunum Duyurusu"))
-        {
-            db.Announcements.Add(new Announcement
-            {
-                Title = "Demo Sunum Duyurusu",
-                Content = "Yurt ve lojman yonetim sistemi demo verileriyle calismaktadir.",
-                TargetRole = AnnouncementTargetRole.All,
-                CreatedAt = DateTime.UtcNow,
-                IsActive = true
-            });
-        }
-
+        await EnsureAnnouncementsAsync(db);
         await db.SaveChangesAsync();
         await RecalculateRoomsAsync(db);
+    }
+
+    private static async Task EnsureAnnouncementsAsync(AppDbContext db)
+    {
+        var announcements = await db.Announcements.OrderByDescending(x => x.CreatedAt).ToListAsync();
+        if (announcements.Count == 5)
+        {
+            return;
+        }
+
+        db.Announcements.RemoveRange(announcements);
+        var now = DateTime.UtcNow;
+        db.Announcements.AddRange(Enumerable.Range(1, 5).Select(index => new Announcement
+        {
+            Title = $"Demo Duyurusu {index:00}",
+            Content = "Yurt ve lojman yonetim sistemi bilgilendirmesidir.",
+            TargetRole = AnnouncementTargetRole.All,
+            CreatedAt = now.AddDays(-index),
+            IsActive = true
+        }));
     }
 
     private static async Task EnsurePlacementAsync(AppDbContext db, Guid userId, string roomNumber, DateTime checkInDate)

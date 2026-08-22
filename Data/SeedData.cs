@@ -102,34 +102,47 @@ public static class SeedData
         return users;
     }
 
-    private static List<Dormitory> CreateDormitories() => Enumerable.Range(1, 5).Select(index => new Dormitory
+    private static List<Dormitory> CreateDormitories() => new()
     {
-        Name = $"Demo {index} Ogrenci Yurdu",
-        Type = AccommodationType.Yurt,
-        CampusLocation = index % 2 == 0 ? "Yesilyurt Yerleskesi" : "Battalgazi Yerleskesi",
-        IsActive = true
-    }).ToList();
+        new Dormitory
+        {
+            Name = "MTÜ Erkek Öğrenci Yurdu",
+            Type = AccommodationType.Yurt,
+            CampusLocation = "Battalgazi Yerleşkesi",
+            IsActive = true
+        },
+        new Dormitory
+        {
+            Name = "MTÜ Kız Öğrenci Yurdu",
+            Type = AccommodationType.Yurt,
+            CampusLocation = "Yeşilyurt Yerleşkesi",
+            IsActive = true
+        }
+    };
 
-    private static List<HousingUnit> CreateHousingUnits() => Enumerable.Range(1, 4).Select(index => new HousingUnit
+    private static List<HousingUnit> CreateHousingUnits() => new()
     {
-        Name = $"Demo {index} Personel Lojmani",
-        Type = AccommodationType.Lojman,
-        CampusLocation = "Battalgazi Yerleskesi",
-        IsActive = true
-    }).ToList();
+        new HousingUnit
+        {
+            Name = "MTÜ Akademik Personel Lojmanı",
+            Type = AccommodationType.Lojman,
+            CampusLocation = "Battalgazi Yerleşkesi",
+            IsActive = true
+        }
+    };
 
     private static List<Building> CreateBuildings(List<Dormitory> dormitories, List<HousingUnit> housingUnits)
     {
-        var buildings = new List<Building>(10);
-        for (var index = 0; index < 10; index++)
+        var buildings = new List<Building>(3);
+        for (var index = 0; index < 3; index++)
         {
-            if (index < 6)
+            if (index < dormitories.Count)
             {
-                buildings.Add(new Building { DormitoryId = dormitories[index % dormitories.Count].Id, BlockName = $"Demo {index + 1} Blok" });
+                buildings.Add(new Building { DormitoryId = dormitories[index].Id, BlockName = $"{(char)('A' + index)} Blok" });
             }
             else
             {
-                buildings.Add(new Building { HousingUnitId = housingUnits[(index - 6) % housingUnits.Count].Id, BlockName = $"Lojman {index - 5} Blok" });
+                buildings.Add(new Building { HousingUnitId = housingUnits[0].Id, BlockName = "L Blok" });
             }
         }
 
@@ -204,7 +217,7 @@ public static class SeedData
     }
 
     private static List<Announcement> CreateAnnouncements(DateTime now) =>
-        Enumerable.Range(1, 81).Select(index => new Announcement
+        Enumerable.Range(1, 5).Select(index => new Announcement
         {
             Title = $"Demo Duyurusu {index:00}",
             Content = "Yurt ve lojman yonetim sistemi bilgilendirmesidir.",
