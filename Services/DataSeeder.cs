@@ -241,8 +241,8 @@ public static class DataSeeder
 
         var expectedBuildings = new (int? DormitoryId, int? HousingUnitId, string BlockName)[]
         {
-            (dormitory.Id, (int?)null, "A Blok"), (dormitory.Id, (int?)null, "B Blok"), (dormitory.Id, (int?)null, "C Blok"),
-            (secondDormitory.Id, (int?)null, "A Blok"), (secondDormitory.Id, (int?)null, "B Blok"), (secondDormitory.Id, (int?)null, "C Blok"),
+            (dormitory.Id, (int?)null, "A Blok"), (dormitory.Id, (int?)null, "B Blok"),
+            (secondDormitory.Id, (int?)null, "A Blok"), (secondDormitory.Id, (int?)null, "B Blok"),
             ((int?)null, housing.Id, "L Blok")
         };
 
@@ -252,8 +252,7 @@ public static class DataSeeder
             .ToListAsync();
         var obsoleteBuildings = existingBuildings.Where(x => !expectedBuildings.Any(expected =>
             expected.Item1 == x.DormitoryId && expected.Item2 == x.HousingUnitId && expected.Item3 == x.BlockName)).ToList();
-        await RemoveBuildingsAsync(db, obsoleteBuildings);
-
+        var obsoleteRooms = new List<Room>();
         foreach (var expected in expectedBuildings)
         {
             var building = await EnsureBuildingAsync(db, expected.Item1, expected.Item2, expected.Item3);
@@ -262,7 +261,7 @@ public static class DataSeeder
                 .ToListAsync();
             foreach (var extraFloor in extraFloors)
             {
-                await RemoveRoomsAsync(db, await db.Rooms.Where(x => x.BlockFloorId == extraFloor.Id).ToListAsync());
+                obsoleteRooms.AddRange(await db.Rooms.Where(x => x.BlockFloorId == extraFloor.Id).ToListAsync());
             }
             db.Floors.RemoveRange(extraFloors);
             await db.SaveChangesAsync();
@@ -272,11 +271,11 @@ public static class DataSeeder
                 var floor = await EnsureFloorAsync(db, building.Id, floorNumber);
                 var isHousing = expected.Item2.HasValue;
                 var prefix = isHousing ? "L" : string.Empty;
-                var expectedRoomNumbers = Enumerable.Range(1, 20)
+                var expectedRoomNumbers = Enumerable.Range(1, 10)
                     .Select(index => $"{prefix}{floorNumber}{index:00}")
                     .ToHashSet();
                 var existingRooms = await db.Rooms.Where(x => x.BlockFloorId == floor.Id).ToListAsync();
-                await RemoveRoomsAsync(db, existingRooms.Where(x => !expectedRoomNumbers.Contains(x.RoomNumber)).ToList());
+                obsoleteRooms.AddRange(existingRooms.Where(x => !expectedRoomNumbers.Contains(x.RoomNumber)));
                 foreach (var roomNumber in expectedRoomNumbers)
                 {
                     var capacity = isHousing ? random.Next(1, 3) : random.Next(3, 5);
@@ -285,6 +284,10 @@ public static class DataSeeder
                 }
             }
         }
+
+        await RelocatePlacementsAsync(db, obsoleteBuildings, obsoleteRooms);
+        await RemoveRoomsAsync(db, obsoleteRooms);
+        await RemoveBuildingsAsync(db, obsoleteBuildings);
 
         dormitory.TotalCapacity = await db.Rooms.Where(x => x.BlockFloor.Building.DormitoryId == dormitory.Id).SumAsync(x => x.Capacity);
         secondDormitory.TotalCapacity = await db.Rooms.Where(x => x.BlockFloor.Building.DormitoryId == secondDormitory.Id).SumAsync(x => x.Capacity);
@@ -300,6 +303,73 @@ public static class DataSeeder
         await RemoveRoomsAsync(db, await db.Rooms.Where(x => roomIds.Contains(x.Id)).ToListAsync());
         db.Floors.RemoveRange(await db.Floors.Where(x => floorIds.Contains(x.Id)).ToListAsync());
         db.Buildings.RemoveRange(buildings);
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task RelocatePlacementsAsync(AppDbContext db, List<Building> buildings, List<Room> roomsToRemove)
+    {
+        if (buildings.Count == 0 && roomsToRemove.Count == 0)
+        {
+            return;
+        }
+
+        var buildingIds = buildings.Select(x => x.Id).ToList();
+        var sourceRoomIds = await db.Rooms
+            .Where(x => buildingIds.Contains(x.BlockFloor.BuildingId))
+            .Select(x => x.Id)
+            .ToListAsync();
+        sourceRoomIds.AddRange(roomsToRemove.Select(x => x.Id));
+        sourceRoomIds = sourceRoomIds.Distinct().ToList();
+        var placements = await db.Placements
+            .Include(x => x.Room)
+            .ThenInclude(x => x.BlockFloor)
+            .ThenInclude(x => x.Building)
+            .Where(x => sourceRoomIds.Contains(x.RoomId))
+            .OrderByDescending(x => x.IsActive)
+            .ThenBy(x => x.CheckInDate)
+            .ToListAsync();
+        if (placements.Count == 0)
+        {
+            return;
+        }
+
+        var random = new Random(20260824);
+        var targetRooms = await db.Rooms
+            .Include(x => x.BlockFloor)
+            .ThenInclude(x => x.Building)
+            .Where(x => !buildingIds.Contains(x.BlockFloor.BuildingId) && !sourceRoomIds.Contains(x.Id) && x.Status != RoomStatus.Maintenance)
+            .ToListAsync();
+        var occupancy = targetRooms.ToDictionary(x => x.Id, x => 0);
+        foreach (var placement in await db.Placements
+                     .Where(x => !sourceRoomIds.Contains(x.RoomId) && x.IsActive)
+                     .ToListAsync())
+        {
+            if (occupancy.ContainsKey(placement.RoomId))
+            {
+                occupancy[placement.RoomId]++;
+            }
+        }
+
+        foreach (var placement in placements)
+        {
+            var sourceIsHousing = placement.Room.BlockFloor.Building.HousingUnitId.HasValue;
+            var target = targetRooms
+                .Where(x => x.BlockFloor.Building.HousingUnitId.HasValue == sourceIsHousing)
+                .Where(x => !placement.IsActive || occupancy[x.Id] < x.Capacity)
+                .OrderBy(_ => random.Next())
+                .FirstOrDefault();
+            if (target is null)
+            {
+                throw new InvalidOperationException("Eski blok yerleşimleri için uygun A/B/L odası bulunamadı.");
+            }
+
+            placement.RoomId = target.Id;
+            if (placement.IsActive)
+            {
+                occupancy[target.Id]++;
+            }
+        }
+
         await db.SaveChangesAsync();
     }
 

@@ -211,10 +211,10 @@ public static class SeedData
 
     private static List<Building> CreateBuildings(List<Dormitory> dormitories, List<HousingUnit> housingUnits)
     {
-        var buildings = new List<Building>(7);
+        var buildings = new List<Building>(5);
         foreach (var dormitory in dormitories)
         {
-            foreach (var blockName in new[] { "A Blok", "B Blok", "C Blok" })
+            foreach (var blockName in new[] { "A Blok", "B Blok" })
             {
                 buildings.Add(new Building { DormitoryId = dormitory.Id, BlockName = blockName });
             }
@@ -228,11 +228,11 @@ public static class SeedData
     private static List<Room> CreateRooms(List<Floor> floors, List<Building> buildings, Random random)
     {
         var housingBuildingId = buildings.Single(x => x.HousingUnitId.HasValue).Id;
-        var rooms = new List<Room>(floors.Count * 20);
+        var rooms = new List<Room>(floors.Count * 10);
         foreach (var floor in floors)
         {
             var isHousing = floor.BuildingId == housingBuildingId;
-            for (var roomIndex = 1; roomIndex <= 20; roomIndex++)
+            for (var roomIndex = 1; roomIndex <= 10; roomIndex++)
             {
                 var capacity = isHousing ? random.Next(1, 3) : random.Next(3, 5);
                 var occupancy = random.Next(capacity + 1);
