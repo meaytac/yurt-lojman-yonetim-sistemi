@@ -38,7 +38,7 @@ public static class SeedData
         db.Floors.AddRange(floors);
         await db.SaveChangesAsync();
 
-        var rooms = CreateRooms(floors);
+        var rooms = CreateRooms(floors, buildings, random);
         db.Rooms.AddRange(rooms);
         await db.SaveChangesAsync();
 
@@ -53,17 +53,6 @@ public static class SeedData
         db.Requests.AddRange(requests);
         await db.SaveChangesAsync();
 
-        foreach (var room in rooms)
-        {
-            room.CurrentOccupancy = placements.Count(x => x.RoomId == room.Id);
-            room.Status = room.CurrentOccupancy == 0
-                ? RoomStatus.Empty
-                : room.CurrentOccupancy >= room.Capacity
-                    ? RoomStatus.Full
-                    : RoomStatus.PartiallyFull;
-        }
-
-        await db.SaveChangesAsync();
         return true;
     }
 
@@ -133,37 +122,41 @@ public static class SeedData
 
     private static List<Building> CreateBuildings(List<Dormitory> dormitories, List<HousingUnit> housingUnits)
     {
-        var buildings = new List<Building>(3);
-        for (var index = 0; index < 3; index++)
+        var buildings = new List<Building>(7);
+        foreach (var dormitory in dormitories)
         {
-            if (index < dormitories.Count)
+            foreach (var blockName in new[] { "A Blok", "B Blok", "C Blok" })
             {
-                buildings.Add(new Building { DormitoryId = dormitories[index].Id, BlockName = $"{(char)('A' + index)} Blok" });
-            }
-            else
-            {
-                buildings.Add(new Building { HousingUnitId = housingUnits[0].Id, BlockName = "L Blok" });
+                buildings.Add(new Building { DormitoryId = dormitory.Id, BlockName = blockName });
             }
         }
+
+        buildings.Add(new Building { HousingUnitId = housingUnits[0].Id, BlockName = "L Blok" });
 
         return buildings;
     }
 
-    private static List<Room> CreateRooms(List<Floor> floors)
+    private static List<Room> CreateRooms(List<Floor> floors, List<Building> buildings, Random random)
     {
-        var rooms = new List<Room>(300);
+        var housingBuildingId = buildings.Single(x => x.HousingUnitId.HasValue).Id;
+        var rooms = new List<Room>(floors.Count * 20);
         foreach (var floor in floors)
         {
-            for (var roomIndex = 1; roomIndex <= 15; roomIndex++)
+            var isHousing = floor.BuildingId == housingBuildingId;
+            for (var roomIndex = 1; roomIndex <= 20; roomIndex++)
             {
-                var capacity = floor.BuildingId % 5 == 0 ? 1 : 4;
+                var capacity = isHousing ? random.Next(1, 3) : random.Next(3, 5);
+                var occupancy = random.Next(capacity + 1);
                 rooms.Add(new Room
                 {
                     BlockFloorId = floor.Id,
-                    RoomNumber = $"{floor.FloorNumber}{roomIndex:00}",
+                    RoomNumber = $"{(isHousing ? "L" : string.Empty)}{floor.FloorNumber}{roomIndex:00}",
                     Capacity = capacity,
-                    Price = capacity == 1 ? 5500 : 2500,
-                    Status = RoomStatus.Empty
+                    CurrentOccupancy = occupancy,
+                    Price = isHousing ? 5500 : 2500,
+                    Status = occupancy == 0
+                        ? RoomStatus.Empty
+                        : occupancy == capacity ? RoomStatus.Full : RoomStatus.PartiallyFull
                 });
             }
         }

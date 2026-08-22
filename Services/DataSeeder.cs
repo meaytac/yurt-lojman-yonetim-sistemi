@@ -102,89 +102,108 @@ public static class DataSeeder
 
     private static async Task SeedFacilitiesAsync(AppDbContext db)
     {
+        var random = new Random(20260822);
         var dormitory = await db.Dormitories.FirstOrDefaultAsync(x => x.Name == "MTÜ Erkek Öğrenci Yurdu")
             ?? db.Dormitories.Add(new Dormitory
             {
-            Name = "MTÜ Erkek Öğrenci Yurdu",
+                Name = "MTÜ Erkek Öğrenci Yurdu",
                 Type = AccommodationType.Yurt,
-            CampusLocation = "Battalgazi Yerleşkesi",
-                TotalCapacity = 120,
+                CampusLocation = "Battalgazi Yerleşkesi",
                 IsActive = true
             }).Entity;
 
         var secondDormitory = await db.Dormitories.FirstOrDefaultAsync(x => x.Name == "MTÜ Kız Öğrenci Yurdu")
             ?? db.Dormitories.Add(new Dormitory
             {
-            Name = "MTÜ Kız Öğrenci Yurdu",
+                Name = "MTÜ Kız Öğrenci Yurdu",
                 Type = AccommodationType.Yurt,
-            CampusLocation = "Yeşilyurt Yerleşkesi",
-                TotalCapacity = 96,
+                CampusLocation = "Yeşilyurt Yerleşkesi",
                 IsActive = true
             }).Entity;
 
         var housing = await db.HousingUnits.FirstOrDefaultAsync(x => x.Name == "MTÜ Akademik Personel Lojmanı")
             ?? db.HousingUnits.Add(new HousingUnit
             {
-            Name = "MTÜ Akademik Personel Lojmanı",
+                Name = "MTÜ Akademik Personel Lojmanı",
                 Type = AccommodationType.Lojman,
-            CampusLocation = "Battalgazi Yerleşkesi",
-                TotalCapacity = 40,
+                CampusLocation = "Battalgazi Yerleşkesi",
                 IsActive = true
             }).Entity;
 
         await db.SaveChangesAsync();
 
-        var extraDormitories = await db.Dormitories
-            .Where(x => x.Name != "MTÜ Erkek Öğrenci Yurdu" && x.Name != "MTÜ Kız Öğrenci Yurdu")
-            .ToListAsync();
-        var extraHousingUnits = await db.HousingUnits
-            .Where(x => x.Name != "MTÜ Akademik Personel Lojmanı")
-            .ToListAsync();
-        if (extraDormitories.Count > 0 || extraHousingUnits.Count > 0)
+        var expectedBuildings = new (int? DormitoryId, int? HousingUnitId, string BlockName)[]
         {
-            var extraBuildings = await db.Buildings
-                .Where(x => (x.DormitoryId.HasValue && extraDormitories.Select(d => d.Id).Contains(x.DormitoryId.Value)) ||
-                            (x.HousingUnitId.HasValue && extraHousingUnits.Select(h => h.Id).Contains(x.HousingUnitId.Value)))
+            (dormitory.Id, (int?)null, "A Blok"), (dormitory.Id, (int?)null, "B Blok"), (dormitory.Id, (int?)null, "C Blok"),
+            (secondDormitory.Id, (int?)null, "A Blok"), (secondDormitory.Id, (int?)null, "B Blok"), (secondDormitory.Id, (int?)null, "C Blok"),
+            ((int?)null, housing.Id, "L Blok")
+        };
+
+        var targetDormitoryIds = new[] { dormitory.Id, secondDormitory.Id };
+        var targetHousingUnitIds = new[] { housing.Id };
+        var existingBuildings = await db.Buildings
+            .Where(x => (x.DormitoryId.HasValue && targetDormitoryIds.Contains(x.DormitoryId.Value)) ||
+                        (x.HousingUnitId.HasValue && targetHousingUnitIds.Contains(x.HousingUnitId.Value)))
+            .ToListAsync();
+        var obsoleteBuildings = existingBuildings.Where(x => !expectedBuildings.Any(expected =>
+            expected.Item1 == x.DormitoryId && expected.Item2 == x.HousingUnitId && expected.Item3 == x.BlockName)).ToList();
+        await RemoveBuildingsAsync(db, obsoleteBuildings);
+
+        foreach (var expected in expectedBuildings)
+        {
+            var building = await EnsureBuildingAsync(db, expected.Item1, expected.Item2, expected.Item3);
+            var extraFloors = await db.Floors
+                .Where(x => x.BuildingId == building.Id && (x.FloorNumber < 1 || x.FloorNumber > 2))
                 .ToListAsync();
-            var extraBuildingIds = extraBuildings.Select(x => x.Id).ToList();
-            var extraFloorIds = await db.Floors
-                .Where(x => extraBuildingIds.Contains(x.BuildingId))
-                .Select(x => x.Id)
-                .ToListAsync();
-            var extraRoomIds = await db.Rooms
-                .Where(x => extraFloorIds.Contains(x.BlockFloorId))
-                .Select(x => x.Id)
-                .ToListAsync();
-            db.Placements.RemoveRange(await db.Placements.Where(x => extraRoomIds.Contains(x.RoomId)).ToListAsync());
-            db.Requests.RemoveRange(await db.Requests.Where(x => extraRoomIds.Contains(x.RoomId)).ToListAsync());
-            db.Rooms.RemoveRange(await db.Rooms.Where(x => extraRoomIds.Contains(x.Id)).ToListAsync());
-            db.Floors.RemoveRange(await db.Floors.Where(x => extraFloorIds.Contains(x.Id)).ToListAsync());
-            db.Buildings.RemoveRange(extraBuildings);
-            db.Dormitories.RemoveRange(extraDormitories);
-            db.HousingUnits.RemoveRange(extraHousingUnits);
+            foreach (var extraFloor in extraFloors)
+            {
+                await RemoveRoomsAsync(db, await db.Rooms.Where(x => x.BlockFloorId == extraFloor.Id).ToListAsync());
+            }
+            db.Floors.RemoveRange(extraFloors);
             await db.SaveChangesAsync();
+
+            for (var floorNumber = 1; floorNumber <= 2; floorNumber++)
+            {
+                var floor = await EnsureFloorAsync(db, building.Id, floorNumber);
+                var isHousing = expected.Item2.HasValue;
+                var prefix = isHousing ? "L" : string.Empty;
+                var expectedRoomNumbers = Enumerable.Range(1, 20)
+                    .Select(index => $"{prefix}{floorNumber}{index:00}")
+                    .ToHashSet();
+                var existingRooms = await db.Rooms.Where(x => x.BlockFloorId == floor.Id).ToListAsync();
+                await RemoveRoomsAsync(db, existingRooms.Where(x => !expectedRoomNumbers.Contains(x.RoomNumber)).ToList());
+                foreach (var roomNumber in expectedRoomNumbers)
+                {
+                    var capacity = isHousing ? random.Next(1, 3) : random.Next(3, 5);
+                    var occupancy = random.Next(capacity + 1);
+                    await EnsureRoomAsync(db, floor.Id, roomNumber, capacity, isHousing ? 5500 : 2500, occupancy);
+                }
+            }
         }
-
-        var aBlock = await EnsureBuildingAsync(db, dormitory.Id, null, "A Blok");
-        var bBlock = await EnsureBuildingAsync(db, secondDormitory.Id, null, "B Blok");
-        var lBlock = await EnsureBuildingAsync(db, null, housing.Id, "L Blok");
-
-        var aFloor1 = await EnsureFloorAsync(db, aBlock.Id, 1);
-        var aFloor2 = await EnsureFloorAsync(db, aBlock.Id, 2);
-        var bFloor1 = await EnsureFloorAsync(db, bBlock.Id, 1);
-        var lFloor1 = await EnsureFloorAsync(db, lBlock.Id, 1);
-
-        await EnsureRoomAsync(db, aFloor1.Id, "101", 4, 2500, RoomStatus.Empty);
-        await EnsureRoomAsync(db, aFloor1.Id, "102", 4, 2500, RoomStatus.Empty);
-        await EnsureRoomAsync(db, aFloor2.Id, "201", 3, 2700, RoomStatus.Empty);
-        await EnsureRoomAsync(db, bFloor1.Id, "B-103", 4, 2400, RoomStatus.Empty);
-        await EnsureRoomAsync(db, bFloor1.Id, "B-104", 4, 2400, RoomStatus.Maintenance);
-        await EnsureRoomAsync(db, lFloor1.Id, "L101", 1, 5500, RoomStatus.Empty);
-        await EnsureRoomAsync(db, lFloor1.Id, "L102", 1, 5750, RoomStatus.Empty);
 
         dormitory.TotalCapacity = await db.Rooms.Where(x => x.BlockFloor.Building.DormitoryId == dormitory.Id).SumAsync(x => x.Capacity);
         secondDormitory.TotalCapacity = await db.Rooms.Where(x => x.BlockFloor.Building.DormitoryId == secondDormitory.Id).SumAsync(x => x.Capacity);
         housing.TotalCapacity = await db.Rooms.Where(x => x.BlockFloor.Building.HousingUnitId == housing.Id).SumAsync(x => x.Capacity);
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task RemoveBuildingsAsync(AppDbContext db, List<Building> buildings)
+    {
+        var buildingIds = buildings.Select(x => x.Id).ToList();
+        var floorIds = await db.Floors.Where(x => buildingIds.Contains(x.BuildingId)).Select(x => x.Id).ToListAsync();
+        var roomIds = await db.Rooms.Where(x => floorIds.Contains(x.BlockFloorId)).Select(x => x.Id).ToListAsync();
+        await RemoveRoomsAsync(db, await db.Rooms.Where(x => roomIds.Contains(x.Id)).ToListAsync());
+        db.Floors.RemoveRange(await db.Floors.Where(x => floorIds.Contains(x.Id)).ToListAsync());
+        db.Buildings.RemoveRange(buildings);
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task RemoveRoomsAsync(AppDbContext db, List<Room> rooms)
+    {
+        var roomIds = rooms.Select(x => x.Id).ToList();
+        db.Placements.RemoveRange(await db.Placements.Where(x => roomIds.Contains(x.RoomId)).ToListAsync());
+        db.Requests.RemoveRange(await db.Requests.Where(x => roomIds.Contains(x.RoomId)).ToListAsync());
+        db.Rooms.RemoveRange(rooms);
         await db.SaveChangesAsync();
     }
 
@@ -220,7 +239,7 @@ public static class DataSeeder
         return floor;
     }
 
-    private static async Task<Room> EnsureRoomAsync(AppDbContext db, int floorId, string roomNumber, int capacity, decimal price, RoomStatus status)
+    private static async Task<Room> EnsureRoomAsync(AppDbContext db, int floorId, string roomNumber, int capacity, decimal price, int occupancy)
     {
         var room = await db.Rooms.FirstOrDefaultAsync(x => x.BlockFloorId == floorId && x.RoomNumber == roomNumber);
         if (room is null)
@@ -231,8 +250,8 @@ public static class DataSeeder
                 RoomNumber = roomNumber,
                 Capacity = capacity,
                 Price = price,
-                Status = status,
-                CurrentOccupancy = 0
+                CurrentOccupancy = occupancy,
+                Status = GetRoomStatus(occupancy, capacity)
             };
             db.Rooms.Add(room);
         }
@@ -240,15 +259,17 @@ public static class DataSeeder
         {
             room.Capacity = capacity;
             room.Price = price;
-            if (status == RoomStatus.Maintenance)
-            {
-                room.Status = RoomStatus.Maintenance;
-            }
+            room.CurrentOccupancy = occupancy;
+            room.Status = GetRoomStatus(occupancy, capacity);
         }
 
         await db.SaveChangesAsync();
         return room;
     }
+
+    private static RoomStatus GetRoomStatus(int occupancy, int capacity) => occupancy == 0
+        ? RoomStatus.Empty
+        : occupancy == capacity ? RoomStatus.Full : RoomStatus.PartiallyFull;
 
     private static async Task SeedOperationalDataAsync(AppDbContext db, DemoUsers users)
     {
@@ -292,7 +313,6 @@ public static class DataSeeder
 
         await EnsureAnnouncementsAsync(db);
         await db.SaveChangesAsync();
-        await RecalculateRoomsAsync(db);
     }
 
     private static async Task EnsureAnnouncementsAsync(AppDbContext db)
@@ -324,28 +344,6 @@ public static class DataSeeder
 
         var room = await db.Rooms.FirstAsync(x => x.RoomNumber == roomNumber);
         db.Placements.Add(new Placement { UserId = userId, RoomId = room.Id, CheckInDate = checkInDate, IsActive = true });
-        await db.SaveChangesAsync();
-    }
-
-    private static async Task RecalculateRoomsAsync(AppDbContext db)
-    {
-        var rooms = await db.Rooms.Include(x => x.Placements).ToListAsync();
-        foreach (var room in rooms)
-        {
-            if (room.Status == RoomStatus.Maintenance)
-            {
-                room.CurrentOccupancy = 0;
-                continue;
-            }
-
-            room.CurrentOccupancy = room.Placements.Count(x => x.IsActive);
-            room.Status = room.CurrentOccupancy == 0
-                ? RoomStatus.Empty
-                : room.CurrentOccupancy >= room.Capacity
-                    ? RoomStatus.Full
-                    : RoomStatus.PartiallyFull;
-        }
-
         await db.SaveChangesAsync();
     }
 

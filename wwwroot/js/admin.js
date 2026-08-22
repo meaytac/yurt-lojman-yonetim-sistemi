@@ -175,11 +175,9 @@ function renderFacilities() {
       <td>${escapeHtml(item.campusLocation)}</td>
       <td>${item.totalCapacity}</td>
       <td>${item.buildingCount ?? 0}</td>
-      <td>${getStatusBadge(item.isActive ? 'Aktif' : 'Pasif')}</td>
+      <td>${getStatusBadge(item.isActive ? 'Hizmet Veriyor' : 'Pasif')}</td>
       <td>
         <button class="row-btn" onclick="editFacility('${item.type}', ${item.id})">Düzenle</button>
-        <button class="row-btn warn" onclick="toggleFacility('${item.type}', ${item.id}, ${!item.isActive})">${item.isActive ? 'Pasifleştir' : 'Aktifleştir'}</button>
-        <button class="row-btn danger" onclick="deleteFacility('${item.type}', ${item.id})">Sil</button>
       </td>
     </tr>
   `);
@@ -221,8 +219,6 @@ function renderRooms() {
       <td>${getStatusBadge(item.status)}</td>
       <td>
         <button class="row-btn" onclick="editRoom(${item.id})">Düzenle</button>
-        <button class="row-btn" onclick="showOccupants(${item.id})">Detay</button>
-        <button class="row-btn danger" onclick="deleteRoom(${item.id})">Sil</button>
       </td>
     </tr>
   `);
@@ -394,6 +390,7 @@ function roomForm(item = null) {
         ${['Empty', 'PartiallyFull', 'Full', 'Maintenance'].map(x => `<option value="${x}" ${x === item?.status ? 'selected' : ''}>${roomDisplayStatus(x)}</option>`).join('')}
       </select></label>
       <button class="primary-btn full" type="submit">Kaydet</button>
+      ${item ? `<button class="row-btn danger full" type="button" onclick="deleteRoom(${item.id})">Sil</button>` : ''}
     </form>`,
     bind: () => bindRoomSubmit(item)
   };
