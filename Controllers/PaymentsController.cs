@@ -17,7 +17,7 @@ public class PaymentsController(AppDbContext db) : ControllerBase
     public Task<List<PaymentResponse>> Mine()
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        return Query().Where(x => x.UserId == userId).ToListAsync();
+        return Query(userId).ToListAsync();
     }
 
     [HttpGet]
@@ -46,10 +46,37 @@ public class PaymentsController(AppDbContext db) : ControllerBase
         return NoContent();
     }
 
-    private IQueryable<PaymentResponse> Query()
+    [HttpPost("mine/pay-latest-due")]
+    public async Task<ActionResult<PaymentResponse>> PayLatestDue()
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var now = DateTime.UtcNow;
+        var payment = await db.Payments
+            .Where(x => x.UserId == userId && x.DueDate <= now && x.Status != PaymentStatus.Paid)
+            .OrderByDescending(x => x.DueDate)
+            .FirstOrDefaultAsync();
+
+        if (payment is null)
+        {
+            return NotFound("Vadesi gelmiş ödenmemiş borç bulunmuyor.");
+        }
+
+        payment.PaidDate = now;
+        payment.Status = PaymentStatus.Paid;
+        await db.SaveChangesAsync();
+        return Ok(ToResponse(payment));
+    }
+
+    private IQueryable<PaymentResponse> Query(Guid? userId = null)
     {
         var now = DateTime.UtcNow;
-        return db.Payments.AsNoTracking()
+        var payments = db.Payments.AsNoTracking();
+        if (userId.HasValue)
+        {
+            payments = payments.Where(x => x.UserId == userId.Value);
+        }
+
+        return payments
             .OrderByDescending(x => x.DueDate)
             .Select(x => new PaymentResponse(x.Id, x.UserId, x.Amount, x.DueDate, x.PaidDate,
                 x.Status == PaymentStatus.Unpaid && x.DueDate < now ? PaymentStatus.Overdue : x.Status,

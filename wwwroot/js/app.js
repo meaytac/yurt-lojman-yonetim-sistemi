@@ -31,6 +31,12 @@ async function login() {
       body: JSON.stringify({ email, password })
     });
     localStorage.setItem('token', data.token);
+    localStorage.setItem('currentUser', JSON.stringify({
+      userId: data.userId,
+      fullName: data.fullName,
+      email: data.email,
+      role: data.role
+    }));
     state.textContent = `${data.fullName} olarak giriş yapıldı.`;
     state.className = 'login-message success';
 

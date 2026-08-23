@@ -15,6 +15,7 @@ public static class DataSeeder
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
 
         await SeedRolesAsync(roleManager);
+        await SeedData.SeedAsync(db);
         var users = await SeedUsersAsync(userManager);
         await SeedFacilitiesAsync(db);
         await SeedOperationalDataAsync(db, users);
