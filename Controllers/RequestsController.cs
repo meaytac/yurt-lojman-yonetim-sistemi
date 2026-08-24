@@ -22,7 +22,7 @@ public class RequestsController(AppDbContext db, IFileStorageService fileStorage
     public Task<List<MaintenanceRequestResponse>> Mine()
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        return Query().Where(x => x.UserId == userId).ToListAsync();
+        return Query(userId).ToListAsync();
     }
 
     [HttpPost]
@@ -40,7 +40,7 @@ public class RequestsController(AppDbContext db, IFileStorageService fileStorage
 
         db.Requests.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
-        return Ok(await Query().FirstAsync(x => x.Id == entity.Id, cancellationToken));
+        return Ok(ToResponse(entity));
     }
 
     [HttpPatch("{id:int}/status")]
@@ -54,11 +54,18 @@ public class RequestsController(AppDbContext db, IFileStorageService fileStorage
         return NoContent();
     }
 
-    private IQueryable<MaintenanceRequestResponse> Query()
+    private IQueryable<MaintenanceRequestResponse> Query(Guid? userId = null)
     {
-        return db.Requests.AsNoTracking()
+        var requests = db.Requests.AsNoTracking();
+        if (userId.HasValue)
+        {
+            requests = requests.Where(x => x.UserId == userId.Value);
+        }
+
+        return requests
             .OrderByDescending(x => x.CreatedAt)
-            .Select(x => new MaintenanceRequestResponse(x.Id, x.UserId, x.User.FullName, x.RoomId, x.Room.RoomNumber, x.Category, x.Description, x.PhotoUrl, x.Status, x.CreatedAt));
+            .Select(x => new MaintenanceRequestResponse(x.Id, x.UserId, x.RoomId, x.Category, x.Description, x.PhotoUrl, x.Status, x.CreatedAt));
     }
 
+    private static MaintenanceRequestResponse ToResponse(MaintenanceRequest x) => new(x.Id, x.UserId, x.RoomId, x.Category, x.Description, x.PhotoUrl, x.Status, x.CreatedAt);
 }

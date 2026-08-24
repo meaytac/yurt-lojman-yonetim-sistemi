@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MTÜ Personel Operasyon Paneli</title>
+  <link rel="stylesheet" href="/css/staff.css">
+</head>
+<body>
+  <div class="staff-shell">
+    <aside class="sidebar">
+      <div class="brand"><img src="/img/mtu-amblem.png" alt="MTÜ amblemi"><div><strong>MTÜ OPERASYON</strong><small id="roleLabel">Personel Paneli</small></div></div>
+      <p class="nav-caption">ÇALIŞMA ALANI</p>
+      <nav id="staffNav" class="staff-nav"></nav>
+      <button class="logout" id="logoutBtn">↩ Çıkış yap</button>
+    </aside>
+    <div class="workspace">
+      <header class="topbar"><div><p class="eyebrow" id="welcomeLabel">GÜNLÜK OPERASYON</p><h1 id="sectionTitle">Bugünün iş akışı</h1></div><div class="user-chip"><span id="staffName"></span><small id="staffRole"></small></div></header>
+      <main>
+        <section id="dashboard" class="page active"><div id="overview" class="overview"></div><div class="shift-strip"><span class="pulse"></span><div><strong>Vardiya açık</strong><small>Görevlerinizi tamamladıkça durumları güncelleyin.</small></div></div><div id="dashboardContent" class="card-grid"></div></section>
+        <section id="requests" class="page"><div class="section-head"><div><p class="eyebrow">TEKNİK İŞ EMİRLERİ</p><h2>Arıza talepleri</h2><p>Onarım süresini belirleyin, iş tamamlandığında kaydı kapatın.</p></div></div><div id="requestList" class="work-list"></div></section>
+        <section id="periodic" class="page"><div class="section-head"><div><p class="eyebrow">PLANLI KONTROL</p><h2>Periyodik bakımlar</h2><p>Yurt sistemlerinin bakım döngülerini takip edin.</p></div><button class="primary" id="addMaintenanceBtn">Bakım planla</button></div><div id="periodicList" class="work-list"></div></section>
+        <section id="tasks" class="page"><div class="section-head"><div><p class="eyebrow">GÜNLÜK GÖREVLER</p><h2>Temizlik ve düzenleme</h2><p>Size atanan işleri tamamlandığında işaretleyin.</p></div></div><div id="taskList" class="work-list"></div></section>
+        <section id="newTask" class="page"><div class="form-card"><p class="eyebrow">GÖREV BİLDİRİMİ</p><h2>Yeni görev kaydı oluştur</h2><p>Temizlik, çöp toplama, düzenleme veya gördüğünüz arızayı kayda alın.</p><form id="taskForm" class="form-grid"><label>İş türü<select name="taskType" required><option>Oda temizliği</option><option>Ortak alan temizliği</option><option>Çöp toplama</option><option>Fiziksel düzenleme</option><option>Arıza bildirimi</option></select></label><label>Konum<input name="location" placeholder="Örn. A Blok / Oda 204" required></label><label class="full">Açıklama<textarea name="notes" placeholder="Yapılacak iş veya tespit edilen arıza"></textarea></label><button class="primary" type="submit">Görevi kaydet</button></form></div></section>
+      </main>
+    </div>
+  </div>
+  <div id="modalBackdrop" class="modal-backdrop"><div class="modal"><button id="closeModal" class="close">×</button><div id="modalBody"></div></div></div>
+  <div id="toastHost" class="toast-host"></div>
+  <script src="/js/staff.js"></script>
+</body>
+</html>

@@ -31,12 +31,19 @@ async function login() {
       body: JSON.stringify({ email, password })
     });
     localStorage.setItem('token', data.token);
+    localStorage.setItem('currentUser', JSON.stringify({
+      userId: data.userId,
+      fullName: data.fullName,
+      email: data.email,
+      role: data.role
+    }));
     state.textContent = `${data.fullName} olarak giriş yapıldı.`;
     state.className = 'login-message success';
 
     const role = String(data.role || '').trim().toLowerCase();
     const isAdmin = role === 'admin' || role === 'yetkili' || email.trim().toLowerCase() === 'admin@ozal.edu.tr';
-    const target = isAdmin ? '/admin.html' : '/application.html';
+    const isStaff = role === 'teknikpersonel' || role === 'temizlikpersoneli';
+    const target = isAdmin ? '/admin.html' : isStaff ? '/staff.html' : '/application.html';
     window.setTimeout(() => {
       window.location.href = target;
     }, 250);
@@ -65,24 +72,13 @@ async function loadAnnouncements() {
   const root = document.getElementById('announcements');
   if (!root) return;
   try {
-    const items = (await api('/api/announcements'))
-      .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
-      .slice(0, 5);
-    root.innerHTML = items.map(x => {
-      const date = new Date(x.createdAt || Date.now());
-      return `
+    const items = await api('/api/announcements');
+    root.innerHTML = items.map(x => `
       <article class="announcement-item">
-        <time class="announcement-date" datetime="${date.toISOString()}">
-          <span>${date.toLocaleDateString('tr-TR', { day: '2-digit' })}</span>
-          <small>${date.toLocaleDateString('tr-TR', { month: 'short' }).replace('.', '')}</small>
-        </time>
-        <div class="announcement-copy">
-          <strong>${escapeHtml(x.title)}</strong>
-          <span>${escapeHtml(x.content)}</span>
-        </div>
-        <span class="announcement-arrow" aria-hidden="true">→</span>
-      </article>`;
-    }).join('');
+        <strong>${escapeHtml(x.title)}</strong>
+        <span>${escapeHtml(x.content)}</span>
+        <span class="announcement-date">${new Date(x.createdAt || Date.now()).toLocaleDateString('tr-TR')}</span>
+      </article>`).join('');
   } catch (error) {
     root.innerHTML = `<p class="muted">${escapeHtml(error.message)}</p>`;
   }

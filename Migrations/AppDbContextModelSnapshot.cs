@@ -370,6 +370,54 @@ namespace yurt_lojman_yonetim_sistemi.Migrations
                         {
                             t.HasCheckConstraint("CK_Buildings_OneFacilityOwner", "([DormitoryId] IS NOT NULL AND [HousingUnitId] IS NULL) OR ([DormitoryId] IS NULL AND [HousingUnitId] IS NOT NULL)");
                         });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            BlockName = "A Blok",
+                            DormitoryId = 1
+                        },
+                        new
+                        {
+                            Id = 2,
+                            BlockName = "L Blok",
+                            HousingUnitId = 1
+                        });
+                });
+
+            modelBuilder.Entity("yurt_lojman_yonetim_sistemi.Models.CleaningTask", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(800)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TaskType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CleaningTasks");
                 });
 
             modelBuilder.Entity("yurt_lojman_yonetim_sistemi.Models.Dormitory", b =>
@@ -401,6 +449,17 @@ namespace yurt_lojman_yonetim_sistemi.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Dormitories");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CampusLocation = "Battalgazi Yerleskesi",
+                            IsActive = true,
+                            Name = "MTU Merkez Ogrenci Yurdu",
+                            TotalCapacity = 120,
+                            Type = "Yurt"
+                        });
                 });
 
             modelBuilder.Entity("yurt_lojman_yonetim_sistemi.Models.Floor", b =>
@@ -421,6 +480,20 @@ namespace yurt_lojman_yonetim_sistemi.Migrations
                         .IsUnique();
 
                     b.ToTable("Floors");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            BuildingId = 1,
+                            FloorNumber = 1
+                        },
+                        new
+                        {
+                            Id = 2,
+                            BuildingId = 2,
+                            FloorNumber = 1
+                        });
                 });
 
             modelBuilder.Entity("yurt_lojman_yonetim_sistemi.Models.HousingUnit", b =>
@@ -452,6 +525,17 @@ namespace yurt_lojman_yonetim_sistemi.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("HousingUnits");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CampusLocation = "Battalgazi Yerleskesi",
+                            IsActive = true,
+                            Name = "MTU Personel Lojmanlari",
+                            TotalCapacity = 40,
+                            Type = "Lojman"
+                        });
                 });
 
             modelBuilder.Entity("yurt_lojman_yonetim_sistemi.Models.MaintenanceRequest", b =>
@@ -477,11 +561,20 @@ namespace yurt_lojman_yonetim_sistemi.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("RepairPeriodDays")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("RoomId")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Status")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("TargetRepairDate")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("UserId")
@@ -528,6 +621,40 @@ namespace yurt_lojman_yonetim_sistemi.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Payments");
+                });
+
+            modelBuilder.Entity("yurt_lojman_yonetim_sistemi.Models.PeriodicMaintenance", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("IntervalDays")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("LastMaintenanceDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("NextMaintenanceDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SystemName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PeriodicMaintenances");
                 });
 
             modelBuilder.Entity("yurt_lojman_yonetim_sistemi.Models.Placement", b =>
@@ -597,6 +724,38 @@ namespace yurt_lojman_yonetim_sistemi.Migrations
                     b.ToTable("Rooms", t =>
                         {
                             t.HasCheckConstraint("CK_Rooms_Occupancy", "[CurrentOccupancy] >= 0 AND [CurrentOccupancy] <= [Capacity]");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            BlockFloorId = 1,
+                            Capacity = 4,
+                            CurrentOccupancy = 0,
+                            Price = 2500m,
+                            RoomNumber = "101",
+                            Status = "Empty"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            BlockFloorId = 1,
+                            Capacity = 4,
+                            CurrentOccupancy = 0,
+                            Price = 2500m,
+                            RoomNumber = "102",
+                            Status = "Empty"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            BlockFloorId = 2,
+                            Capacity = 1,
+                            CurrentOccupancy = 0,
+                            Price = 5500m,
+                            RoomNumber = "L101",
+                            Status = "Empty"
                         });
                 });
 

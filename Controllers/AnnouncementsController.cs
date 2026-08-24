@@ -21,16 +21,6 @@ public class AnnouncementsController(AppDbContext db) : ControllerBase
             .ToListAsync();
     }
 
-    [HttpGet("admin")]
-    [Authorize(Roles = $"{AppRoles.Admin},{AppRoles.Yetkili}")]
-    public Task<List<AnnouncementResponse>> GetAllForAdmin()
-    {
-        return db.Announcements.AsNoTracking()
-            .OrderByDescending(x => x.CreatedAt)
-            .Select(x => new AnnouncementResponse(x.Id, x.Title, x.Content, x.TargetRole, x.CreatedAt, x.IsActive))
-            .ToListAsync();
-    }
-
     [HttpPost]
     [Authorize(Roles = $"{AppRoles.Admin},{AppRoles.Yetkili}")]
     public async Task<ActionResult<AnnouncementResponse>> Create(AnnouncementCreateRequest request)

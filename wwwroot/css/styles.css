@@ -255,33 +255,27 @@ input:focus, select:focus, textarea:focus {
 }
 
 .announcements-list {
-  position: relative;
   display: grid;
-  gap: 0;
-  padding: 8px 0 8px 22px;
+  gap: 12px;
 }
 
 .announcement-item {
-  position: relative;
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) 24px;
-  align-items: center;
-  gap: 18px;
-  min-height: 82px;
-  padding: 14px 0 14px 20px;
-  border-left: 1px solid var(--border-color);
-  transition: background-color 0.2s ease;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  background: var(--bg-light);
+  transition: border-color 0.2s ease;
 }
 
 .announcement-item:hover {
-  background: var(--bg-light);
+  border-color: var(--primary-emerald);
 }
 
 .announcement-item strong {
   display: block;
   font-weight: 600;
   color: var(--primary-navy);
-  margin-bottom: 4px;
+  margin-bottom: 8px;
   font-size: 16px;
 }
 
@@ -291,58 +285,11 @@ input:focus, select:focus, textarea:focus {
   line-height: 1.5;
 }
 
-.announcement-date {
-  display: grid;
-  place-content: center;
-  width: 56px;
-  height: 56px;
-  margin-left: -49px;
-  border: 2px solid var(--primary-emerald);
-  border-radius: 50%;
-  background: var(--bg-white);
-  color: var(--primary-navy);
-  text-align: center;
-  line-height: 1;
-}
-
-.announcement-date span {
-  color: var(--primary-navy);
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.announcement-date small {
-  color: var(--text-muted);
-  font-size: 10px;
-  text-transform: uppercase;
-}
-
-.announcement-copy {
-  min-width: 0;
-}
-
-.announcement-arrow {
-  color: var(--primary-emerald);
-  font-size: 24px;
-  text-align: right;
-}
-
-.all-announcements-button {
+.announcement-item .announcement-date {
   display: block;
-  margin: 20px auto 4px;
-  padding: 11px 22px;
-  border: 1px solid var(--primary-emerald);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--primary-navy);
-  cursor: default;
-  font: inherit;
-  font-weight: 600;
-}
-
-.all-announcements-button span {
-  margin-left: 8px;
-  color: var(--primary-emerald);
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 /* Footer */

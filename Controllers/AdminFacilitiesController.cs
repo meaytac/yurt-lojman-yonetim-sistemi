@@ -13,27 +13,12 @@ namespace yurt_lojman_yonetim_sistemi.Controllers;
 [Authorize(Roles = $"{AppRoles.Admin},{AppRoles.Yetkili}")]
 public class AdminFacilitiesController(AppDbContext db, IAccommodationService accommodationService) : ControllerBase
 {
-    private static readonly string[] AllowedDormitoryNames =
-    [
-        "MTÜ Erkek Öğrenci Yurdu",
-        "MTÜ Kız Öğrenci Yurdu"
-    ];
-
-    private const string AllowedHousingUnitName = "MTÜ Akademik Personel Lojmanı";
-
     [HttpGet("dormitories")]
     public Task<List<Dormitory>> GetDormitories() => db.Dormitories.AsNoTracking().ToListAsync();
 
     [HttpPost("dormitories")]
     public async Task<ActionResult<Dormitory>> CreateDormitory(FacilityRequest request)
     {
-        if (!AllowedDormitoryNames.Contains(request.Name) ||
-            await db.Dormitories.AnyAsync(x => x.Name == request.Name) ||
-            await db.Dormitories.CountAsync() >= AllowedDormitoryNames.Length)
-        {
-            return Conflict("Sistemde yalnızca tanımlı iki öğrenci yurdu bulunabilir.");
-        }
-
         var entity = new Dormitory { Name = request.Name, Type = AccommodationType.Yurt, CampusLocation = request.CampusLocation, TotalCapacity = request.TotalCapacity, IsActive = request.IsActive };
         db.Dormitories.Add(entity);
         await db.SaveChangesAsync();
@@ -56,7 +41,11 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
     [HttpDelete("dormitories/{id:int}")]
     public async Task<IActionResult> DeleteDormitory(int id)
     {
-        return Conflict("Tanımlı tesis yapısı korunmalıdır; tesis silinemez.");
+        var entity = await db.Dormitories.FindAsync(id);
+        if (entity is null) return NotFound();
+        db.Dormitories.Remove(entity);
+        await db.SaveChangesAsync();
+        return NoContent();
     }
 
     [HttpGet("housing-units")]
@@ -65,11 +54,6 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
     [HttpPost("housing-units")]
     public async Task<ActionResult<HousingUnit>> CreateHousingUnit(FacilityRequest request)
     {
-        if (request.Name != AllowedHousingUnitName || await db.HousingUnits.AnyAsync())
-        {
-            return Conflict("Sistemde yalnızca tanımlı akademik personel lojmanı bulunabilir.");
-        }
-
         var entity = new HousingUnit { Name = request.Name, Type = AccommodationType.Lojman, CampusLocation = request.CampusLocation, TotalCapacity = request.TotalCapacity, IsActive = request.IsActive };
         db.HousingUnits.Add(entity);
         await db.SaveChangesAsync();
@@ -92,7 +76,11 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
     [HttpDelete("housing-units/{id:int}")]
     public async Task<IActionResult> DeleteHousingUnit(int id)
     {
-        return Conflict("Tanımlı tesis yapısı korunmalıdır; tesis silinemez.");
+        var entity = await db.HousingUnits.FindAsync(id);
+        if (entity is null) return NotFound();
+        db.HousingUnits.Remove(entity);
+        await db.SaveChangesAsync();
+        return NoContent();
     }
 
     [HttpGet("buildings")]

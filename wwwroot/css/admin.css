@@ -95,13 +95,10 @@ img { max-width: 100%; }
   padding: 22px 16px;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  box-sizing: border-box;
   gap: 22px;
 }
 .side-brand small { color: #94a3b8; }
-.side-nav { flex: 1; display: flex; flex-direction: column; gap: 8px; }
-.nav-main { flex-grow: 1; display: grid; gap: 8px; }
+.side-nav { display: grid; gap: 8px; }
 .nav-item {
   min-height: 46px;
   display: flex;
@@ -123,7 +120,7 @@ img { max-width: 100%; }
   color: #fff;
   transform: translateX(2px);
 }
-.nav-item.danger { margin-top: auto; color: #fca5a5; }
+.nav-item.danger { margin-top: 12px; color: #fca5a5; }
 .nav-item.danger:hover { background: rgba(220, 38, 38, 0.12); border-color: rgba(248, 113, 113, 0.35); }
 
 .main-area { min-width: 0; }

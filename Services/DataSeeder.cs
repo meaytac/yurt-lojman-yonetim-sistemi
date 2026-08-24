@@ -36,74 +36,16 @@ public static class DataSeeder
 
     private static async Task<DemoUsers> SeedUsersAsync(UserManager<AppUser> userManager)
     {
-        var random = new Random(20260823);
-        var firstNames = new[]
-        {
-            "Ahmet", "Mehmet", "Mustafa", "Ali", "Hüseyin", "İbrahim", "İsmail", "Yusuf", "Ömer", "Osman",
-            "Murat", "Ramazan", "Halil", "Süleyman", "Bekir", "Fatih", "Mahmut", "Salih", "Kemal", "Hakan",
-            "Adem", "Metin", "Yasin", "Emre", "Burak", "Gökhan", "Onur", "Serkan", "Volkan", "Mesut",
-            "Erdal", "Turan", "Uğur", "Oğuz", "Cihan", "Sinan", "Tarık", "Levent", "Umut", "Barış",
-            "Erkan", "Deniz", "Can", "Kerem", "Efe", "Kaan", "Arda", "Ege", "Doruk", "Alp",
-            "Ayşe", "Fatma", "Hatice", "Zeynep", "Elif", "Merve", "Büşra", "Kübra", "Esra", "Sümeyye",
-            "Gözde", "Selin", "İrem", "Büşra", "Melike", "Ceren", "Ezgi", "Bahar", "Derya", "Ebru",
-            "Gamze", "Gizem", "Hande", "Pınar", "Sinem", "Tuğba", "Yasemin", "Özlem", "Eda", "Sevgi",
-            "Sultan", "Ayten", "Hacer", "Meryem", "Rukiye", "Emine", "Şerife", "Gül", "Figen", "Nur",
-            "Betül", "Tuba", "Dilek", "Arzu", "Burcu", "Demet", "Fulya", "Gülşah", "Necla", "Nihal"
-        };
-        var lastNames = new[]
-        {
-            "Yılmaz", "Kaya", "Demir", "Çelik", "Şahin", "Yıldız", "Yıldırım", "Öztürk", "Aydın", "Özdemir",
-            "Arslan", "Doğan", "Kılıç", "Aslan", "Çetin", "Kara", "Koç", "Kurt", "Özcan", "Şimşek",
-            "Polat", "Özkan", "Erdoğan", "Yavuz", "Çakır", "Aksoy", "Güler", "Tekin", "Acar", "Can",
-            "Dündar", "Ertürk", "Koçak", "Korkmaz", "Güneş", "Bulut", "Keskin", "Yalçın", "Topal", "Eren",
-            "Gündoğdu", "Avcı", "Sönmez", "Özkan", "Aktaş", "Atalay", "Baş", "Bayrak", "Çiftçi", "Demirci",
-            "Dinç", "Durmaz", "Gök", "Gözüpek", "Güven", "Işık", "Kaplan", "Kartal", "Kesici", "Köse",
-            "Oğuz", "pek", "Sarıkaya", "Savaş", "Sezer", "Turan", "Uçar", "Ünal", "Yalçın", "Yaman",
-            "Yaşar", "Yener", "Yeşilyurt", "Yiğit", "Yüksel", "Zengin", "Alkan", "Altun", "Ay", "Başaran",
-            "Bayram", "Bozkurt", "Ceylan", "Çoban", "Demirel", "Dikmen", "Diler", "Ergin", "Gazioğlu", "Gümüş",
-            "İnce", "Kahraman", "Kalaycı", "Karaca", "Karakurt", "Kart", "Kaygusuz", "Koca", "Küçük"
-        };
-        var usedFullNames = new HashSet<string>(StringComparer.Ordinal);
-        var usedTcNumbers = (await userManager.Users
-            .Select(x => x.TcNo)
-            .ToListAsync())
-            .ToHashSet(StringComparer.Ordinal);
-
-        (string FullName, string Email) NextIdentity()
-        {
-            string fullName;
-            do
-            {
-                fullName = $"{firstNames[random.Next(firstNames.Length)]} {lastNames[random.Next(lastNames.Length)]}";
-            } while (!usedFullNames.Add(fullName));
-
-            return (fullName, $"{ToEmailName(fullName)}@ozal.edu.tr");
-        }
-
-        var adminIdentity = (FullName: "Sistem Yöneticisi", Email: "admin@ozal.edu.tr");
-        var officerIdentity = NextIdentity();
-        var student1Identity = NextIdentity();
-        var student2Identity = NextIdentity();
-        var student3Identity = NextIdentity();
-        var staff1Identity = NextIdentity();
-        var staff2Identity = NextIdentity();
-
-        var admin = await EnsureUserAsync(userManager, adminIdentity.Email, adminIdentity.FullName, CreateValidTcNo(random, usedTcNumbers), "ADMIN-001", AppRoles.Admin, "+904220000001", "Demo123!");
-        var officer = await EnsureUserAsync(userManager, officerIdentity.Email, officerIdentity.FullName, CreateValidTcNo(random, usedTcNumbers), "YET-2026-001", AppRoles.Yetkili, "+904220000002");
-        var student1 = await EnsureUserAsync(userManager, student1Identity.Email, student1Identity.FullName, CreateValidTcNo(random, usedTcNumbers), "OGR-2026-201", AppRoles.Ogrenci, "+905550000001");
-        var student2 = await EnsureUserAsync(userManager, student2Identity.Email, student2Identity.FullName, CreateValidTcNo(random, usedTcNumbers), "OGR-2026-202", AppRoles.Ogrenci, "+905550000002");
-        var student3 = await EnsureUserAsync(userManager, student3Identity.Email, student3Identity.FullName, CreateValidTcNo(random, usedTcNumbers), "OGR-2026-203", AppRoles.Ogrenci, "+905550000003");
-        var staff1 = await EnsureUserAsync(userManager, staff1Identity.Email, staff1Identity.FullName, CreateValidTcNo(random, usedTcNumbers), "PER-2026-101", AppRoles.Personel, "+905550000004");
-        var staff2 = await EnsureUserAsync(userManager, staff2Identity.Email, staff2Identity.FullName, CreateValidTcNo(random, usedTcNumbers), "PER-2026-102", AppRoles.Personel, "+905550000005");
+        var admin = await EnsureUserAsync(userManager, "admin@ozal.edu.tr", "Sistem Yoneticisi", "11111111111", "ADMIN-001", AppRoles.Admin, "+904220000001");
+        var officer = await EnsureUserAsync(userManager, "yetkili@ozal.edu.tr", "Yurt Isleri Yetkilisi", "22222222222", "PER-100", AppRoles.Yetkili, "+904220000002");
+        var student1 = await EnsureUserAsync(userManager, "ayse.yilmaz@ogr.ozal.edu.tr", "Ayse Yilmaz", "33333333333", "OGR-2026-001", AppRoles.Ogrenci, "+905550000001");
+        var student2 = await EnsureUserAsync(userManager, "mehmet.kaya@ogr.ozal.edu.tr", "Mehmet Kaya", "44444444444", "OGR-2026-002", AppRoles.Ogrenci, "+905550000002");
+        var student3 = await EnsureUserAsync(userManager, "zeynep.demir@ogr.ozal.edu.tr", "Zeynep Demir", "55555555555", "OGR-2026-003", AppRoles.Ogrenci, "+905550000003");
+        var staff1 = await EnsureUserAsync(userManager, "ali.celik@ozal.edu.tr", "Ali Celik", "66666666666", "PRS-2026-014", AppRoles.TeknikPersonel, "+905550000004");
+        var staff2 = await EnsureUserAsync(userManager, "elif.sahin@ozal.edu.tr", "Elif Sahin", "77777777777", "PRS-2026-019", AppRoles.TemizlikPersoneli, "+905550000005");
 
         return new DemoUsers(admin, officer, student1, student2, student3, staff1, staff2);
     }
-
-    private static string ToEmailName(string fullName) => fullName
-        .ToLowerInvariant()
-        .Replace("ç", "c").Replace("ğ", "g").Replace("ı", "i")
-        .Replace("ö", "o").Replace("ş", "s").Replace("ü", "u")
-        .Replace(" ", ".");
 
     private static async Task<AppUser> EnsureUserAsync(
         UserManager<AppUser> userManager,
@@ -112,11 +54,9 @@ public static class DataSeeder
         string tcNo,
         string studentStaffNo,
         string role,
-        string phoneNumber,
-        string password = "Admin123!")
+        string phoneNumber)
     {
-        var user = await userManager.FindByEmailAsync(email)
-            ?? userManager.Users.FirstOrDefault(x => x.StudentStaffNo == studentStaffNo);
+        var user = await userManager.FindByEmailAsync(email);
         if (user is null)
         {
             user = new AppUser
@@ -132,21 +72,12 @@ public static class DataSeeder
                 LockoutEnabled = true
             };
 
-            var createResult = await userManager.CreateAsync(user, password);
+            var createResult = await userManager.CreateAsync(user, "Admin123!");
             if (!createResult.Succeeded)
             {
                 throw new InvalidOperationException(string.Join(" ", createResult.Errors.Select(x => x.Description)));
             }
         }
-
-        user.UserName = email;
-        user.Email = email;
-        user.FullName = fullName;
-        user.TcNo = tcNo;
-        user.StudentStaffNo = studentStaffNo;
-        user.Role = role;
-        user.PhoneNumber = phoneNumber;
-        user.EmailConfirmed = true;
 
         var currentRoles = await userManager.GetRolesAsync(user);
         if (!currentRoles.Contains(role))
@@ -169,217 +100,60 @@ public static class DataSeeder
         return user;
     }
 
-    private static string CreateValidTcNo(Random random, HashSet<string> usedNumbers)
-    {
-        string tcNo;
-        do
-        {
-            var digits = new int[11];
-            digits[0] = random.Next(1, 10);
-            for (var index = 1; index < 9; index++)
-            {
-                digits[index] = random.Next(10);
-            }
-
-            digits[9] = ((digits[0] + digits[2] + digits[4] + digits[6] + digits[8]) * 7
-                - (digits[1] + digits[3] + digits[5] + digits[7])) % 10;
-            if (digits[9] < 0) digits[9] += 10;
-            digits[10] = digits.Take(10).Sum() % 10;
-            tcNo = string.Concat(digits);
-        } while (!usedNumbers.Add(tcNo));
-
-        return tcNo;
-    }
-
     private static async Task SeedFacilitiesAsync(AppDbContext db)
     {
-        var random = new Random(20260822);
-        var dormitory = await db.Dormitories.FirstOrDefaultAsync(x => x.Name == "MTÜ Erkek Öğrenci Yurdu")
+        var dormitory = await db.Dormitories.FirstOrDefaultAsync(x => x.Name == "MTU Merkez Ogrenci Yurdu")
             ?? db.Dormitories.Add(new Dormitory
             {
-                Name = "MTÜ Erkek Öğrenci Yurdu",
+                Name = "MTU Merkez Ogrenci Yurdu",
                 Type = AccommodationType.Yurt,
-                CampusLocation = "Battalgazi Yerleşkesi",
+                CampusLocation = "Battalgazi Yerleskesi",
+                TotalCapacity = 120,
                 IsActive = true
             }).Entity;
 
-        var secondDormitory = await db.Dormitories.FirstOrDefaultAsync(x => x.Name == "MTÜ Kız Öğrenci Yurdu")
+        var secondDormitory = await db.Dormitories.FirstOrDefaultAsync(x => x.Name == "Yesilyurt Kiz Ogrenci Yurdu")
             ?? db.Dormitories.Add(new Dormitory
             {
-                Name = "MTÜ Kız Öğrenci Yurdu",
+                Name = "Yesilyurt Kiz Ogrenci Yurdu",
                 Type = AccommodationType.Yurt,
-                CampusLocation = "Yeşilyurt Yerleşkesi",
+                CampusLocation = "Yesilyurt Yerleskesi",
+                TotalCapacity = 96,
                 IsActive = true
             }).Entity;
 
-        var housing = await db.HousingUnits.FirstOrDefaultAsync(x => x.Name == "MTÜ Akademik Personel Lojmanı")
+        var housing = await db.HousingUnits.FirstOrDefaultAsync(x => x.Name == "MTU Personel Lojmanlari")
             ?? db.HousingUnits.Add(new HousingUnit
             {
-                Name = "MTÜ Akademik Personel Lojmanı",
+                Name = "MTU Personel Lojmanlari",
                 Type = AccommodationType.Lojman,
-                CampusLocation = "Battalgazi Yerleşkesi",
+                CampusLocation = "Battalgazi Yerleskesi",
+                TotalCapacity = 40,
                 IsActive = true
             }).Entity;
 
         await db.SaveChangesAsync();
 
-        var targetDormitoryIds = new[] { dormitory.Id, secondDormitory.Id };
-        var targetHousingUnitIds = new[] { housing.Id };
-        var extraDormitories = await db.Dormitories
-            .Where(x => !targetDormitoryIds.Contains(x.Id))
-            .ToListAsync();
-        var extraHousingUnits = await db.HousingUnits
-            .Where(x => !targetHousingUnitIds.Contains(x.Id))
-            .ToListAsync();
-        var extraBuildings = await db.Buildings
-            .Where(x => (x.DormitoryId.HasValue && !targetDormitoryIds.Contains(x.DormitoryId.Value)) ||
-                        (x.HousingUnitId.HasValue && !targetHousingUnitIds.Contains(x.HousingUnitId.Value)))
-            .ToListAsync();
-        await RemoveBuildingsAsync(db, extraBuildings);
-        db.Dormitories.RemoveRange(extraDormitories);
-        db.HousingUnits.RemoveRange(extraHousingUnits);
-        await db.SaveChangesAsync();
+        var aBlock = await EnsureBuildingAsync(db, dormitory.Id, null, "A Blok");
+        var bBlock = await EnsureBuildingAsync(db, secondDormitory.Id, null, "B Blok");
+        var lBlock = await EnsureBuildingAsync(db, null, housing.Id, "L Blok");
 
-        var expectedBuildings = new (int? DormitoryId, int? HousingUnitId, string BlockName)[]
-        {
-            (dormitory.Id, (int?)null, "A Blok"), (dormitory.Id, (int?)null, "B Blok"),
-            (secondDormitory.Id, (int?)null, "A Blok"), (secondDormitory.Id, (int?)null, "B Blok"),
-            ((int?)null, housing.Id, "L Blok")
-        };
+        var aFloor1 = await EnsureFloorAsync(db, aBlock.Id, 1);
+        var aFloor2 = await EnsureFloorAsync(db, aBlock.Id, 2);
+        var bFloor1 = await EnsureFloorAsync(db, bBlock.Id, 1);
+        var lFloor1 = await EnsureFloorAsync(db, lBlock.Id, 1);
 
-        var existingBuildings = await db.Buildings
-            .Where(x => (x.DormitoryId.HasValue && targetDormitoryIds.Contains(x.DormitoryId.Value)) ||
-                        (x.HousingUnitId.HasValue && targetHousingUnitIds.Contains(x.HousingUnitId.Value)))
-            .ToListAsync();
-        var obsoleteBuildings = existingBuildings.Where(x => !expectedBuildings.Any(expected =>
-            expected.Item1 == x.DormitoryId && expected.Item2 == x.HousingUnitId && expected.Item3 == x.BlockName)).ToList();
-        var obsoleteRooms = new List<Room>();
-        foreach (var expected in expectedBuildings)
-        {
-            var building = await EnsureBuildingAsync(db, expected.Item1, expected.Item2, expected.Item3);
-            var extraFloors = await db.Floors
-                .Where(x => x.BuildingId == building.Id && (x.FloorNumber < 1 || x.FloorNumber > 2))
-                .ToListAsync();
-            foreach (var extraFloor in extraFloors)
-            {
-                obsoleteRooms.AddRange(await db.Rooms.Where(x => x.BlockFloorId == extraFloor.Id).ToListAsync());
-            }
-            db.Floors.RemoveRange(extraFloors);
-            await db.SaveChangesAsync();
-
-            for (var floorNumber = 1; floorNumber <= 2; floorNumber++)
-            {
-                var floor = await EnsureFloorAsync(db, building.Id, floorNumber);
-                var isHousing = expected.Item2.HasValue;
-                var prefix = isHousing ? "L" : string.Empty;
-                var expectedRoomNumbers = Enumerable.Range(1, 10)
-                    .Select(index => $"{prefix}{floorNumber}{index:00}")
-                    .ToHashSet();
-                var existingRooms = await db.Rooms.Where(x => x.BlockFloorId == floor.Id).ToListAsync();
-                obsoleteRooms.AddRange(existingRooms.Where(x => !expectedRoomNumbers.Contains(x.RoomNumber)));
-                foreach (var roomNumber in expectedRoomNumbers)
-                {
-                    var capacity = isHousing ? random.Next(1, 3) : random.Next(3, 5);
-                    var occupancy = random.Next(capacity + 1);
-                    await EnsureRoomAsync(db, floor.Id, roomNumber, capacity, isHousing ? 5500 : 2500, occupancy);
-                }
-            }
-        }
-
-        await RelocatePlacementsAsync(db, obsoleteBuildings, obsoleteRooms);
-        await RemoveRoomsAsync(db, obsoleteRooms);
-        await RemoveBuildingsAsync(db, obsoleteBuildings);
+        await EnsureRoomAsync(db, aFloor1.Id, "101", 4, 2500, RoomStatus.Empty);
+        await EnsureRoomAsync(db, aFloor1.Id, "102", 4, 2500, RoomStatus.Empty);
+        await EnsureRoomAsync(db, aFloor2.Id, "201", 3, 2700, RoomStatus.Empty);
+        await EnsureRoomAsync(db, bFloor1.Id, "B-103", 4, 2400, RoomStatus.Empty);
+        await EnsureRoomAsync(db, bFloor1.Id, "B-104", 4, 2400, RoomStatus.Maintenance);
+        await EnsureRoomAsync(db, lFloor1.Id, "L101", 1, 5500, RoomStatus.Empty);
+        await EnsureRoomAsync(db, lFloor1.Id, "L102", 1, 5750, RoomStatus.Empty);
 
         dormitory.TotalCapacity = await db.Rooms.Where(x => x.BlockFloor.Building.DormitoryId == dormitory.Id).SumAsync(x => x.Capacity);
         secondDormitory.TotalCapacity = await db.Rooms.Where(x => x.BlockFloor.Building.DormitoryId == secondDormitory.Id).SumAsync(x => x.Capacity);
         housing.TotalCapacity = await db.Rooms.Where(x => x.BlockFloor.Building.HousingUnitId == housing.Id).SumAsync(x => x.Capacity);
-        await db.SaveChangesAsync();
-    }
-
-    private static async Task RemoveBuildingsAsync(AppDbContext db, List<Building> buildings)
-    {
-        var buildingIds = buildings.Select(x => x.Id).ToList();
-        var floorIds = await db.Floors.Where(x => buildingIds.Contains(x.BuildingId)).Select(x => x.Id).ToListAsync();
-        var roomIds = await db.Rooms.Where(x => floorIds.Contains(x.BlockFloorId)).Select(x => x.Id).ToListAsync();
-        await RemoveRoomsAsync(db, await db.Rooms.Where(x => roomIds.Contains(x.Id)).ToListAsync());
-        db.Floors.RemoveRange(await db.Floors.Where(x => floorIds.Contains(x.Id)).ToListAsync());
-        db.Buildings.RemoveRange(buildings);
-        await db.SaveChangesAsync();
-    }
-
-    private static async Task RelocatePlacementsAsync(AppDbContext db, List<Building> buildings, List<Room> roomsToRemove)
-    {
-        if (buildings.Count == 0 && roomsToRemove.Count == 0)
-        {
-            return;
-        }
-
-        var buildingIds = buildings.Select(x => x.Id).ToList();
-        var sourceRoomIds = await db.Rooms
-            .Where(x => buildingIds.Contains(x.BlockFloor.BuildingId))
-            .Select(x => x.Id)
-            .ToListAsync();
-        sourceRoomIds.AddRange(roomsToRemove.Select(x => x.Id));
-        sourceRoomIds = sourceRoomIds.Distinct().ToList();
-        var placements = await db.Placements
-            .Include(x => x.Room)
-            .ThenInclude(x => x.BlockFloor)
-            .ThenInclude(x => x.Building)
-            .Where(x => sourceRoomIds.Contains(x.RoomId))
-            .OrderByDescending(x => x.IsActive)
-            .ThenBy(x => x.CheckInDate)
-            .ToListAsync();
-        if (placements.Count == 0)
-        {
-            return;
-        }
-
-        var random = new Random(20260824);
-        var targetRooms = await db.Rooms
-            .Include(x => x.BlockFloor)
-            .ThenInclude(x => x.Building)
-            .Where(x => !buildingIds.Contains(x.BlockFloor.BuildingId) && !sourceRoomIds.Contains(x.Id) && x.Status != RoomStatus.Maintenance)
-            .ToListAsync();
-        var occupancy = targetRooms.ToDictionary(x => x.Id, x => 0);
-        foreach (var placement in await db.Placements
-                     .Where(x => !sourceRoomIds.Contains(x.RoomId) && x.IsActive)
-                     .ToListAsync())
-        {
-            if (occupancy.ContainsKey(placement.RoomId))
-            {
-                occupancy[placement.RoomId]++;
-            }
-        }
-
-        foreach (var placement in placements)
-        {
-            var sourceIsHousing = placement.Room.BlockFloor.Building.HousingUnitId.HasValue;
-            var target = targetRooms
-                .Where(x => x.BlockFloor.Building.HousingUnitId.HasValue == sourceIsHousing)
-                .Where(x => !placement.IsActive || occupancy[x.Id] < x.Capacity)
-                .OrderBy(_ => random.Next())
-                .FirstOrDefault();
-            if (target is null)
-            {
-                throw new InvalidOperationException("Eski blok yerleşimleri için uygun A/B/L odası bulunamadı.");
-            }
-
-            placement.RoomId = target.Id;
-            if (placement.IsActive)
-            {
-                occupancy[target.Id]++;
-            }
-        }
-
-        await db.SaveChangesAsync();
-    }
-
-    private static async Task RemoveRoomsAsync(AppDbContext db, List<Room> rooms)
-    {
-        var roomIds = rooms.Select(x => x.Id).ToList();
-        db.Placements.RemoveRange(await db.Placements.Where(x => roomIds.Contains(x.RoomId)).ToListAsync());
-        db.Requests.RemoveRange(await db.Requests.Where(x => roomIds.Contains(x.RoomId)).ToListAsync());
-        db.Rooms.RemoveRange(rooms);
         await db.SaveChangesAsync();
     }
 
@@ -415,7 +189,7 @@ public static class DataSeeder
         return floor;
     }
 
-    private static async Task<Room> EnsureRoomAsync(AppDbContext db, int floorId, string roomNumber, int capacity, decimal price, int occupancy)
+    private static async Task<Room> EnsureRoomAsync(AppDbContext db, int floorId, string roomNumber, int capacity, decimal price, RoomStatus status)
     {
         var room = await db.Rooms.FirstOrDefaultAsync(x => x.BlockFloorId == floorId && x.RoomNumber == roomNumber);
         if (room is null)
@@ -426,8 +200,8 @@ public static class DataSeeder
                 RoomNumber = roomNumber,
                 Capacity = capacity,
                 Price = price,
-                CurrentOccupancy = occupancy,
-                Status = GetRoomStatus(occupancy, capacity)
+                Status = status,
+                CurrentOccupancy = 0
             };
             db.Rooms.Add(room);
         }
@@ -435,17 +209,15 @@ public static class DataSeeder
         {
             room.Capacity = capacity;
             room.Price = price;
-            room.CurrentOccupancy = occupancy;
-            room.Status = GetRoomStatus(occupancy, capacity);
+            if (status == RoomStatus.Maintenance)
+            {
+                room.Status = RoomStatus.Maintenance;
+            }
         }
 
         await db.SaveChangesAsync();
         return room;
     }
-
-    private static RoomStatus GetRoomStatus(int occupancy, int capacity) => occupancy == 0
-        ? RoomStatus.Empty
-        : occupancy == capacity ? RoomStatus.Full : RoomStatus.PartiallyFull;
 
     private static async Task SeedOperationalDataAsync(AppDbContext db, DemoUsers users)
     {
@@ -478,6 +250,23 @@ public static class DataSeeder
                 new MaintenanceRequest { UserId = users.Student2.Id, RoomId = room101.Id, Category = "Mobilya", Description = "Dolap kapagi gevsemis.", Status = RequestStatus.Resolved, CreatedAt = DateTime.UtcNow.AddDays(-5) });
         }
 
+        if (!await db.CleaningTasks.AnyAsync())
+        {
+            db.CleaningTasks.AddRange(
+                new CleaningTask { TaskType = "Oda temizliği", Location = "A Blok / Oda 101", Notes = "Banyo ve tuvalet dahil temizleyin." },
+                new CleaningTask { TaskType = "Ortak alan temizliği", Location = "A Blok / 1. Kat koridoru", Notes = "Zemin ve korkulukları temizleyin." },
+                new CleaningTask { TaskType = "Çöp toplama", Location = "B Blok / Katlar", Notes = "Kat toplama noktalarını kontrol edin." },
+                new CleaningTask { TaskType = "Fiziksel düzenleme", Location = "Yurt yönetim ofisi", Notes = "İki çalışma masasını yerleştirin." });
+        }
+
+        if (!await db.PeriodicMaintenances.AnyAsync())
+        {
+            db.PeriodicMaintenances.AddRange(
+                new PeriodicMaintenance { SystemName = "Yangın sistemi", Location = "A Blok", IntervalDays = 30, NextMaintenanceDate = DateTime.UtcNow.Date.AddDays(2), Notes = "Alarm paneli ve dedektör kontrolü." },
+                new PeriodicMaintenance { SystemName = "Asansör", Location = "B Blok", IntervalDays = 30, NextMaintenanceDate = DateTime.UtcNow.Date.AddDays(6), Notes = "Periyodik güvenlik kontrolü." },
+                new PeriodicMaintenance { SystemName = "Isıtma sistemi", Location = "Merkez kazan dairesi", IntervalDays = 14, NextMaintenanceDate = DateTime.UtcNow.Date.AddDays(1), Notes = "Basınç ve kaçak kontrolü." });
+        }
+
         if (!await db.Payments.AnyAsync())
         {
             db.Payments.AddRange(
@@ -487,29 +276,20 @@ public static class DataSeeder
                 new Payment { UserId = users.Student2.Id, Amount = 2500, DueDate = DateTime.UtcNow.AddMonths(-1), PaidDate = DateTime.UtcNow.AddDays(-20), Status = PaymentStatus.Paid, Description = "Temmuz yurt ucreti" });
         }
 
-        await EnsureAnnouncementsAsync(db);
-        await db.SaveChangesAsync();
-        await RecalculateRoomsAsync(db);
-    }
-
-    private static async Task EnsureAnnouncementsAsync(AppDbContext db)
-    {
-        var announcements = await db.Announcements.OrderByDescending(x => x.CreatedAt).ToListAsync();
-        if (announcements.Count == 5)
+        if (!await db.Announcements.AnyAsync(x => x.Title == "Demo Sunum Duyurusu"))
         {
-            return;
+            db.Announcements.Add(new Announcement
+            {
+                Title = "Demo Sunum Duyurusu",
+                Content = "Yurt ve lojman yonetim sistemi demo verileriyle calismaktadir.",
+                TargetRole = AnnouncementTargetRole.All,
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true
+            });
         }
 
-        db.Announcements.RemoveRange(announcements);
-        var now = DateTime.UtcNow;
-        db.Announcements.AddRange(Enumerable.Range(1, 5).Select(index => new Announcement
-        {
-            Title = $"Demo Duyurusu {index:00}",
-            Content = "Yurt ve lojman yonetim sistemi bilgilendirmesidir.",
-            TargetRole = AnnouncementTargetRole.All,
-            CreatedAt = now.AddDays(-index),
-            IsActive = true
-        }));
+        await db.SaveChangesAsync();
+        await RecalculateRoomsAsync(db);
     }
 
     private static async Task EnsurePlacementAsync(AppDbContext db, Guid userId, string roomNumber, DateTime checkInDate)
@@ -529,13 +309,18 @@ public static class DataSeeder
         var rooms = await db.Rooms.Include(x => x.Placements).ToListAsync();
         foreach (var room in rooms)
         {
-            room.CurrentOccupancy = room.Placements.Count(x => x.IsActive);
-            if (room.Status != RoomStatus.Maintenance)
+            if (room.Status == RoomStatus.Maintenance)
             {
-                room.Status = room.CurrentOccupancy == 0
-                    ? RoomStatus.Empty
-                    : room.CurrentOccupancy >= room.Capacity ? RoomStatus.Full : RoomStatus.PartiallyFull;
+                room.CurrentOccupancy = 0;
+                continue;
             }
+
+            room.CurrentOccupancy = room.Placements.Count(x => x.IsActive);
+            room.Status = room.CurrentOccupancy == 0
+                ? RoomStatus.Empty
+                : room.CurrentOccupancy >= room.Capacity
+                    ? RoomStatus.Full
+                    : RoomStatus.PartiallyFull;
         }
 
         await db.SaveChangesAsync();

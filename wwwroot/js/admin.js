@@ -7,8 +7,6 @@ const state = {
   users: { items: [], page: 1, pageSize: 10, totalCount: 0 },
   applications: [],
   placements: [],
-  announcements: [],
-  requests: [],
   roomPage: 1,
   roomPageSize: 10,
   fallbackMode: false
@@ -20,9 +18,7 @@ const sectionTitles = {
   rooms: 'Oda & Kat Yönetimi',
   applications: 'Başvuru Yönetimi',
   users: 'Kullanıcılar & Roller',
-  placements: 'Yerleşim Takibi',
-  announcements: 'Duyuru Yönetimi',
-  requests: 'Arıza Talepleri'
+  placements: 'Yerleşim Takibi'
 };
 
 const mock = createMockStore();
@@ -88,7 +84,7 @@ async function openApp(token) {
   document.getElementById('adminName').textContent = claims.fullName || claims.name || 'Sistem Yöneticisi';
   document.getElementById('adminRole').textContent = role;
   switchSection('dashboard');
-  await Promise.allSettled([loadDashboard(), loadFacilities(), loadRooms(), loadApplications(), loadUsers(1), loadPlacements(), loadAnnouncements(), loadRequests()]);
+  await Promise.allSettled([loadDashboard(), loadFacilities(), loadRooms(), loadApplications(), loadUsers(1), loadPlacements()]);
 }
 
 function logout() {
@@ -179,9 +175,11 @@ function renderFacilities() {
       <td>${escapeHtml(item.campusLocation)}</td>
       <td>${item.totalCapacity}</td>
       <td>${item.buildingCount ?? 0}</td>
-      <td>${getStatusBadge(item.isActive ? 'Hizmet Veriyor' : 'Pasif')}</td>
+      <td>${getStatusBadge(item.isActive ? 'Aktif' : 'Pasif')}</td>
       <td>
         <button class="row-btn" onclick="editFacility('${item.type}', ${item.id})">Düzenle</button>
+        <button class="row-btn warn" onclick="toggleFacility('${item.type}', ${item.id}, ${!item.isActive})">${item.isActive ? 'Pasifleştir' : 'Aktifleştir'}</button>
+        <button class="row-btn danger" onclick="deleteFacility('${item.type}', ${item.id})">Sil</button>
       </td>
     </tr>
   `);
@@ -224,6 +222,7 @@ function renderRooms() {
       <td>
         <button class="row-btn" onclick="editRoom(${item.id})">Düzenle</button>
         <button class="row-btn" onclick="showOccupants(${item.id})">Detay</button>
+        <button class="row-btn danger" onclick="deleteRoom(${item.id})">Sil</button>
       </td>
     </tr>
   `);
@@ -254,7 +253,7 @@ function renderUsers() {
       <td>${escapeHtml(item.studentStaffNo || '-')}</td>
       <td>
         <select onchange="changeUserRole('${item.id}', this.value)">
-          ${['Ogrenci', 'Personel', 'Yetkili', 'Admin'].map(role => `<option value="${role}" ${role === item.role ? 'selected' : ''}>${role}</option>`).join('')}
+          ${['Ogrenci', 'TeknikPersonel', 'TemizlikPersoneli', 'Personel', 'Yetkili', 'Admin'].map(role => `<option value="${role}" ${role === item.role ? 'selected' : ''}>${role}</option>`).join('')}
         </select>
       </td>
       <td>${getStatusBadge(item.isActive ? 'Aktif' : 'Pasif')}</td>
@@ -308,54 +307,6 @@ async function loadApplications() {
   renderApplications();
 }
 
-async function loadAnnouncements() {
-  try {
-    state.announcements = await api('/api/announcements/admin');
-  } catch {
-    state.fallbackMode = true;
-    state.announcements = [];
-  }
-  renderAnnouncements();
-}
-
-function renderAnnouncements() {
-  document.getElementById('announcementRows').innerHTML = emptyTable(state.announcements, item => `
-    <tr>
-      <td><strong>${escapeHtml(item.title)}</strong></td>
-      <td>${escapeHtml(item.content)}</td>
-      <td>${announcementTarget(item.targetRole)}</td>
-      <td>${date(item.createdAt)}</td>
-      <td>${getStatusBadge(item.isActive ? 'Aktif' : 'Pasif')}</td>
-      <td><button class="row-btn" onclick="editAnnouncement(${item.id})">Düzenle</button></td>
-    </tr>
-  `);
-}
-
-async function loadRequests() {
-  try {
-    state.requests = await api('/api/requests');
-  } catch {
-    state.fallbackMode = true;
-    state.requests = [];
-  }
-  renderRequests();
-}
-
-function renderRequests() {
-  document.getElementById('requestRows').innerHTML = emptyTable(state.requests, item => `
-    <tr>
-      <td><strong>${escapeHtml(item.category)}</strong></td>
-      <td>${escapeHtml(item.description)}</td>
-      <td>${escapeHtml(item.userName || item.userId)}</td>
-      <td>${escapeHtml(item.roomNumber || item.roomId)}</td>
-      <td>${date(item.createdAt)}</td>
-      <td><select onchange="updateRequestStatus(${item.id}, this.value)">
-        ${['Open', 'InProgress', 'Resolved', 'Rejected'].map(status => `<option value="${status}" ${status === item.status ? 'selected' : ''}>${requestStatus(status)}</option>`).join('')}
-      </select></td>
-    </tr>
-  `);
-}
-
 function renderApplications() {
   document.getElementById('applicationRows').innerHTML = emptyTable(state.applications || [], item => `
     <tr>
@@ -378,55 +329,10 @@ function openNamedModal(name) {
     buildingModal: buildingForm(),
     floorModal: floorForm(),
     roomModal: roomForm(),
-    assignModal: assignForm(),
-    announcementModal: announcementForm()
+    assignModal: assignForm()
   };
   if (!forms[name]) return;
   openModal(forms[name].title, forms[name].html, forms[name].bind);
-}
-
-function editAnnouncement(id) {
-  const item = state.announcements.find(x => x.id === id);
-  if (!item) return;
-  const form = announcementForm(item);
-  openModal(form.title, form.html, form.bind);
-}
-
-async function updateRequestStatus(id, status) {
-  await saveAndRefresh(`/api/requests/${id}/status`, 'PATCH', { status }, loadRequests);
-}
-
-function announcementTarget(targetRole) {
-  return { All: 'Herkes', Student: 'Öğrenciler', Staff: 'Personel' }[targetRole] || targetRole;
-}
-
-function requestStatus(status) {
-  return { Open: 'Açık', InProgress: 'İşlemde', Resolved: 'Çözüldü', Rejected: 'Reddedildi' }[status] || status;
-}
-
-function announcementForm(item = null) {
-  return {
-    title: item ? 'Duyuru Düzenle' : 'Yeni Duyuru',
-    html: `<form id="announcementForm" class="form-grid">
-      <label>Başlık<input name="title" maxlength="180" value="${escapeAttr(item?.title)}" required></label>
-      <label>Hedef Rol<select name="targetRole">
-        ${['All', 'Student', 'Staff'].map(role => `<option value="${role}" ${role === (item?.targetRole || 'All') ? 'selected' : ''}>${announcementTarget(role)}</option>`).join('')}
-      </select></label>
-      <label class="full">İçerik<textarea name="content" maxlength="4000" required>${escapeHtml(item?.content)}</textarea></label>
-      <label class="inline-check"><input name="isActive" type="checkbox" ${item?.isActive !== false ? 'checked' : ''}> Yayında</label>
-      <button class="primary-btn full" type="submit">Kaydet</button>
-    </form>`,
-    bind: () => bindAnnouncementSubmit(item)
-  };
-}
-
-function bindAnnouncementSubmit(item) {
-  document.getElementById('announcementForm').addEventListener('submit', async event => {
-    event.preventDefault();
-    const data = Object.fromEntries(new FormData(event.currentTarget).entries());
-    const body = { title: data.title, content: data.content, targetRole: data.targetRole, isActive: event.currentTarget.isActive.checked };
-    await saveAndRefresh(item ? `/api/announcements/${item.id}` : '/api/announcements', item ? 'PUT' : 'POST', body, loadAnnouncements);
-  });
 }
 
 function facilityForm(item = null, type = 'Yurt') {
@@ -488,7 +394,6 @@ function roomForm(item = null) {
         ${['Empty', 'PartiallyFull', 'Full', 'Maintenance'].map(x => `<option value="${x}" ${x === item?.status ? 'selected' : ''}>${roomDisplayStatus(x)}</option>`).join('')}
       </select></label>
       <button class="primary-btn full" type="submit">Kaydet</button>
-      ${item ? `<button class="row-btn danger full" type="button" onclick="deleteRoom(${item.id})">Sil</button>` : ''}
     </form>`,
     bind: () => bindRoomSubmit(item)
   };
@@ -672,28 +577,23 @@ async function deleteRoom(id) {
 async function showOccupants(id) {
   try {
     const data = state.fallbackMode ? getMockOccupants(id) : await api(`/api/admin/rooms/${id}/occupants`);
-    openOccupantsModal(data);
-  } catch {
-    state.fallbackMode = true;
-    openOccupantsModal(getMockOccupants(id));
-  }
-}
-
-function openOccupantsModal(data) {
-  const occupants = data.currentOccupancy > 0 ? (data.occupants || []) : [];
-  const content = occupants.length
-    ? `<div class="activity-list">${occupants.map(x => `
-        <div class="activity-item">
-          <div>
-            <strong>${escapeHtml(x.fullName)}</strong>
-            <small>${escapeHtml(x.role)} - ${escapeHtml(x.tcNo)}</small>
+    openModal(`Oda ${data.roomNumber} Sakinleri`, `
+      <div class="activity-list">
+        ${emptyOr(data.occupants || [], x => `
+          <div class="activity-item">
+            <div>
+              <strong>${escapeHtml(x.fullName)}</strong>
+              <small>${escapeHtml(x.role)} - ${escapeHtml(x.tcNo)}</small>
+            </div>
+            <small>${date(x.checkInDate)}</small>
           </div>
-          <small>${date(x.checkInDate)}</small>
-        </div>
-      `).join('')}</div>`
-    : '<p class="muted">Bu odada henüz kalan sakin bulunmamaktadır.</p>';
-
-  openModal(`Oda ${escapeHtml(data.roomNumber)} Sakinleri`, content, () => {});
+        `)}
+      </div>
+    `, () => {});
+  } catch {
+    const data = getMockOccupants(id);
+    openModal(`Oda ${data.roomNumber} Sakinleri`, `<div class="activity-list">${emptyOr(data.occupants || [], x => `<div class="activity-item"><div><strong>${escapeHtml(x.fullName)}</strong><small>${escapeHtml(x.role)} - ${escapeHtml(x.tcNo)}</small></div><small>${date(x.checkInDate)}</small></div>`)}</div>`, () => {});
+  }
 }
 
 async function changeUserRole(id, role) {
@@ -861,11 +761,7 @@ function getMockUsers(page = 1) {
 }
 
 function getMockOccupants(roomId) {
-  const room = mock.rooms.find(x => x.id === roomId);
-  if (!room) {
-    return { roomId, roomNumber: '-', capacity: 0, currentOccupancy: 0, status: 'Empty', occupants: [] };
-  }
-
+  const room = mock.rooms.find(x => x.id === roomId) || mock.rooms[0];
   const occupants = mock.placements
     .filter(x => x.roomId === room.id && x.isActive)
     .map(x => {

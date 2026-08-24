@@ -35,6 +35,8 @@ public static class AppRoles
     public const string Yetkili = "Yetkili";
     public const string Ogrenci = "Ogrenci";
     public const string Personel = "Personel";
+    public const string TeknikPersonel = "TeknikPersonel";
+    public const string TemizlikPersoneli = "TemizlikPersoneli";
 
-    public static readonly string[] All = [Admin, Yetkili, Ogrenci, Personel];
+    public static readonly string[] All = [Admin, Yetkili, Ogrenci, Personel, TeknikPersonel, TemizlikPersoneli];
 }

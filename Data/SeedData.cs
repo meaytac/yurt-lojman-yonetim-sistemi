@@ -38,7 +38,7 @@ public static class SeedData
         db.Floors.AddRange(floors);
         await db.SaveChangesAsync();
 
-        var rooms = CreateRooms(floors, buildings, random);
+        var rooms = CreateRooms(floors);
         db.Rooms.AddRange(rooms);
         await db.SaveChangesAsync();
 
@@ -53,113 +53,41 @@ public static class SeedData
         db.Requests.AddRange(requests);
         await db.SaveChangesAsync();
 
-        await RecalculateRoomsAsync(db);
-
-        return true;
-    }
-
-    private static async Task RecalculateRoomsAsync(AppDbContext db)
-    {
-        var rooms = await db.Rooms.Include(x => x.Placements).ToListAsync();
         foreach (var room in rooms)
         {
-            room.CurrentOccupancy = room.Placements.Count(x => x.IsActive);
-            if (room.Status != RoomStatus.Maintenance)
-            {
-                room.Status = room.CurrentOccupancy == 0
-                    ? RoomStatus.Empty
-                    : room.CurrentOccupancy >= room.Capacity ? RoomStatus.Full : RoomStatus.PartiallyFull;
-            }
+            room.CurrentOccupancy = placements.Count(x => x.RoomId == room.Id);
+            room.Status = room.CurrentOccupancy == 0
+                ? RoomStatus.Empty
+                : room.CurrentOccupancy >= room.Capacity
+                    ? RoomStatus.Full
+                    : RoomStatus.PartiallyFull;
         }
 
         await db.SaveChangesAsync();
+        return true;
     }
 
     private static List<AppUser> CreateUsers(Random random, DateTime now)
     {
-        var firstNames = new[]
-        {
-            "Ahmet", "Mehmet", "Mustafa", "Ali", "Hüseyin", "İbrahim", "İsmail", "Yusuf", "Ömer", "Osman",
-            "Murat", "Ramazan", "Halil", "Süleyman", "Bekir", "Fatih", "Mahmut", "Salih", "Kemal", "Hakan",
-            "Adem", "Metin", "Yasin", "Emre", "Burak", "Gökhan", "Onur", "Serkan", "Volkan", "Mesut",
-            "Erdal", "Turan", "Uğur", "Oğuz", "Cihan", "Sinan", "Tarık", "Levent", "Umut", "Barış",
-            "Erkan", "Deniz", "Can", "Kerem", "Efe", "Kaan", "Arda", "Ege", "Doruk", "Alp",
-            "Ayşe", "Fatma", "Hatice", "Zeynep", "Elif", "Merve", "Büşra", "Kübra", "Esra", "Sümeyye",
-            "Gözde", "Selin", "İrem", "Büşra", "Melike", "Ceren", "Ezgi", "Bahar", "Derya", "Ebru",
-            "Gamze", "Gizem", "Hande", "Pınar", "Sinem", "Tuğba", "Yasemin", "Özlem", "Eda", "Sevgi",
-            "Sultan", "Ayten", "Hacer", "Meryem", "Rukiye", "Emine", "Şerife", "Gül", "Figen", "Nur",
-            "Betül", "Tuba", "Dilek", "Arzu", "Burcu", "Demet", "Fulya", "Gülşah", "Necla", "Nihal"
-        };
-        var lastNames = new[]
-        {
-            "Yılmaz", "Kaya", "Demir", "Çelik", "Şahin", "Yıldız", "Yıldırım", "Öztürk", "Aydın", "Özdemir",
-            "Arslan", "Doğan", "Kılıç", "Aslan", "Çetin", "Kara", "Koç", "Kurt", "Özcan", "Şimşek",
-            "Polat", "Özkan", "Erdoğan", "Yavuz", "Çakır", "Aksoy", "Güler", "Tekin", "Acar", "Can",
-            "Dündar", "Ertürk", "Koçak", "Korkmaz", "Güneş", "Bulut", "Keskin", "Yalçın", "Topal", "Eren",
-            "Gündoğdu", "Avcı", "Sönmez", "Özkan", "Aktaş", "Atalay", "Baş", "Bayrak", "Çiftçi", "Demirci",
-            "Dinç", "Durmaz", "Gök", "Gözüpek", "Güven", "Işık", "Kaplan", "Kartal", "Kesici", "Köse",
-            "Oğuz", "pek", "Sarıkaya", "Savaş", "Sezer", "Turan", "Uçar", "Ünal", "Yalçın", "Yaman",
-            "Yaşar", "Yener", "Yeşilyurt", "Yiğit", "Yüksel", "Zengin", "Alkan", "Altun", "Ay", "Başaran",
-            "Bayram", "Bozkurt", "Ceylan", "Çoban", "Demirel", "Dikmen", "Diler", "Ergin", "Gazioğlu", "Gümüş",
-            "İnce", "Kahraman", "Kalaycı", "Karaca", "Karakurt", "Kart", "Kaygusuz", "Koca", "Küçük"
-        };
+        var firstNames = new[] { "Ahmet", "Ayse", "Burak", "Ceren", "Deniz", "Ece", "Emre", "Fatma", "Gokhan", "Irem" };
+        var lastNames = new[] { "Yilmaz", "Kaya", "Demir", "Sahin", "Celik", "Aydin", "Arslan", "Koc", "Polat", "Dogan" };
         var passwordHasher = new PasswordHasher<AppUser>();
         var users = new List<AppUser>(100);
-        var usedTcNumbers = new HashSet<string>();
-        var usedFullNames = new HashSet<string>(StringComparer.Ordinal);
 
-        var admin = new AppUser
+        for (var index = 1; index <= 100; index++)
         {
-            Id = Guid.NewGuid(),
-            UserName = "admin@ozal.edu.tr",
-            Email = "admin@ozal.edu.tr",
-            NormalizedUserName = "ADMIN@OZAL.EDU.TR",
-            NormalizedEmail = "ADMIN@OZAL.EDU.TR",
-            EmailConfirmed = true,
-            FullName = "Sistem Yöneticisi",
-            TcNo = CreateValidTcNo(random, usedTcNumbers),
-            StudentStaffNo = "ADMIN-001",
-            Role = AppRoles.Admin,
-            PhoneNumber = "+904220000001",
-            CreatedAt = now,
-            SecurityStamp = Guid.NewGuid().ToString(),
-            ConcurrencyStamp = Guid.NewGuid().ToString(),
-            LockoutEnabled = true
-        };
-        admin.PasswordHash = passwordHasher.HashPassword(admin, "Demo123!");
-        users.Add(admin);
-        usedFullNames.Add(admin.FullName);
-
-        for (var index = 1; index <= 99; index++)
-        {
-            string fullName;
-            do
-            {
-                var firstName = firstNames[random.Next(firstNames.Length)];
-                var lastName = lastNames[random.Next(lastNames.Length)];
-                fullName = $"{firstName} {lastName}";
-            } while (!usedFullNames.Add(fullName));
-
-            var emailName = ToEmailName(fullName);
-            var role = index <= 80 ? AppRoles.Ogrenci : AppRoles.Personel;
-            var studentStaffNo = role == AppRoles.Ogrenci
-                ? $"OGR-2026-{index:000}"
-                : $"PER-2026-{index - 80:000}";
-            var tcNo = CreateValidTcNo(random, usedTcNumbers);
-            var email = $"{emailName}@ozal.edu.tr";
-
             var user = new AppUser
             {
                 Id = Guid.NewGuid(),
-                UserName = email,
-                Email = email,
-                NormalizedUserName = email.ToUpperInvariant(),
-                NormalizedEmail = email.ToUpperInvariant(),
+                UserName = $"demo{index:000}@ozal.edu.tr",
+                Email = $"demo{index:000}@ozal.edu.tr",
+                NormalizedUserName = $"DEMO{index:000}@OZAL.EDU.TR",
+                NormalizedEmail = $"DEMO{index:000}@OZAL.EDU.TR",
                 EmailConfirmed = true,
-                FullName = fullName,
-                TcNo = tcNo,
-                StudentStaffNo = studentStaffNo,
-                Role = role,
+                FullName = $"{firstNames[(index - 1) % firstNames.Length]} {lastNames[(index - 1) % lastNames.Length]}",
+                TcNo = $"9900000{index:0000}",
+                StudentStaffNo = $"OGR-2026-{index:000}",
+                Role = AppRoles.Ogrenci,
                 PhoneNumber = $"+90555000{index:0000}",
                 CreatedAt = now.AddDays(-random.Next(10, 365)),
                 SecurityStamp = Guid.NewGuid().ToString(),
@@ -174,100 +102,55 @@ public static class SeedData
         return users;
     }
 
-    private static string ToEmailName(string fullName) => fullName
-        .ToLowerInvariant()
-        .Replace("ç", "c").Replace("ğ", "g").Replace("ı", "i")
-        .Replace("ö", "o").Replace("ş", "s").Replace("ü", "u")
-        .Replace(" ", ".");
-
-    private static string CreateValidTcNo(Random random, HashSet<string> usedNumbers)
+    private static List<Dormitory> CreateDormitories() => Enumerable.Range(1, 5).Select(index => new Dormitory
     {
-        string tcNo;
-        do
-        {
-            var digits = new int[11];
-            digits[0] = random.Next(1, 10);
-            for (var index = 1; index < 9; index++)
-            {
-                digits[index] = random.Next(10);
-            }
+        Name = $"Demo {index} Ogrenci Yurdu",
+        Type = AccommodationType.Yurt,
+        CampusLocation = index % 2 == 0 ? "Yesilyurt Yerleskesi" : "Battalgazi Yerleskesi",
+        IsActive = true
+    }).ToList();
 
-            digits[9] = ((digits[0] + digits[2] + digits[4] + digits[6] + digits[8]) * 7
-                - (digits[1] + digits[3] + digits[5] + digits[7])) % 10;
-            if (digits[9] < 0) digits[9] += 10;
-            digits[10] = digits.Take(10).Sum() % 10;
-            tcNo = string.Concat(digits);
-        } while (!usedNumbers.Add(tcNo));
-
-        return tcNo;
-    }
-
-    private static List<Dormitory> CreateDormitories() => new()
+    private static List<HousingUnit> CreateHousingUnits() => Enumerable.Range(1, 4).Select(index => new HousingUnit
     {
-        new Dormitory
-        {
-            Name = "MTÜ Erkek Öğrenci Yurdu",
-            Type = AccommodationType.Yurt,
-            CampusLocation = "Battalgazi Yerleşkesi",
-            IsActive = true
-        },
-        new Dormitory
-        {
-            Name = "MTÜ Kız Öğrenci Yurdu",
-            Type = AccommodationType.Yurt,
-            CampusLocation = "Yeşilyurt Yerleşkesi",
-            IsActive = true
-        }
-    };
-
-    private static List<HousingUnit> CreateHousingUnits() => new()
-    {
-        new HousingUnit
-        {
-            Name = "MTÜ Akademik Personel Lojmanı",
-            Type = AccommodationType.Lojman,
-            CampusLocation = "Battalgazi Yerleşkesi",
-            IsActive = true
-        }
-    };
+        Name = $"Demo {index} Personel Lojmani",
+        Type = AccommodationType.Lojman,
+        CampusLocation = "Battalgazi Yerleskesi",
+        IsActive = true
+    }).ToList();
 
     private static List<Building> CreateBuildings(List<Dormitory> dormitories, List<HousingUnit> housingUnits)
     {
-        var buildings = new List<Building>(5);
-        foreach (var dormitory in dormitories)
+        var buildings = new List<Building>(10);
+        for (var index = 0; index < 10; index++)
         {
-            foreach (var blockName in new[] { "A Blok", "B Blok" })
+            if (index < 6)
             {
-                buildings.Add(new Building { DormitoryId = dormitory.Id, BlockName = blockName });
+                buildings.Add(new Building { DormitoryId = dormitories[index % dormitories.Count].Id, BlockName = $"Demo {index + 1} Blok" });
+            }
+            else
+            {
+                buildings.Add(new Building { HousingUnitId = housingUnits[(index - 6) % housingUnits.Count].Id, BlockName = $"Lojman {index - 5} Blok" });
             }
         }
-
-        buildings.Add(new Building { HousingUnitId = housingUnits[0].Id, BlockName = "L Blok" });
 
         return buildings;
     }
 
-    private static List<Room> CreateRooms(List<Floor> floors, List<Building> buildings, Random random)
+    private static List<Room> CreateRooms(List<Floor> floors)
     {
-        var housingBuildingId = buildings.Single(x => x.HousingUnitId.HasValue).Id;
-        var rooms = new List<Room>(floors.Count * 10);
+        var rooms = new List<Room>(300);
         foreach (var floor in floors)
         {
-            var isHousing = floor.BuildingId == housingBuildingId;
-            for (var roomIndex = 1; roomIndex <= 10; roomIndex++)
+            for (var roomIndex = 1; roomIndex <= 15; roomIndex++)
             {
-                var capacity = isHousing ? random.Next(1, 3) : random.Next(3, 5);
-                var occupancy = random.Next(capacity + 1);
+                var capacity = floor.BuildingId % 5 == 0 ? 1 : 4;
                 rooms.Add(new Room
                 {
                     BlockFloorId = floor.Id,
-                    RoomNumber = $"{(isHousing ? "L" : string.Empty)}{floor.FloorNumber}{roomIndex:00}",
+                    RoomNumber = $"{floor.FloorNumber}{roomIndex:00}",
                     Capacity = capacity,
-                    CurrentOccupancy = occupancy,
-                    Price = isHousing ? 5500 : 2500,
-                    Status = occupancy == 0
-                        ? RoomStatus.Empty
-                        : occupancy == capacity ? RoomStatus.Full : RoomStatus.PartiallyFull
+                    Price = capacity == 1 ? 5500 : 2500,
+                    Status = RoomStatus.Empty
                 });
             }
         }
@@ -321,7 +204,7 @@ public static class SeedData
     }
 
     private static List<Announcement> CreateAnnouncements(DateTime now) =>
-        Enumerable.Range(1, 5).Select(index => new Announcement
+        Enumerable.Range(1, 81).Select(index => new Announcement
         {
             Title = $"Demo Duyurusu {index:00}",
             Content = "Yurt ve lojman yonetim sistemi bilgilendirmesidir.",
