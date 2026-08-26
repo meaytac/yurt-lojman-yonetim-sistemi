@@ -61,6 +61,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAccommodationService, AccommodationService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IYetkiliService, YetkiliService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddCors(options =>
 {

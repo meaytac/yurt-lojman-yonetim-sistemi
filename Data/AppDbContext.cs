@@ -17,6 +17,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<MaintenanceRequest> Requests => Set<MaintenanceRequest>();
     public DbSet<Announcement> Announcements => Set<Announcement>();
+    public DbSet<CleaningTask> CleaningTasks => Set<CleaningTask>();
+    public DbSet<PeriodicMaintenance> PeriodicMaintenances => Set<PeriodicMaintenance>();
+    public DbSet<StaffAssignment> StaffAssignments => Set<StaffAssignment>();
+public DbSet<FaultReport> FaultReports => Set<FaultReport>();
+    public DbSet<UserFacilityAssignment> UserFacilityAssignments => Set<UserFacilityAssignment>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -26,6 +31,33 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
         {
             entity.HasIndex(x => x.TcNo).IsUnique();
             entity.Property(x => x.CreatedAt).HasDefaultValueSql("datetime('now')");
+            entity.Property(x => x.MustChangePassword).HasDefaultValue(false);
+        });
+
+        builder.Entity<UserFacilityAssignment>(entity =>
+        {
+            entity.HasOne(x => x.User)
+                .WithMany(x => x.FacilityAssignments)
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.Dormitory)
+                .WithMany()
+                .HasForeignKey(x => x.DormitoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.HousingUnit)
+                .WithMany()
+                .HasForeignKey(x => x.HousingUnitId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.AssignedBy)
+                .WithMany()
+                .HasForeignKey(x => x.AssignedById)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.ToTable(t => t.HasCheckConstraint("CK_UserFacilityAssignment_OneFacility",
+                "([DormitoryId] IS NOT NULL AND [HousingUnitId] IS NULL) OR ([DormitoryId] IS NULL AND [HousingUnitId] IS NOT NULL)"));
         });
 
         builder.Entity<Dormitory>()
@@ -97,6 +129,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             entity.HasOne(x => x.User).WithMany(x => x.Requests).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Room).WithMany(x => x.Requests).HasForeignKey(x => x.RoomId).OnDelete(DeleteBehavior.Restrict);
         });
+
+        builder.Entity<CleaningTask>().Property(x => x.TaskType).HasMaxLength(80);
+        builder.Entity<PeriodicMaintenance>().Property(x => x.SystemName).HasMaxLength(100);
+        builder.Entity<StaffAssignment>().Property(x => x.Priority).HasMaxLength(20);
 
         builder.Entity<Announcement>()
             .Property(x => x.TargetRole)

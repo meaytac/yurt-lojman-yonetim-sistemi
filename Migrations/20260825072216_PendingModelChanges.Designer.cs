@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using yurt_lojman_yonetim_sistemi.Data;
 
@@ -10,9 +11,11 @@ using yurt_lojman_yonetim_sistemi.Data;
 namespace yurt_lojman_yonetim_sistemi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260825072216_PendingModelChanges")]
+    partial class PendingModelChanges
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
@@ -287,11 +290,6 @@ namespace yurt_lojman_yonetim_sistemi.Migrations
                     b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("MustChangePassword")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(false);
-
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
@@ -375,6 +373,20 @@ namespace yurt_lojman_yonetim_sistemi.Migrations
                         {
                             t.HasCheckConstraint("CK_Buildings_OneFacilityOwner", "([DormitoryId] IS NOT NULL AND [HousingUnitId] IS NULL) OR ([DormitoryId] IS NULL AND [HousingUnitId] IS NOT NULL)");
                         });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            BlockName = "A Blok",
+                            DormitoryId = 1
+                        },
+                        new
+                        {
+                            Id = 2,
+                            BlockName = "L Blok",
+                            HousingUnitId = 1
+                        });
                 });
 
             modelBuilder.Entity("yurt_lojman_yonetim_sistemi.Models.CleaningTask", b =>
@@ -440,6 +452,17 @@ namespace yurt_lojman_yonetim_sistemi.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Dormitories");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CampusLocation = "Battalgazi Yerleskesi",
+                            IsActive = true,
+                            Name = "MTU Merkez Ogrenci Yurdu",
+                            TotalCapacity = 120,
+                            Type = "Yurt"
+                        });
                 });
 
             modelBuilder.Entity("yurt_lojman_yonetim_sistemi.Models.FaultReport", b =>
@@ -489,6 +512,20 @@ namespace yurt_lojman_yonetim_sistemi.Migrations
                         .IsUnique();
 
                     b.ToTable("Floors");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            BuildingId = 1,
+                            FloorNumber = 1
+                        },
+                        new
+                        {
+                            Id = 2,
+                            BuildingId = 2,
+                            FloorNumber = 1
+                        });
                 });
 
             modelBuilder.Entity("yurt_lojman_yonetim_sistemi.Models.HousingUnit", b =>
@@ -520,6 +557,17 @@ namespace yurt_lojman_yonetim_sistemi.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("HousingUnits");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CampusLocation = "Battalgazi Yerleskesi",
+                            IsActive = true,
+                            Name = "MTU Personel Lojmanlari",
+                            TotalCapacity = 40,
+                            Type = "Lojman"
+                        });
                 });
 
             modelBuilder.Entity("yurt_lojman_yonetim_sistemi.Models.MaintenanceRequest", b =>
@@ -709,6 +757,38 @@ namespace yurt_lojman_yonetim_sistemi.Migrations
                         {
                             t.HasCheckConstraint("CK_Rooms_Occupancy", "[CurrentOccupancy] >= 0 AND [CurrentOccupancy] <= [Capacity]");
                         });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            BlockFloorId = 1,
+                            Capacity = 4,
+                            CurrentOccupancy = 0,
+                            Price = 2500m,
+                            RoomNumber = "101",
+                            Status = "Empty"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            BlockFloorId = 1,
+                            Capacity = 4,
+                            CurrentOccupancy = 0,
+                            Price = 2500m,
+                            RoomNumber = "102",
+                            Status = "Empty"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            BlockFloorId = 2,
+                            Capacity = 1,
+                            CurrentOccupancy = 0,
+                            Price = 5500m,
+                            RoomNumber = "L101",
+                            Status = "Empty"
+                        });
                 });
 
             modelBuilder.Entity("yurt_lojman_yonetim_sistemi.Models.StaffAssignment", b =>
@@ -759,49 +839,6 @@ namespace yurt_lojman_yonetim_sistemi.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("StaffAssignments");
-                });
-
-            modelBuilder.Entity("yurt_lojman_yonetim_sistemi.Models.UserFacilityAssignment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("AssignedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("AssignedById")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("DormitoryId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int?>("HousingUnitId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime?>("UnassignedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AssignedById");
-
-                    b.HasIndex("DormitoryId");
-
-                    b.HasIndex("HousingUnitId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserFacilityAssignments", t =>
-                        {
-                            t.HasCheckConstraint("CK_UserFacilityAssignment_OneFacility", "([DormitoryId] IS NOT NULL AND [HousingUnitId] IS NULL) OR ([DormitoryId] IS NULL AND [HousingUnitId] IS NOT NULL)");
-                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -954,44 +991,9 @@ namespace yurt_lojman_yonetim_sistemi.Migrations
                     b.Navigation("BlockFloor");
                 });
 
-            modelBuilder.Entity("yurt_lojman_yonetim_sistemi.Models.UserFacilityAssignment", b =>
-                {
-                    b.HasOne("yurt_lojman_yonetim_sistemi.Models.AppUser", "AssignedBy")
-                        .WithMany()
-                        .HasForeignKey("AssignedById")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("yurt_lojman_yonetim_sistemi.Models.Dormitory", "Dormitory")
-                        .WithMany()
-                        .HasForeignKey("DormitoryId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("yurt_lojman_yonetim_sistemi.Models.HousingUnit", "HousingUnit")
-                        .WithMany()
-                        .HasForeignKey("HousingUnitId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("yurt_lojman_yonetim_sistemi.Models.AppUser", "User")
-                        .WithMany("FacilityAssignments")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("AssignedBy");
-
-                    b.Navigation("Dormitory");
-
-                    b.Navigation("HousingUnit");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("yurt_lojman_yonetim_sistemi.Models.AppUser", b =>
                 {
                     b.Navigation("Applications");
-
-                    b.Navigation("FacilityAssignments");
 
                     b.Navigation("Payments");
 

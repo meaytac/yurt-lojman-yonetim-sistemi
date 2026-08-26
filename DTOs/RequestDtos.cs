@@ -22,6 +22,8 @@ public class MaintenanceRequestCreateDto
 
 public record MaintenanceStatusUpdateRequest(RequestStatus Status);
 
+public record RepairScheduleUpdateRequest([Range(1, 365)] int RepairPeriodDays);
+
 public record MaintenanceRequestResponse(
     int Id,
     Guid UserId,

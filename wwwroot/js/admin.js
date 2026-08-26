@@ -7,12 +7,23 @@ const state = {
   users: { items: [], page: 1, pageSize: 10, totalCount: 0 },
   applications: [],
   placements: [],
+<<<<<<< Updated upstream
   announcements: [],
   requests: [],
+=======
+  requests: [],
+  staffAssignments: [],
+  faultReports: [],
+  userFacilityAssignments: [],
+  announcements: [],
+>>>>>>> Stashed changes
   roomPage: 1,
   roomPageSize: 10,
   fallbackMode: false
 };
+
+const REFRESH_INTERVAL = 15000;
+let activeSection = 'dashboard';
 
 const sectionTitles = {
   dashboard: 'Kontrol Paneli',
@@ -21,8 +32,13 @@ const sectionTitles = {
   applications: 'Başvuru Yönetimi',
   users: 'Kullanıcılar & Roller',
   placements: 'Yerleşim Takibi',
+<<<<<<< Updated upstream
   announcements: 'Duyuru Yönetimi',
   requests: 'Arıza Talepleri'
+=======
+  operations: 'Operasyon & Görevlendirme',
+  announcements: 'Duyuru Yönetimi'
+>>>>>>> Stashed changes
 };
 
 const mock = createMockStore();
@@ -80,6 +96,13 @@ function bindShell() {
   document.getElementById('userSearch').addEventListener('input', debounce(() => loadUsers(1), 350));
   document.getElementById('roleFilter').addEventListener('change', () => loadUsers(1));
   document.getElementById('activePlacementsOnly').addEventListener('change', loadPlacements);
+  document.getElementById('requestOpenOnlyFilter').addEventListener('change', loadRequests);
+
+  setInterval(() => {
+    if (document.hidden) return;
+    if (document.getElementById('modalBackdrop').style.display !== 'none') return;
+    refreshActiveSection();
+  }, REFRESH_INTERVAL);
 }
 
 async function openApp(token) {
@@ -88,7 +111,11 @@ async function openApp(token) {
   document.getElementById('adminName').textContent = claims.fullName || claims.name || 'Sistem Yöneticisi';
   document.getElementById('adminRole').textContent = role;
   switchSection('dashboard');
+<<<<<<< Updated upstream
   await Promise.allSettled([loadDashboard(), loadFacilities(), loadRooms(), loadApplications(), loadUsers(1), loadPlacements(), loadAnnouncements(), loadRequests()]);
+=======
+  await Promise.allSettled([loadDashboard(), loadFacilities(), loadRooms(), loadApplications(), loadUsers(1), loadPlacements(), loadOperations(), loadAnnouncements()]);
+>>>>>>> Stashed changes
 }
 
 function logout() {
@@ -97,9 +124,24 @@ function logout() {
 }
 
 function switchSection(id) {
+  activeSection = id;
   document.querySelectorAll('.page-section').forEach(section => section.classList.toggle('active', section.id === id));
   document.querySelectorAll('.nav-item[data-section]').forEach(button => button.classList.toggle('active', button.dataset.section === id));
   document.getElementById('sectionTitle').textContent = sectionTitles[id] || 'Yönetim Paneli';
+}
+
+function refreshActiveSection() {
+  const refreshers = {
+    dashboard: loadDashboard,
+    facilities: loadFacilities,
+    rooms: loadRooms,
+    applications: loadApplications,
+    users: () => loadUsers(state.users.page || 1),
+    placements: loadPlacements,
+    operations: loadOperations,
+    announcements: loadAnnouncements
+  };
+  refreshers[activeSection]?.();
 }
 
 async function loadDashboard() {
@@ -254,7 +296,7 @@ function renderUsers() {
       <td>${escapeHtml(item.studentStaffNo || '-')}</td>
       <td>
         <select onchange="changeUserRole('${item.id}', this.value)">
-          ${['Ogrenci', 'Personel', 'Yetkili', 'Admin'].map(role => `<option value="${role}" ${role === item.role ? 'selected' : ''}>${role}</option>`).join('')}
+          ${['Ogrenci', 'TeknikPersonel', 'TemizlikPersoneli', 'Personel', 'Yetkili', 'Admin'].map(role => `<option value="${role}" ${role === item.role ? 'selected' : ''}>${role}</option>`).join('')}
         </select>
       </td>
       <td>${getStatusBadge(item.isActive ? 'Aktif' : 'Pasif')}</td>
@@ -379,12 +421,19 @@ function openNamedModal(name) {
     floorModal: floorForm(),
     roomModal: roomForm(),
     assignModal: assignForm(),
+<<<<<<< Updated upstream
     announcementModal: announcementForm()
+=======
+    staffAssignmentModal: staffAssignmentForm(),
+    userFacilityAssignmentModal: userFacilityAssignmentForm(),
+    announcementModal: announcementFormAdmin()
+>>>>>>> Stashed changes
   };
   if (!forms[name]) return;
   openModal(forms[name].title, forms[name].html, forms[name].bind);
 }
 
+<<<<<<< Updated upstream
 function editAnnouncement(id) {
   const item = state.announcements.find(x => x.id === id);
   if (!item) return;
@@ -429,6 +478,414 @@ function bindAnnouncementSubmit(item) {
   });
 }
 
+=======
+function loadOperations() {
+  return Promise.allSettled([loadRequests(), loadStaffAssignments(), loadFaultReports(), loadUserFacilityAssignments()]);
+}
+
+async function loadRequests() {
+  try {
+    const openOnly = document.getElementById('requestOpenOnlyFilter').value === 'open';
+    state.requests = state.fallbackMode ? [] : await api(`/api/admin/requests?openOnly=${openOnly}`);
+  } catch {
+    state.requests = [];
+  }
+  renderRequests();
+}
+
+function renderRequests() {
+  document.getElementById('requestRows').innerHTML = emptyTable(state.requests, item => `
+    <tr>
+      <td><strong>${escapeHtml(item.fullName)}</strong></td>
+      <td>${escapeHtml(item.roomNumber)}</td>
+      <td>${escapeHtml(item.category)}</td>
+      <td class="desc-cell">${escapeHtml(item.description)}</td>
+      <td>${date(item.createdAt)}</td>
+      <td>${getStatusBadge(item.status)}</td>
+      <td>
+        <select onchange="updateRequestStatus(${item.id}, this.value)">
+          ${['Open', 'InProgress', 'Resolved', 'Rejected'].map(s => `<option value="${s}" ${s === item.status ? 'selected' : ''}>${requestStatusDisplay(s)}</option>`).join('')}
+        </select>
+      </td>
+    </tr>
+  `);
+}
+
+async function updateRequestStatus(id, status) {
+  await saveAndRefresh(`/api/admin/requests/${id}/status`, 'PATCH', { status }, loadOperations);
+}
+
+async function loadStaffAssignments() {
+  try {
+    state.staffAssignments = state.fallbackMode ? [] : await api('/api/admin/staff-assignments');
+  } catch {
+    state.staffAssignments = [];
+  }
+  renderStaffAssignments();
+}
+
+function renderStaffAssignments() {
+  document.getElementById('assignmentRows').innerHTML = emptyTable(state.staffAssignments, item => `
+    <tr>
+      <td><strong>${escapeHtml(item.title)}</strong><br><small>${escapeHtml(item.details || '-')}</small></td>
+      <td>${staffRoleDisplay(item.assignedRole)}${item.isMaintenanceRequest ? '<br><small>⚒ Arıza iş emri</small>' : ''}</td>
+      <td>${escapeHtml(item.location)}</td>
+      <td>${escapeHtml(item.priority)}</td>
+      <td>${item.dueDate ? date(item.dueDate) : '-'}</td>
+      <td>${item.isCompleted ? getStatusBadge('Completed') : `<span class="badge badge-warning">Bekliyor</span>`}</td>
+    </tr>
+  `);
+}
+
+function staffAssignmentForm() {
+  return {
+    title: 'Personele Görev Ata',
+    html: `<form id="staffAssignmentForm" class="form-grid two">
+      <label>Görevli Rolü<select name="assignedRole">
+        <option value="TeknikPersonel">Teknik Personel</option>
+        <option value="TemizlikPersoneli">Temizlik Personeli</option>
+      </select></label>
+      <label>Öncelik<select name="priority">
+        ${['Acil', 'Yüksek', 'Normal', 'Düşük'].map(p => `<option ${p === 'Normal' ? 'selected' : ''}>${p}</option>`).join('')}
+      </select></label>
+      <label>Başlık<input name="title" required placeholder="Örn. Wi-Fi ağ düzenlemesi"></label>
+      <label>Termin<input name="dueDate" type="date"></label>
+      <label class="full">Konum<input name="location" required placeholder="Örn. B Blok / 1. kat"></label>
+      <label class="full">Detay<textarea name="details"></textarea></label>
+      <label class="inline-check full"><input type="checkbox" name="isMaintenanceRequest" value="true"> Arıza / onarım işidir (teknik personelin arıza talepleri ekranında da listelenir)</label>
+      <button class="primary-btn full" type="submit">Görevi Kaydet</button>
+    </form>`,
+    bind: () => document.getElementById('staffAssignmentForm').addEventListener('submit', submitStaffAssignment)
+  };
+}
+
+async function submitStaffAssignment(event) {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  await saveAndRefresh('/api/admin/staff-assignments', 'POST', {
+    assignedRole: data.assignedRole,
+    title: data.title,
+    location: data.location,
+    details: data.details || null,
+    priority: data.priority,
+    isMaintenanceRequest: data.isMaintenanceRequest === 'true',
+    dueDate: data.dueDate ? `${data.dueDate}T00:00:00Z` : null
+  }, loadStaffAssignments);
+}
+
+async function loadFaultReports() {
+  try {
+    state.faultReports = state.fallbackMode ? [] : await api('/api/admin/fault-reports');
+  } catch {
+    state.faultReports = [];
+  }
+  renderFaultReports();
+}
+
+function renderFaultReports() {
+  document.getElementById('faultReportList').innerHTML = emptyOr(state.faultReports, item => `
+    <div class="activity-item">
+      <div>
+        <strong>${escapeHtml(item.category)} / ${escapeHtml(item.location)}</strong>
+        <small>${escapeHtml(item.description)}</small>
+      </div>
+      <small>${date(item.createdAt)}</small>
+    </div>
+  `);
+}
+
+async function loadUserFacilityAssignments() {
+  try {
+    state.userFacilityAssignments = state.fallbackMode ? [] : await api('/api/admin/user-facility-assignments');
+  } catch {
+    state.userFacilityAssignments = [];
+  }
+  renderUserFacilityAssignments();
+}
+
+function renderUserFacilityAssignments() {
+  document.getElementById('facilityAssignmentRows').innerHTML = emptyTable(state.userFacilityAssignments, item => `
+    <tr>
+      <td><strong>${escapeHtml(item.userFullName)}</strong><br><small>${escapeHtml(item.userRole)}</small></td>
+      <td>${item.dormitoryName ? `<strong>${escapeHtml(item.dormitoryName)}</strong>` : `<strong>${escapeHtml(item.housingUnitName)}</strong>`}</td>
+      <td>${escapeHtml(item.assignedByName)}</td>
+      <td>${date(item.assignedAt)}</td>
+      <td>${item.unassignedAt ? date(item.unassignedAt) : '-'}</td>
+      <td>${item.isActive ? '<span class="badge badge-success">Aktif</span>' : '<span class="badge badge-muted">Pasif</span>'}</td>
+      <td>
+        <button class="row-btn" onclick="editUserFacilityAssignment(${item.id})">Düzenle</button>
+        <button class="row-btn danger" onclick="deleteUserFacilityAssignment(${item.id})">Sil</button>
+      </td>
+    </tr>
+  `);
+}
+
+const ASSIGNABLE_ROLES = ['Yetkili', 'Personel', 'TeknikPersonel', 'TemizlikPersoneli'];
+
+async function fetchUsersByRole(role) {
+  try {
+    return await api(`/api/admin/users-by-role/${role}`);
+  } catch {
+    return [];
+  }
+}
+
+function userFacilityAssignmentForm() {
+  const dormitories = state.facilities.filter(x => x.type === 'Yurt');
+  const housingUnits = state.facilities.filter(x => x.type === 'Lojman');
+
+  return {
+    title: 'Yetkili / Personel Ata',
+    html: `<form id="userFacilityAssignmentForm" class="form-grid" data-assignment-id="">
+      <label class="full">Hesap<select name="accountMode" id="accountMode">
+        <option value="existing">Mevcut kullanıcı seç</option>
+        <option value="new">Yeni hesap oluştur ve ata</option>
+      </select></label>
+      <div id="existingAccountFields" class="form-grid two">
+        <label>Rol<select name="assignRole" id="assignRoleSelect">
+          ${ASSIGNABLE_ROLES.map(r => `<option value="${r}">${staffRoleDisplay(r)}</option>`).join('')}
+        </select></label>
+        <label class="full">Kullanıcı<select name="userId" id="assignUserSelect"><option value="">Yükleniyor...</option></select></label>
+      </div>
+      <div id="newAccountFields" class="form-grid two" style="display:none;">
+        <label>Rol<select name="newRole">
+          ${ASSIGNABLE_ROLES.map(r => `<option value="${r}">${staffRoleDisplay(r)}</option>`).join('')}
+        </select></label>
+        <label>Ad Soyad<input name="fullName" placeholder="Ad Soyad"></label>
+        <label>E-posta<input name="email" type="email" placeholder="ornek@ozal.edu.tr"></label>
+        <label>TC Kimlik No<input name="tcNo" minlength="11" maxlength="11" placeholder="11 haneli TC"></label>
+        <label>Telefon<input name="phoneNumber" placeholder="+90... (isteğe bağlı)"></label>
+        <label class="full">Şifre<input name="password" type="password" minlength="6" placeholder="En az 6 karakter"></label>
+      </div>
+      <label>Yurt<select name="dormitoryId">
+        <option value="">Yurt seçilmedi</option>
+        ${dormitories.map(x => `<option value="${x.id}">${escapeHtml(x.name)}</option>`).join('')}
+      </select></label>
+      <label>Lojman<select name="housingUnitId">
+        <option value="">Lojman seçilmedi</option>
+        ${housingUnits.map(x => `<option value="${x.id}">${escapeHtml(x.name)}</option>`).join('')}
+      </select></label>
+      <button class="primary-btn full" type="submit">Atamayı Kaydet</button>
+    </form>`,
+    bind: () => {
+      const form = document.getElementById('userFacilityAssignmentForm');
+      const modeSel = form.querySelector('#accountMode');
+      const roleSel = form.querySelector('#assignRoleSelect');
+      const userSel = form.querySelector('#assignUserSelect');
+      const existingFields = form.querySelector('#existingAccountFields');
+      const newFields = form.querySelector('#newAccountFields');
+
+      const toggleMode = () => {
+        const isNew = modeSel.value === 'new';
+        existingFields.style.display = isNew ? 'none' : '';
+        newFields.style.display = isNew ? '' : 'none';
+        newFields.querySelectorAll('input').forEach(input => { input.required = isNew && input.name !== 'phoneNumber'; });
+        userSel.required = !isNew;
+      };
+      modeSel.addEventListener('change', toggleMode);
+
+      const loadUsers = async () => {
+        userSel.innerHTML = '<option value="">Yükleniyor...</option>';
+        const users = await fetchUsersByRole(roleSel.value);
+        userSel.innerHTML = users.length
+          ? users.map(u => `<option value="${u.id}">${escapeHtml(u.fullName)} - ${escapeHtml(u.email)}</option>`).join('')
+          : '<option value="">Bu rolde kayıtlı kullanıcı yok</option>';
+      };
+      roleSel.addEventListener('change', loadUsers);
+
+      form._loadUsers = loadUsers;
+      form._toggleMode = toggleMode;
+
+      loadUsers();
+      toggleMode();
+      form.addEventListener('submit', submitUserFacilityAssignment);
+    }
+  };
+}
+
+async function submitUserFacilityAssignment(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = Object.fromEntries(new FormData(form).entries());
+  const assignmentId = form.dataset.assignmentId;
+  const isNewAccount = data.accountMode === 'new';
+  const dormitoryId = data.dormitoryId ? Number(data.dormitoryId) : null;
+  const housingUnitId = data.housingUnitId ? Number(data.housingUnitId) : null;
+
+  if (!dormitoryId && !housingUnitId) {
+    toast('Yurt veya lojmandan biri seçilmelidir.', true);
+    return;
+  }
+
+  try {
+    let userId;
+    if (assignmentId) {
+      await api(`/api/admin/user-facility-assignments/${assignmentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dormitoryId, housingUnitId, isActive: true })
+      });
+      toast('Atama güncellendi.');
+    } else {
+      if (isNewAccount) {
+        const created = await api('/api/admin/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fullName: data.fullName,
+            email: data.email,
+            password: data.password,
+            tcNo: data.tcNo,
+            phoneNumber: data.phoneNumber || null,
+            role: data.newRole
+          })
+        });
+        userId = created.id;
+        toast(`${created.fullName} hesabı sisteme kaydedildi.`);
+      } else {
+        userId = data.userId;
+        if (!userId) {
+          toast('Kullanıcı seçin.', true);
+          return;
+        }
+      }
+      await api('/api/admin/user-facility-assignments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, dormitoryId, housingUnitId })
+      });
+      toast('Atama kaydedildi.');
+    }
+    closeModalIfOpen();
+    await loadUserFacilityAssignments();
+  } catch (error) {
+    toast(error.message || 'Atama kaydedilemedi.', true);
+  }
+}
+
+async function editUserFacilityAssignment(id) {
+  const item = state.userFacilityAssignments.find(x => x.id === id);
+  if (!item) return;
+  const form = userFacilityAssignmentForm();
+  form.html = form.html.replace('<form id="userFacilityAssignmentForm"', `<form id="userFacilityAssignmentForm" data-assignment-id="${id}"`);
+  form.html = form.html.replace('<button class="primary-btn full" type="submit">Atamayı Kaydet</button>', '<button class="primary-btn full" type="submit">Atamayı Güncelle</button>');
+  openModal(form.title, form.html, () => {
+    form.bind();
+    const formEl = document.getElementById('userFacilityAssignmentForm');
+    const modeSel = formEl.querySelector('#accountMode');
+    const roleSel = formEl.querySelector('#assignRoleSelect');
+    const userSel = formEl.querySelector('#assignUserSelect');
+    const newFields = formEl.querySelector('#newAccountFields');
+    modeSel.value = 'existing';
+    modeSel.disabled = true;
+    newFields.style.display = 'none';
+    formEl._toggleMode();
+    (async () => {
+      if (ASSIGNABLE_ROLES.includes(item.userRole)) {
+        roleSel.value = item.userRole;
+        await formEl._loadUsers();
+      }
+      userSel.value = item.userId;
+      userSel.disabled = true;
+      roleSel.disabled = true;
+      if (item.dormitoryId) formEl.querySelector('[name="dormitoryId"]').value = String(item.dormitoryId);
+      if (item.housingUnitId) formEl.querySelector('[name="housingUnitId"]').value = String(item.housingUnitId);
+    })();
+  });
+}
+
+async function deleteUserFacilityAssignment(id) {
+  if (!confirm('Bu atamayı silmek istiyor musunuz?')) return;
+  await saveAndRefresh(`/api/admin/user-facility-assignments/${id}`, 'DELETE', null, loadUserFacilityAssignments);
+}
+
+// ============ DUYURULAR ============
+async function loadAnnouncements() {
+  try {
+    state.announcements = await api('/api/announcements');
+  } catch {
+    state.announcements = [];
+  }
+  renderAnnouncements();
+}
+
+function announcementTargetDisplay(role) {
+  const map = { All: 'Herkes', Student: 'Öğrenci', Staff: 'Personel' };
+  return map[role] || role;
+}
+
+function renderAnnouncements() {
+  document.getElementById('announcementRowsAdmin').innerHTML = emptyTable(state.announcements, item => `
+    <tr>
+      <td><strong>${escapeHtml(item.title)}</strong></td>
+      <td class="desc-cell">${escapeHtml(item.content)}</td>
+      <td>${escapeHtml(announcementTargetDisplay(item.targetRole))}</td>
+      <td>${date(item.createdAt)}</td>
+      <td>${item.isActive ? '<span class="badge badge-success">Yayında</span>' : '<span class="badge badge-muted">Yayın dışı</span>'}</td>
+      <td>
+        ${item.isActive ? `<button class="row-btn warn" onclick="unpublishAnnouncement(${item.id})">Yayından Kaldır</button>` : '-'}
+      </td>
+    </tr>
+  `);
+}
+
+function announcementFormAdmin() {
+  return {
+    title: 'Yeni Duyuru',
+    html: `<form id="announcementFormAdmin" class="form-grid">
+      <label class="full">Başlık<input name="title" required maxlength="180" placeholder="Duyuru başlığı"></label>
+      <label class="full">İçerik<textarea name="content" required maxlength="4000" placeholder="Duyuru içeriği"></textarea></label>
+      <label>Hedef<select name="targetRole">
+        <option value="All">Herkes</option>
+        <option value="Student">Öğrenciler</option>
+        <option value="Staff">Personel</option>
+      </select></label>
+      <label>Durum<select name="isActive"><option value="true" selected>Yayında</option><option value="false">Yayın dışı</option></select></label>
+      <button class="primary-btn full" type="submit">Duyuruyu Yayınla</button>
+    </form>`,
+    bind: () => document.getElementById('announcementFormAdmin').addEventListener('submit', submitAnnouncementAdmin)
+  };
+}
+
+async function submitAnnouncementAdmin(event) {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  try {
+    await api('/api/announcements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: data.title,
+        content: data.content,
+        targetRole: data.targetRole,
+        isActive: data.isActive === 'true'
+      })
+    });
+    closeModalIfOpen();
+    toast('Duyuru yayınlandı.');
+    await loadAnnouncements();
+  } catch (error) {
+    toast(error.message || 'Duyuru yayınlanamadı.', true);
+  }
+}
+
+async function unpublishAnnouncement(id) {
+  const item = state.announcements.find(x => x.id === id);
+  if (!item || !confirm('Bu duyuruyu yayından kaldırmak istiyor musunuz?')) return;
+  try {
+    await api(`/api/announcements/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: item.title, content: item.content, targetRole: item.targetRole, isActive: false })
+    });
+    toast('Duyuru yayından kaldırıldı.');
+    await loadAnnouncements();
+  } catch (error) {
+    toast(error.message, true);
+  }
+}
+
+>>>>>>> Stashed changes
 function facilityForm(item = null, type = 'Yurt') {
   return {
     title: item ? 'Tesis Düzenle' : 'Yeni Tesis',
@@ -1006,6 +1463,24 @@ function applicationStatusDisplay(status) {
   return map[status] || status;
 }
 
+function requestStatusDisplay(status) {
+  const map = {
+    Open: 'Açık',
+    InProgress: 'İşlemde',
+    Resolved: 'Çözüldü',
+    Rejected: 'Reddedildi'
+  };
+  return map[status] || status;
+}
+
+function staffRoleDisplay(role) {
+  const map = {
+    TeknikPersonel: 'Teknik Personel',
+    TemizlikPersoneli: 'Temizlik Personeli'
+  };
+  return map[role] || role;
+}
+
 function emptyTable(items, renderer) {
   return (items || []).length ? (items || []).map(renderer).join('') : '<tr><td colspan="8">Kayıt bulunamadı.</td></tr>';
 }
@@ -1016,7 +1491,9 @@ function emptyOr(items, renderer) {
 
 function parseJwt(token) {
   try {
-    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    let payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    // Add padding if needed
+    while (payload.length % 4) payload += '=';
     return JSON.parse(decodeURIComponent(atob(payload).split('').map(c => `%${(`00${c.charCodeAt(0).toString(16)}`).slice(-2)}`).join('')));
   } catch {
     return {};

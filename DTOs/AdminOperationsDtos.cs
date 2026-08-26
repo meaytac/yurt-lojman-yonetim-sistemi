@@ -35,3 +35,10 @@ public record AdminPaymentListItemDto(
     DateTime? PaidDate,
     PaymentStatus Status,
     string Description);
+
+public record AdminFaultReportListItemDto(
+    int Id,
+    string Category,
+    string Location,
+    string Description,
+    DateTime CreatedAt);

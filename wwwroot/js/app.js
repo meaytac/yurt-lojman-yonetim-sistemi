@@ -31,12 +31,21 @@ async function login() {
       body: JSON.stringify({ email, password })
     });
     localStorage.setItem('token', data.token);
+    localStorage.setItem('currentUser', JSON.stringify({
+      userId: data.userId,
+      fullName: data.fullName,
+      email: data.email,
+      role: data.role,
+      phoneNumber: data.phoneNumber || ''
+    }));
     state.textContent = `${data.fullName} olarak giriş yapıldı.`;
     state.className = 'login-message success';
 
-    const role = String(data.role || '').trim().toLowerCase();
-    const isAdmin = role === 'admin' || role === 'yetkili' || email.trim().toLowerCase() === 'admin@ozal.edu.tr';
-    const target = isAdmin ? '/admin.html' : '/application.html';
+const role = String(data.role || '').trim().toLowerCase();
+    const isAdmin = role === 'admin';
+    const isYetkili = role === 'yetkili';
+    const isStaff = role === 'teknikpersonel' || role === 'temizlikpersoneli';
+    const target = isAdmin ? '/admin.html' : isYetkili ? '/yetkili.html' : isStaff ? '/staff.html' : '/application.html';
     window.setTimeout(() => {
       window.location.href = target;
     }, 250);

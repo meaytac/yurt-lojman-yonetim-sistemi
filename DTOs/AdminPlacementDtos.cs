@@ -3,6 +3,15 @@ using yurt_lojman_yonetim_sistemi.Models;
 
 namespace yurt_lojman_yonetim_sistemi.DTOs;
 
+public record MyPlacementResponse(
+    int Id,
+    DateTime CheckInDate,
+    string FacilityName,
+    string FacilityType,
+    string BlockName,
+    int FloorNumber,
+    string RoomNumber);
+
 public record AdminPlacementAssignRequest(
     [Required] Guid UserId,
     [Required] int RoomId,

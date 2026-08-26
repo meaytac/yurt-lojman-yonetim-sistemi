@@ -7,18 +7,29 @@ namespace yurt_lojman_yonetim_sistemi.Services;
 
 public static class DataSeeder
 {
+    // Ogrenci ilk giris sifresi (Identity politikasi: buyuk harf + kucuk harf + rakam gerektirir)
+    public const string OgrenciIlkSifre = "Ogrenci123";
+    private const string EskiOrtakSifre = "Admin123!";
+
     public static async Task SeedDemoAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<AppRole>>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+        var accommodationService = scope.ServiceProvider.GetRequiredService<IAccommodationService>();
+        var env = scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>();
 
         await SeedRolesAsync(roleManager);
         await SeedData.SeedAsync(db);
         var users = await SeedUsersAsync(userManager);
+        foreach (var student in new[] { users.Student1, users.Student2, users.Student3 })
+        {
+            await ResetStudentPasswordIfLegacyAsync(userManager, student);
+        }
         await SeedFacilitiesAsync(db);
         await SeedOperationalDataAsync(db, users);
+        await PlaceDemoStudentsAsync(db, accommodationService, userManager, [users.Student1, users.Student2, users.Student3], env);
     }
 
     public static Task SeedIdentityAsync(IServiceProvider services) => SeedDemoAsync(services);
@@ -36,6 +47,7 @@ public static class DataSeeder
 
     private static async Task<DemoUsers> SeedUsersAsync(UserManager<AppUser> userManager)
     {
+<<<<<<< Updated upstream
         var random = new Random(20260823);
         var firstNames = new[]
         {
@@ -95,15 +107,50 @@ public static class DataSeeder
         var student3 = await EnsureUserAsync(userManager, student3Identity.Email, student3Identity.FullName, CreateValidTcNo(random, usedTcNumbers), "OGR-2026-203", AppRoles.Ogrenci, "+905550000003");
         var staff1 = await EnsureUserAsync(userManager, staff1Identity.Email, staff1Identity.FullName, CreateValidTcNo(random, usedTcNumbers), "PER-2026-101", AppRoles.Personel, "+905550000004");
         var staff2 = await EnsureUserAsync(userManager, staff2Identity.Email, staff2Identity.FullName, CreateValidTcNo(random, usedTcNumbers), "PER-2026-102", AppRoles.Personel, "+905550000005");
+=======
+        var admin = await EnsureUserAsync(userManager, "admin@ozal.edu.tr", "Sistem Yoneticisi", "11111111111", "ADMIN-001", AppRoles.Admin, "+904220000001");
+        var officer = await EnsureUserAsync(userManager, "yetkili@ozal.edu.tr", "Yurt Isleri Yetkilisi", "22222222222", "PER-100", AppRoles.Yetkili, "+904220000002");
+        var student1 = await EnsureUserAsync(userManager, "ayse.yilmaz@ogr.ozal.edu.tr", "Ayse Yilmaz", "33333333333", "OGR-2026-001", AppRoles.Ogrenci, "+905550000001");
+        var student2 = await EnsureUserAsync(userManager, "mehmet.kaya@ogr.ozal.edu.tr", "Mehmet Kaya", "44444444444", "OGR-2026-002", AppRoles.Ogrenci, "+905550000002");
+        var student3 = await EnsureUserAsync(userManager, "zeynep.demir@ogr.ozal.edu.tr", "Zeynep Demir", "55555555555", "OGR-2026-003", AppRoles.Ogrenci, "+905550000003");
+        var staff1 = await EnsureUserAsync(userManager, "ali.celik@ozal.edu.tr", "Ali Celik", "66666666666", "PRS-2026-014", AppRoles.TeknikPersonel, "+905550000004");
+        var staff2 = await EnsureUserAsync(userManager, "elif.sahin@ozal.edu.tr", "Elif Sahin", "77777777777", "PRS-2026-019", AppRoles.TemizlikPersoneli, "+905550000005");
+>>>>>>> Stashed changes
 
         return new DemoUsers(admin, officer, student1, student2, student3, staff1, staff2);
     }
 
+<<<<<<< Updated upstream
     private static string ToEmailName(string fullName) => fullName
         .ToLowerInvariant()
         .Replace("ç", "c").Replace("ğ", "g").Replace("ı", "i")
         .Replace("ö", "o").Replace("ş", "s").Replace("ü", "u")
         .Replace(" ", ".");
+=======
+    // Ogrenci hesaplari: eski ortak "Admin123!" sifresi hala kullaniliyorsa
+    // "Ogrenci123" ile degistirilir ve ilk giriste sifre degisimi zorunlu kilinir.
+    // Ogrenci sifresini kendisi degistirdikten sonra (MustChangePassword=false ve eski sifre artık gecersiz)
+    // bu blok tekrar calismaz; kullanici sifresi korunur.
+    private static async Task ResetStudentPasswordIfLegacyAsync(UserManager<AppUser> userManager, AppUser student)
+    {
+        if (!await userManager.CheckPasswordAsync(student, EskiOrtakSifre))
+        {
+            return;
+        }
+
+        var token = await userManager.GeneratePasswordResetTokenAsync(student);
+        var result = await userManager.ResetPasswordAsync(student, token, OgrenciIlkSifre);
+        if (!result.Succeeded)
+        {
+            Console.WriteLine($"[Seed] UYARI: {student.Email} sifre guncellenemedi: {string.Join(" ", result.Errors.Select(x => x.Description))}");
+            return;
+        }
+
+        student.MustChangePassword = true;
+        await userManager.UpdateAsync(student);
+        Console.WriteLine($"[Seed] {student.Email} ilk sifresi '{OgrenciIlkSifre}' olarak ayarlandi (ilk giriste degistirilmeli).");
+    }
+>>>>>>> Stashed changes
 
     private static async Task<AppUser> EnsureUserAsync(
         UserManager<AppUser> userManager,
@@ -461,8 +508,7 @@ public static class DataSeeder
 
         await db.SaveChangesAsync();
 
-        await EnsurePlacementAsync(db, users.Student2.Id, "101", DateTime.UtcNow.AddDays(-30));
-        await EnsurePlacementAsync(db, users.Student3.Id, "102", DateTime.UtcNow.AddDays(-18));
+        // Ogrenci yerlestirmeleri artik PlaceDemoStudentsAsync ile rastgele yapilir (asagida).
         await EnsurePlacementAsync(db, users.Staff1.Id, "L101", DateTime.UtcNow.AddDays(-45));
 
         if (!await db.Requests.AnyAsync())
@@ -476,6 +522,31 @@ public static class DataSeeder
                 new MaintenanceRequest { UserId = users.Student3.Id, RoomId = room102.Id, Category = "Isitma", Description = "Petek yeterince isinmiyor.", PhotoUrl = "/uploads/demo/petek.jpg", Status = RequestStatus.InProgress, CreatedAt = DateTime.UtcNow.AddDays(-1) },
                 new MaintenanceRequest { UserId = users.Staff1.Id, RoomId = roomL101.Id, Category = "Su Tesisati", Description = "Mutfak lavabosunda damlama var.", PhotoUrl = "/uploads/demo/lavabo.jpg", Status = RequestStatus.Open, CreatedAt = DateTime.UtcNow.AddDays(-2) },
                 new MaintenanceRequest { UserId = users.Student2.Id, RoomId = room101.Id, Category = "Mobilya", Description = "Dolap kapagi gevsemis.", Status = RequestStatus.Resolved, CreatedAt = DateTime.UtcNow.AddDays(-5) });
+        }
+
+        if (!await db.CleaningTasks.AnyAsync())
+        {
+            db.CleaningTasks.AddRange(
+                new CleaningTask { TaskType = "Oda temizliği", Location = "A Blok / Oda 101", Notes = "Banyo ve tuvalet dahil temizleyin." },
+                new CleaningTask { TaskType = "Ortak alan temizliği", Location = "A Blok / 1. Kat koridoru", Notes = "Zemin ve korkulukları temizleyin." },
+                new CleaningTask { TaskType = "Çöp toplama", Location = "B Blok / Katlar", Notes = "Kat toplama noktalarını kontrol edin." },
+                new CleaningTask { TaskType = "Fiziksel düzenleme", Location = "Yurt yönetim ofisi", Notes = "İki çalışma masasını yerleştirin." });
+        }
+
+        if (!await db.PeriodicMaintenances.AnyAsync())
+        {
+            db.PeriodicMaintenances.AddRange(
+                new PeriodicMaintenance { SystemName = "Yangın sistemi", Location = "A Blok", IntervalDays = 30, NextMaintenanceDate = DateTime.UtcNow.Date.AddDays(2), Notes = "Alarm paneli ve dedektör kontrolü." },
+                new PeriodicMaintenance { SystemName = "Asansör", Location = "B Blok", IntervalDays = 30, NextMaintenanceDate = DateTime.UtcNow.Date.AddDays(6), Notes = "Periyodik güvenlik kontrolü." },
+                new PeriodicMaintenance { SystemName = "Isıtma sistemi", Location = "Merkez kazan dairesi", IntervalDays = 14, NextMaintenanceDate = DateTime.UtcNow.Date.AddDays(1), Notes = "Basınç ve kaçak kontrolü." });
+        }
+
+        if (!await db.StaffAssignments.AnyAsync())
+        {
+            db.StaffAssignments.AddRange(
+                new StaffAssignment { AssignedRole = AppRoles.TemizlikPersoneli, Title = "Ortak alan temizliği", Location = "A Blok / giriş ve 1. kat", Details = "Giriş zemini ve ortak kullanım alanlarını vardiya sonuna kadar temizleyin.", Priority = "Yüksek", DueDate = DateTime.UtcNow.Date },
+                new StaffAssignment { AssignedRole = AppRoles.TeknikPersonel, Title = "Wi-Fi ağ düzenlemesi", Location = "B Blok / 1. kat", Details = "Erişim noktası kapsamasını kontrol edin ve kanal düzenlemesi yapın.", Priority = "Normal", DueDate = DateTime.UtcNow.Date.AddDays(2) },
+                new StaffAssignment { AssignedRole = AppRoles.TeknikPersonel, Title = "Banyo aydınlatma arızası", Location = "A Blok / Oda 204", Details = "Aydınlatma armatürü ve anahtar kontrolü.", Priority = "Acil", IsMaintenanceRequest = true, DueDate = DateTime.UtcNow.Date.AddDays(1) });
         }
 
         if (!await db.Payments.AnyAsync())
@@ -522,6 +593,54 @@ public static class DataSeeder
         var room = await db.Rooms.FirstAsync(x => x.RoomNumber == roomNumber);
         db.Placements.Add(new Placement { UserId = userId, RoomId = room.Id, CheckInDate = checkInDate, IsActive = true });
         await db.SaveChangesAsync();
+    }
+
+    // Demo ogrencilerini musait odalara RASTGELE yerlestirir ve kisa bir kayit dosyasi tutar.
+    // Kayit dosyasi: <proje-koku>/ogrenci_yerlestirme_kaydi.txt
+    private static async Task PlaceDemoStudentsAsync(
+        AppDbContext db,
+        IAccommodationService accommodationService,
+        UserManager<AppUser> userManager,
+        AppUser[] students,
+        IWebHostEnvironment env)
+    {
+        var lines = new List<string>();
+
+        foreach (var student in students)
+        {
+            if (await db.Placements.AnyAsync(x => x.UserId == student.Id && x.IsActive))
+            {
+                continue;
+            }
+
+            var availableRooms = await db.Rooms.AsNoTracking()
+                .Include(x => x.BlockFloor).ThenInclude(x => x.Building).ThenInclude(x => x.Dormitory)
+                .Include(x => x.BlockFloor).ThenInclude(x => x.Building).ThenInclude(x => x.HousingUnit)
+                .Where(x => x.Status != RoomStatus.Maintenance && x.CurrentOccupancy < x.Capacity)
+                .ToListAsync();
+
+            if (availableRooms.Count == 0)
+            {
+                Console.WriteLine("[Seed] UYARI: Musait oda yok, yerlestirme atlandi.");
+                continue;
+            }
+
+            var room = availableRooms[Random.Shared.Next(availableRooms.Count)];
+            var type = room.BlockFloor.Building.DormitoryId != null ? AccommodationType.Yurt : AccommodationType.Lojman;
+            await accommodationService.PlaceUserAsync(student.Id, type, room.Id, CancellationToken.None);
+
+            var facility = room.BlockFloor.Building.Dormitory?.Name ?? room.BlockFloor.Building.HousingUnit!.Name;
+            var block = room.BlockFloor.Building.BlockName;
+            var line = $"{DateTime.UtcNow:yyyy-MM-dd HH:mm};{student.Email};{student.FullName};{facility};{block};Kat {room.BlockFloor.FloorNumber};Oda {room.RoomNumber}";
+            lines.Add(line);
+            Console.WriteLine($"[Seed] Yerlestirme: {student.FullName} -> {facility} / {block} / Oda {room.RoomNumber}");
+        }
+
+        if (lines.Count > 0)
+        {
+            var path = Path.Combine(env.ContentRootPath, "ogrenci_yerlestirme_kaydi.txt");
+            await File.AppendAllLinesAsync(path, lines);
+        }
     }
 
     private static async Task RecalculateRoomsAsync(AppDbContext db)

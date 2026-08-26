@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MTÜ Yetkili Paneli</title>
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <div id="appShell" class="admin-shell">
+    <aside class="sidebar">
+      <div class="side-brand">
+        <img class="brand-logo mini" src="/img/mtu-amblem.png" alt="MTÜ amblemi">
+        <div>
+          <strong>YETKİLİ</strong>
+          <small>Yurt Yönetim Paneli</small>
+        </div>
+      </div>
+      <nav class="side-nav" aria-label="Yetkili menüsü">
+        <button class="nav-item active" data-section="dashboard"><span>📊</span>Kontrol Paneli</button>
+        <button class="nav-item" data-section="students"><span>👨‍🎓</span>Öğrenciler</button>
+        <button class="nav-item" data-section="manage"><span>🛏️</span>Yerleşim Düzenleme</button>
+        <button class="nav-item" data-section="announcements"><span>📢</span>Duyurular</button>
+        <button class="nav-item" data-section="rooms"><span>🚪</span>Boş Odalar</button>
+        <button class="nav-item danger" id="logoutBtn"><span>🚪</span>Çıkış Yap</button>
+      </nav>
+    </aside>
+
+    <div class="main-area">
+      <header class="topbar">
+        <div>
+          <h1 id="sectionTitle">Kontrol Paneli</h1>
+          <p id="facilityInfo">Atanmış yurt bilgisi yükleniyor...</p>
+        </div>
+        <div class="top-actions">
+          <div class="profile-chip">
+            <span id="yetkiliName">Yetkili</span>
+            <small id="yetkiliRole">Yetkili</small>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section id="dashboard" class="page-section active">
+          <div id="kpiGrid" class="kpi-grid"></div>
+          <div class="content-grid">
+            <article class="panel">
+              <div class="panel-head">
+                <h2>Atanmış Yurtlar</h2>
+              </div>
+              <div id="assignedFacilities" class="activity-list"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-head">
+                <h2>Son Eklenen Öğrenciler</h2>
+                <button class="ghost-btn" data-section-jump="students">Öğrenciler</button>
+              </div>
+              <div id="recentStudents" class="activity-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="students" class="page-section">
+          <div class="toolbar">
+            <div>
+              <h2>Öğrenci Yönetimi</h2>
+              <p>Size atanan yurtlardaki öğrencileri yönetin.</p>
+            </div>
+            <div class="toolbar-actions">
+              <input id="studentSearch" type="search" placeholder="Öğrenci ara">
+              <button class="primary-btn" data-modal="studentModal">+ Öğrenci Ekle</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ad Soyad</th>
+                  <th>E-posta</th>
+                  <th>TC</th>
+                  <th>No</th>
+                  <th>Durum</th>
+                  <th>Aksiyon</th>
+                </tr>
+              </thead>
+              <tbody id="studentRows"></tbody>
+            </table>
+          </div>
+          <div id="studentPager" class="pager"></div>
+        </section>
+
+        <section id="rooms" class="page-section">
+          <div class="toolbar">
+            <div>
+              <h2>Boş Odalar</h2>
+              <p>Öğrenci yerleştirmek için müsait odalar.</p>
+            </div>
+            <div class="toolbar-actions">
+              <select id="roomTypeFilter">
+                <option value="Yurt">Yurt</option>
+                <option value="Lojman">Lojman</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Oda</th>
+                  <th>Yurt</th>
+                  <th>Blok/Kat</th>
+                  <th>Kapasite</th>
+                  <th>Doluluk</th>
+                  <th>Fiyat</th>
+                  <th>Durum</th>
+                </tr>
+              </thead>
+              <tbody id="availableRoomRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="manage" class="page-section">
+          <div class="toolbar">
+            <div>
+              <h2>Yerleşim &amp; Oda Düzenleme</h2>
+              <p>Size atanan yurtlardaki tüm öğrencileri, kayıtlı oldukları odalarla birlikte görün ve odaları düzenleyin.</p>
+            </div>
+          </div>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Yurttaki Öğrenciler</h2>
+              <small class="muted">Atanmış yurtlarda konaklayan tüm öğrenciler ve odaları.</small>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Ad Soyad</th>
+                    <th>E-posta</th>
+                    <th>TC</th>
+                    <th>No</th>
+                    <th>Yurt</th>
+                    <th>Blok</th>
+                    <th>Oda</th>
+                    <th>Giriş</th>
+                  </tr>
+                </thead>
+                <tbody id="studentRoomRows"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Odalar</h2>
+              <small class="muted">Atanmış yurtlardaki tüm odalar; oda numarası, kapasite, fiyat ve durum düzenlenebilir.</small>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Oda</th>
+                    <th>Yurt</th>
+                    <th>Blok/Kat</th>
+                    <th>Kapasite</th>
+                    <th>Doluluk</th>
+                    <th>Fiyat</th>
+                    <th>Durum</th>
+                    <th>Aksiyon</th>
+                  </tr>
+                </thead>
+                <tbody id="manageRoomRows"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section id="announcements" class="page-section">
+          <div class="toolbar">
+            <div>
+              <h2>Duyuru Yönetimi</h2>
+              <p>Buradan oluşturduğunuz duyurular öğrenci portalında anında görünür.</p>
+            </div>
+            <div class="toolbar-actions">
+              <button class="primary-btn" data-modal="announcementModal">+ Yeni Duyuru</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Başlık</th>
+                  <th>İçerik</th>
+                  <th>Hedef</th>
+                  <th>Tarih</th>
+                  <th>Durum</th>
+                  <th>Aksiyon</th>
+                </tr>
+              </thead>
+              <tbody id="announcementRows"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div id="modalBackdrop" class="modal-backdrop" style="display: none;">
+    <section class="modal">
+      <header>
+        <h2 id="modalTitle">Form</h2>
+        <button class="icon-btn" id="closeModal" title="Kapat">×</button>
+      </header>
+      <div id="modalBody"></div>
+    </section>
+  </div>
+
+  <div id="toastHost" class="toast-host"></div>
+  <script src="/js/yetkili.js?v=20260825"></script>
+</body>
+</html>
