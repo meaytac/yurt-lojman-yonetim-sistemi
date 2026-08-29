@@ -83,7 +83,13 @@ body {
 
 .hero-section {
   flex: 1.4 1 0;
-  background: linear-gradient(135deg, var(--primary-navy) 0%, #1e3a5f 100%);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-color: var(--primary-navy);
+  background-image: linear-gradient(110deg, rgba(7, 24, 48, 0.72), rgba(15, 23, 42, 0.42)), url('/img/yurt-bg.jpg');
+  background-size: cover;
+  background-position: center;
   border-radius: var(--radius-lg);
   padding: 30px 35px;
   color: white;
@@ -96,6 +102,8 @@ body {
 }
 
 .hero-content {
+  position: relative;
+  z-index: 1;
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -147,6 +155,7 @@ body {
 /* Login Form */
 .login-panel {
   flex: 0.9 1 0;
+  align-self: center;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -161,7 +170,6 @@ body {
   flex-direction: column;
   gap: 20px;
 }
-
 .form-group {
   display: flex;
   flex-direction: column;
@@ -394,6 +402,15 @@ input:focus, select:focus, textarea:focus {
   .hero-layout {
     flex-direction: column;
   }
+
+  .hero-section {
+    min-height: 330px;
+  }
+
+  .login-panel {
+    width: 100%;
+    min-height: auto;
+  }
 }
 
 @media (max-width: 768px) {
@@ -418,6 +435,11 @@ input:focus, select:focus, textarea:focus {
 
   .hero-content p {
     font-size: 16px;
+  }
+
+  .hero-section {
+    min-height: 280px;
+    padding: 26px 24px;
   }
 
   .footer-content {

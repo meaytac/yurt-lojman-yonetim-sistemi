@@ -13,7 +13,6 @@ namespace yurt_lojman_yonetim_sistemi.Controllers;
 [Authorize(Roles = $"{AppRoles.Admin},{AppRoles.Yetkili}")]
 public class AdminFacilitiesController(AppDbContext db, IAccommodationService accommodationService) : ControllerBase
 {
-<<<<<<< Updated upstream
     private static readonly string[] AllowedDormitoryNames =
     [
         "MTÜ Erkek Öğrenci Yurdu",
@@ -21,13 +20,18 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
     ];
 
     private const string AllowedHousingUnitName = "MTÜ Akademik Personel Lojmanı";
-=======
+
     // Admin -> null (tum tesisler); Yetkili -> yalnizca atandigi tesisler
     private async Task<FacilityScope?> GetFacilityScopeAsync(CancellationToken cancellationToken)
     {
         if (User.IsInRole(AppRoles.Admin)) return null;
 
-        var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        var rawUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(rawUserId, out var userId))
+        {
+            return new FacilityScope([], []);
+        }
+
         var assignments = await db.UserFacilityAssignments.AsNoTracking()
             .Where(x => x.UserId == userId && x.IsActive)
             .ToListAsync(cancellationToken);
@@ -36,7 +40,6 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
             assignments.Where(x => x.DormitoryId != null).Select(x => x.DormitoryId!.Value).ToList(),
             assignments.Where(x => x.HousingUnitId != null).Select(x => x.HousingUnitId!.Value).ToList());
     }
->>>>>>> Stashed changes
 
     [HttpGet("dormitories")]
     public async Task<List<Dormitory>> GetDormitories(CancellationToken cancellationToken)
