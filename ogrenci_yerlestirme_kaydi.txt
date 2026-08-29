@@ -29,3 +29,4 @@
 2026-08-26 08:43;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 1 Personel Lojmani;Lojman 1 Blok;Kat 1;Oda 109
 2026-08-26 08:43;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 4 Personel Lojmani;Lojman 4 Blok;Kat 2;Oda 213
 2026-08-26 08:43;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 4 Ogrenci Yurdu;Demo 4 Blok;Kat 2;Oda 214
+2026-08-29 16:26;hande.kucuk@ozal.edu.tr;Hande Küçük;MTÜ Erkek Öğrenci Yurdu;B Blok;Kat 2;Oda 206

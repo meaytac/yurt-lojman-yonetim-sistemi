@@ -7,16 +7,11 @@ const state = {
   users: { items: [], page: 1, pageSize: 10, totalCount: 0 },
   applications: [],
   placements: [],
-<<<<<<< Updated upstream
-  announcements: [],
-  requests: [],
-=======
   requests: [],
   staffAssignments: [],
   faultReports: [],
   userFacilityAssignments: [],
   announcements: [],
->>>>>>> Stashed changes
   roomPage: 1,
   roomPageSize: 10,
   fallbackMode: false
@@ -32,13 +27,8 @@ const sectionTitles = {
   applications: 'Başvuru Yönetimi',
   users: 'Kullanıcılar & Roller',
   placements: 'Yerleşim Takibi',
-<<<<<<< Updated upstream
-  announcements: 'Duyuru Yönetimi',
-  requests: 'Arıza Talepleri'
-=======
   operations: 'Operasyon & Görevlendirme',
   announcements: 'Duyuru Yönetimi'
->>>>>>> Stashed changes
 };
 
 const mock = createMockStore();
@@ -111,11 +101,7 @@ async function openApp(token) {
   document.getElementById('adminName').textContent = claims.fullName || claims.name || 'Sistem Yöneticisi';
   document.getElementById('adminRole').textContent = role;
   switchSection('dashboard');
-<<<<<<< Updated upstream
-  await Promise.allSettled([loadDashboard(), loadFacilities(), loadRooms(), loadApplications(), loadUsers(1), loadPlacements(), loadAnnouncements(), loadRequests()]);
-=======
   await Promise.allSettled([loadDashboard(), loadFacilities(), loadRooms(), loadApplications(), loadUsers(1), loadPlacements(), loadOperations(), loadAnnouncements()]);
->>>>>>> Stashed changes
 }
 
 function logout() {
@@ -124,6 +110,7 @@ function logout() {
 }
 
 function switchSection(id) {
+  if (id === 'requests') id = 'operations';
   activeSection = id;
   document.querySelectorAll('.page-section').forEach(section => section.classList.toggle('active', section.id === id));
   document.querySelectorAll('.nav-item[data-section]').forEach(button => button.classList.toggle('active', button.dataset.section === id));
@@ -350,54 +337,6 @@ async function loadApplications() {
   renderApplications();
 }
 
-async function loadAnnouncements() {
-  try {
-    state.announcements = await api('/api/announcements/admin');
-  } catch {
-    state.fallbackMode = true;
-    state.announcements = [];
-  }
-  renderAnnouncements();
-}
-
-function renderAnnouncements() {
-  document.getElementById('announcementRows').innerHTML = emptyTable(state.announcements, item => `
-    <tr>
-      <td><strong>${escapeHtml(item.title)}</strong></td>
-      <td>${escapeHtml(item.content)}</td>
-      <td>${announcementTarget(item.targetRole)}</td>
-      <td>${date(item.createdAt)}</td>
-      <td>${getStatusBadge(item.isActive ? 'Aktif' : 'Pasif')}</td>
-      <td><button class="row-btn" onclick="editAnnouncement(${item.id})">Düzenle</button></td>
-    </tr>
-  `);
-}
-
-async function loadRequests() {
-  try {
-    state.requests = await api('/api/requests');
-  } catch {
-    state.fallbackMode = true;
-    state.requests = [];
-  }
-  renderRequests();
-}
-
-function renderRequests() {
-  document.getElementById('requestRows').innerHTML = emptyTable(state.requests, item => `
-    <tr>
-      <td><strong>${escapeHtml(item.category)}</strong></td>
-      <td>${escapeHtml(item.description)}</td>
-      <td>${escapeHtml(item.userName || item.userId)}</td>
-      <td>${escapeHtml(item.roomNumber || item.roomId)}</td>
-      <td>${date(item.createdAt)}</td>
-      <td><select onchange="updateRequestStatus(${item.id}, this.value)">
-        ${['Open', 'InProgress', 'Resolved', 'Rejected'].map(status => `<option value="${status}" ${status === item.status ? 'selected' : ''}>${requestStatus(status)}</option>`).join('')}
-      </select></td>
-    </tr>
-  `);
-}
-
 function renderApplications() {
   document.getElementById('applicationRows').innerHTML = emptyTable(state.applications || [], item => `
     <tr>
@@ -421,64 +360,14 @@ function openNamedModal(name) {
     floorModal: floorForm(),
     roomModal: roomForm(),
     assignModal: assignForm(),
-<<<<<<< Updated upstream
-    announcementModal: announcementForm()
-=======
     staffAssignmentModal: staffAssignmentForm(),
     userFacilityAssignmentModal: userFacilityAssignmentForm(),
     announcementModal: announcementFormAdmin()
->>>>>>> Stashed changes
   };
   if (!forms[name]) return;
   openModal(forms[name].title, forms[name].html, forms[name].bind);
 }
 
-<<<<<<< Updated upstream
-function editAnnouncement(id) {
-  const item = state.announcements.find(x => x.id === id);
-  if (!item) return;
-  const form = announcementForm(item);
-  openModal(form.title, form.html, form.bind);
-}
-
-async function updateRequestStatus(id, status) {
-  await saveAndRefresh(`/api/requests/${id}/status`, 'PATCH', { status }, loadRequests);
-}
-
-function announcementTarget(targetRole) {
-  return { All: 'Herkes', Student: 'Öğrenciler', Staff: 'Personel' }[targetRole] || targetRole;
-}
-
-function requestStatus(status) {
-  return { Open: 'Açık', InProgress: 'İşlemde', Resolved: 'Çözüldü', Rejected: 'Reddedildi' }[status] || status;
-}
-
-function announcementForm(item = null) {
-  return {
-    title: item ? 'Duyuru Düzenle' : 'Yeni Duyuru',
-    html: `<form id="announcementForm" class="form-grid">
-      <label>Başlık<input name="title" maxlength="180" value="${escapeAttr(item?.title)}" required></label>
-      <label>Hedef Rol<select name="targetRole">
-        ${['All', 'Student', 'Staff'].map(role => `<option value="${role}" ${role === (item?.targetRole || 'All') ? 'selected' : ''}>${announcementTarget(role)}</option>`).join('')}
-      </select></label>
-      <label class="full">İçerik<textarea name="content" maxlength="4000" required>${escapeHtml(item?.content)}</textarea></label>
-      <label class="inline-check"><input name="isActive" type="checkbox" ${item?.isActive !== false ? 'checked' : ''}> Yayında</label>
-      <button class="primary-btn full" type="submit">Kaydet</button>
-    </form>`,
-    bind: () => bindAnnouncementSubmit(item)
-  };
-}
-
-function bindAnnouncementSubmit(item) {
-  document.getElementById('announcementForm').addEventListener('submit', async event => {
-    event.preventDefault();
-    const data = Object.fromEntries(new FormData(event.currentTarget).entries());
-    const body = { title: data.title, content: data.content, targetRole: data.targetRole, isActive: event.currentTarget.isActive.checked };
-    await saveAndRefresh(item ? `/api/announcements/${item.id}` : '/api/announcements', item ? 'PUT' : 'POST', body, loadAnnouncements);
-  });
-}
-
-=======
 function loadOperations() {
   return Promise.allSettled([loadRequests(), loadStaffAssignments(), loadFaultReports(), loadUserFacilityAssignments()]);
 }
@@ -799,7 +688,7 @@ async function deleteUserFacilityAssignment(id) {
   await saveAndRefresh(`/api/admin/user-facility-assignments/${id}`, 'DELETE', null, loadUserFacilityAssignments);
 }
 
-// ============ DUYURULAR ============
+// ------------ DUYURULAR ------------
 async function loadAnnouncements() {
   try {
     state.announcements = await api('/api/announcements');
@@ -885,7 +774,6 @@ async function unpublishAnnouncement(id) {
   }
 }
 
->>>>>>> Stashed changes
 function facilityForm(item = null, type = 'Yurt') {
   return {
     title: item ? 'Tesis Düzenle' : 'Yeni Tesis',
