@@ -29,13 +29,6 @@ public interface IAdminService
 
     public class AdminService(AppDbContext db, UserManager<AppUser> userManager) : IAdminService
     {
-        private static bool RoomInScope(FacilityScope? scope, int? dormitoryId, int? housingUnitId)
-        {
-            if (scope == null) return true;
-            return (dormitoryId != null && scope.DormitoryIds.Contains(dormitoryId.Value))
-                || (housingUnitId != null && scope.HousingUnitIds.Contains(housingUnitId.Value));
-        }
-
         private IQueryable<Room> ScopedRooms(FacilityScope? scope)
         {
             var query = db.Rooms.AsNoTracking()
@@ -67,14 +60,18 @@ public interface IAdminService
             var recentRequests = await db.Requests.AsNoTracking()
                 .Include(x => x.User)
                 .Include(x => x.Room)
-                .Where(x => RoomInScope(scope, x.Room.BlockFloor.Building.DormitoryId, x.Room.BlockFloor.Building.HousingUnitId))
+                .Where(x => scope == null
+                    || (x.Room.BlockFloor.Building.DormitoryId != null && scope.DormitoryIds.Contains(x.Room.BlockFloor.Building.DormitoryId.Value))
+                    || (x.Room.BlockFloor.Building.HousingUnitId != null && scope.HousingUnitIds.Contains(x.Room.BlockFloor.Building.HousingUnitId.Value)))
                 .OrderByDescending(x => x.CreatedAt)
                 .Take(5)
                 .Select(x => new AdminRecentRequestDto(x.Id, x.UserId, x.User.FullName, x.Room.RoomNumber, x.Category, x.Status, x.CreatedAt))
                 .ToListAsync(cancellationToken);
 
             var scopedUserIds = db.Placements.AsNoTracking()
-                .Where(x => x.IsActive && RoomInScope(scope, x.Room.BlockFloor.Building.DormitoryId, x.Room.BlockFloor.Building.HousingUnitId))
+                .Where(x => x.IsActive && (scope == null
+                    || (x.Room.BlockFloor.Building.DormitoryId != null && scope.DormitoryIds.Contains(x.Room.BlockFloor.Building.DormitoryId.Value))
+                    || (x.Room.BlockFloor.Building.HousingUnitId != null && scope.HousingUnitIds.Contains(x.Room.BlockFloor.Building.HousingUnitId.Value))))
                 .Select(x => x.UserId);
 
             var unpaidDebt = await db.Payments
@@ -98,7 +95,9 @@ public interface IAdminService
                         || (scope.HousingUnitIds.Count > 0 && x.AccommodationType == AccommodationType.Lojman))
                     .CountAsync(x => x.Status == ApplicationStatus.Pending, cancellationToken),
                 OpenRequestCount: await db.Requests.AsNoTracking()
-                    .Where(x => RoomInScope(scope, x.Room.BlockFloor.Building.DormitoryId, x.Room.BlockFloor.Building.HousingUnitId))
+                    .Where(x => scope == null
+                        || (x.Room.BlockFloor.Building.DormitoryId != null && scope.DormitoryIds.Contains(x.Room.BlockFloor.Building.DormitoryId.Value))
+                        || (x.Room.BlockFloor.Building.HousingUnitId != null && scope.HousingUnitIds.Contains(x.Room.BlockFloor.Building.HousingUnitId.Value)))
                     .CountAsync(x => x.Status == RequestStatus.Open || x.Status == RequestStatus.InProgress, cancellationToken),
                 TotalUnpaidAndOverdueDebt: unpaidDebt,
                 RecentApplications: recentApplications,
@@ -147,7 +146,9 @@ public interface IAdminService
 
             var inScope = await db.Rooms.AsNoTracking()
                 .Where(x => x.Id == roomId)
-                .AnyAsync(x => RoomInScope(scope, x.BlockFloor.Building.DormitoryId, x.BlockFloor.Building.HousingUnitId), cancellationToken);
+                .AnyAsync(x => scope == null
+                    || (x.BlockFloor.Building.DormitoryId != null && scope.DormitoryIds.Contains(x.BlockFloor.Building.DormitoryId.Value))
+                    || (x.BlockFloor.Building.HousingUnitId != null && scope.HousingUnitIds.Contains(x.BlockFloor.Building.HousingUnitId.Value)), cancellationToken);
             if (!inScope)
             {
                 throw new KeyNotFoundException("Oda bulunamadi.");
@@ -172,7 +173,9 @@ public interface IAdminService
             if (scope != null)
             {
                 var scopedUserIds = db.Placements.AsNoTracking()
-                    .Where(x => x.IsActive && RoomInScope(scope, x.Room.BlockFloor.Building.DormitoryId, x.Room.BlockFloor.Building.HousingUnitId))
+                    .Where(x => x.IsActive && (scope == null
+                        || (x.Room.BlockFloor.Building.DormitoryId != null && scope.DormitoryIds.Contains(x.Room.BlockFloor.Building.DormitoryId.Value))
+                        || (x.Room.BlockFloor.Building.HousingUnitId != null && scope.HousingUnitIds.Contains(x.Room.BlockFloor.Building.HousingUnitId.Value))))
                     .Select(x => x.UserId);
                 users = users.Where(x => scopedUserIds.Contains(x.Id));
             }
