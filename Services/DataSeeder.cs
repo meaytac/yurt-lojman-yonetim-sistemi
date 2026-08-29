@@ -47,7 +47,6 @@ public static class DataSeeder
 
     private static async Task<DemoUsers> SeedUsersAsync(UserManager<AppUser> userManager)
     {
-<<<<<<< Updated upstream
         var random = new Random(20260823);
         var firstNames = new[]
         {
@@ -107,26 +106,16 @@ public static class DataSeeder
         var student3 = await EnsureUserAsync(userManager, student3Identity.Email, student3Identity.FullName, CreateValidTcNo(random, usedTcNumbers), "OGR-2026-203", AppRoles.Ogrenci, "+905550000003");
         var staff1 = await EnsureUserAsync(userManager, staff1Identity.Email, staff1Identity.FullName, CreateValidTcNo(random, usedTcNumbers), "PER-2026-101", AppRoles.Personel, "+905550000004");
         var staff2 = await EnsureUserAsync(userManager, staff2Identity.Email, staff2Identity.FullName, CreateValidTcNo(random, usedTcNumbers), "PER-2026-102", AppRoles.Personel, "+905550000005");
-=======
-        var admin = await EnsureUserAsync(userManager, "admin@ozal.edu.tr", "Sistem Yoneticisi", "11111111111", "ADMIN-001", AppRoles.Admin, "+904220000001");
-        var officer = await EnsureUserAsync(userManager, "yetkili@ozal.edu.tr", "Yurt Isleri Yetkilisi", "22222222222", "PER-100", AppRoles.Yetkili, "+904220000002");
-        var student1 = await EnsureUserAsync(userManager, "ayse.yilmaz@ogr.ozal.edu.tr", "Ayse Yilmaz", "33333333333", "OGR-2026-001", AppRoles.Ogrenci, "+905550000001");
-        var student2 = await EnsureUserAsync(userManager, "mehmet.kaya@ogr.ozal.edu.tr", "Mehmet Kaya", "44444444444", "OGR-2026-002", AppRoles.Ogrenci, "+905550000002");
-        var student3 = await EnsureUserAsync(userManager, "zeynep.demir@ogr.ozal.edu.tr", "Zeynep Demir", "55555555555", "OGR-2026-003", AppRoles.Ogrenci, "+905550000003");
-        var staff1 = await EnsureUserAsync(userManager, "ali.celik@ozal.edu.tr", "Ali Celik", "66666666666", "PRS-2026-014", AppRoles.TeknikPersonel, "+905550000004");
-        var staff2 = await EnsureUserAsync(userManager, "elif.sahin@ozal.edu.tr", "Elif Sahin", "77777777777", "PRS-2026-019", AppRoles.TemizlikPersoneli, "+905550000005");
->>>>>>> Stashed changes
 
         return new DemoUsers(admin, officer, student1, student2, student3, staff1, staff2);
     }
 
-<<<<<<< Updated upstream
     private static string ToEmailName(string fullName) => fullName
         .ToLowerInvariant()
         .Replace("ç", "c").Replace("ğ", "g").Replace("ı", "i")
         .Replace("ö", "o").Replace("ş", "s").Replace("ü", "u")
         .Replace(" ", ".");
-=======
+
     // Ogrenci hesaplari: eski ortak "Admin123!" sifresi hala kullaniliyorsa
     // "Ogrenci123" ile degistirilir ve ilk giriste sifre degisimi zorunlu kilinir.
     // Ogrenci sifresini kendisi degistirdikten sonra (MustChangePassword=false ve eski sifre artık gecersiz)
@@ -150,7 +139,6 @@ public static class DataSeeder
         await userManager.UpdateAsync(student);
         Console.WriteLine($"[Seed] {student.Email} ilk sifresi '{OgrenciIlkSifre}' olarak ayarlandi (ilk giriste degistirilmeli).");
     }
->>>>>>> Stashed changes
 
     private static async Task<AppUser> EnsureUserAsync(
         UserManager<AppUser> userManager,

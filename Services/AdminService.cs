@@ -120,17 +120,6 @@ public interface IAdminService
             return dormitories.Concat(housingUnits).OrderBy(x => x.Type).ThenBy(x => x.Name).ToList();
         }
 
-<<<<<<< Updated upstream
-        var currentOccupancy = occupants.Count;
-        var status = room.Status == RoomStatus.Maintenance
-            ? RoomStatus.Maintenance
-            : currentOccupancy == 0
-                ? RoomStatus.Empty
-                : currentOccupancy >= room.Capacity ? RoomStatus.Full : RoomStatus.PartiallyFull;
-
-        return new AdminRoomOccupantsResponse(room.Id, room.RoomNumber, room.Capacity, currentOccupancy, status, occupants);
-    }
-=======
         public async Task<IReadOnlyList<AdminRoomListItemDto>> GetRoomsAsync(FacilityScope? scope, CancellationToken cancellationToken)
         {
             return await ScopedRooms(scope)
@@ -150,7 +139,6 @@ public interface IAdminService
                     x.Price))
                 .ToListAsync(cancellationToken);
         }
->>>>>>> Stashed changes
 
         public async Task<AdminRoomOccupantsResponse> GetRoomOccupantsAsync(int roomId, FacilityScope? scope, CancellationToken cancellationToken)
         {
