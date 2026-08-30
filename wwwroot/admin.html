@@ -178,17 +178,10 @@
           <div class="toolbar">
             <div>
               <h2>Başvuru Yönetimi</h2>
-              <p>Bekleyen başvuruları inceleyin ve onaylayın.</p>
-            </div>
-            <div class="toolbar-actions">
-              <select id="applicationStatusFilter">
-                <option value="">Tüm durumlar</option>
-                <option value="Pending">Bekleyen</option>
-                <option value="Approved">Onaylanan</option>
-                <option value="Rejected">Reddedilen</option>
-              </select>
+              <p>Yalnızca işlem bekleyen başvuruları inceleyin, onaylayın veya reddedin.</p>
             </div>
           </div>
+          <div id="applicationFeedback" class="inline-feedback" aria-live="polite">Sadece Beklemede durumundaki başvurular listelenir.</div>
           <div class="table-wrap">
             <table>
               <thead>

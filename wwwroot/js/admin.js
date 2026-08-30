@@ -93,7 +93,6 @@ function bindShell() {
   document.getElementById('facilitySearch').addEventListener('input', () => { state.pages.facilities = 1; renderFacilities(); });
   document.getElementById('roomSearch').addEventListener('input', () => { state.roomPage = 1; renderRooms(); });
   document.getElementById('roomStatusFilter').addEventListener('change', () => { state.roomPage = 1; renderRooms(); });
-  document.getElementById('applicationStatusFilter').addEventListener('change', () => { state.pages.applications = 1; loadApplications(); });
   document.getElementById('userSearch').addEventListener('input', debounce(() => loadUsers(1), 350));
   document.getElementById('roleFilter').addEventListener('change', () => loadUsers(1));
   document.getElementById('activePlacementsOnly').addEventListener('change', () => { state.pages.placements = 1; loadPlacements(); });
@@ -357,9 +356,7 @@ function renderPlacements() {
 
 async function loadApplications() {
   try {
-    const status = document.getElementById('applicationStatusFilter').value;
-    const statusParam = status ? `?status=${status}` : '';
-    state.applications = await api(`/api/admin/applications${statusParam}`);
+    state.applications = await api('/api/admin/applications');
   } catch (error) {
     console.error('[Admin API] Başvurular yüklenemedi:', error);
     state.applications = [];
@@ -378,7 +375,8 @@ function renderApplications() {
       <td>${getStatusBadge(item.status)}</td>
       <td>${date(item.createdAt)}</td>
       <td>
-        ${item.status === 'Pending' ? `<button class="row-btn" onclick="openAssignModal(${item.id}, '${item.userId}', '${escapeAttr(item.fullName)}', '${item.accommodationType}')">Odaya Yerleştir</button>` : '-'}
+        <button class="row-btn" onclick="openAssignModal(${item.id}, '${item.userId}', '${escapeAttr(item.fullName)}', '${item.accommodationType}')">Odaya Yerleştir</button>
+        <button class="row-btn danger" onclick="rejectApplication(${item.id})">Reddet</button>
       </td>
     </tr>
   `);
@@ -640,9 +638,28 @@ async function loadPlacementCandidateOptions(form) {
 async function submitApplicationAssign(event) {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(event.currentTarget).entries());
-  await saveAndRefresh(`/api/admin/applications/${data.applicationId}/assign`, 'POST', {
+  const applicationId = Number(data.applicationId);
+  const result = await saveEntity(`/api/admin/applications/${applicationId}/assign`, 'POST', {
     roomId: Number(data.roomId)
-  }, async () => Promise.all([loadApplications(), loadPlacements(), loadRooms(), loadDashboard()]));
+  });
+  if (!result) return;
+  removeApplicationFromState(applicationId);
+  showApplicationFeedback(result.message || 'Başvuru başarıyla onaylandı ve aday yerleşim kaydına aktarıldı.');
+  await Promise.allSettled([loadPlacements(), loadRooms(), loadDashboard()]);
+}
+
+async function rejectApplication(id) {
+  if (!confirm('Bu başvuruyu reddetmek istediğinize emin misiniz?')) return;
+  const result = await saveEntity(`/api/admin/applications/${id}/reject`, 'POST', {
+    approved: false,
+    reason: 'Yönetim panelinden reddedildi.',
+    roomId: null,
+    autoPlace: false
+  });
+  if (!result) return;
+  removeApplicationFromState(id);
+  showApplicationFeedback(result.message || 'Başvuru reddedildi ve bekleyen başvurular listesinden kaldırıldı.');
+  await Promise.allSettled([loadDashboard()]);
 }
 
 function staffAssignmentForm() {
@@ -1115,7 +1132,7 @@ async function saveEntity(url, method, body) {
     }
     const result = await api(url, options);
     closeModalIfOpen();
-    toast('İşlem başarılı.');
+    toast(result?.message || 'İşlem başarılı.');
     return result ?? true;
   } catch (error) {
     console.error(`[Admin API] Kayıt işlemi başarısız: ${method} ${url}`, error);
@@ -1307,6 +1324,19 @@ function paginateItems(items, key, pageSize = state.listPageSize) {
     page,
     totalPages
   };
+}
+
+function removeApplicationFromState(id) {
+  state.applications = state.applications.filter(item => item.id !== id);
+  renderApplications();
+}
+
+function showApplicationFeedback(message) {
+  const host = document.getElementById('applicationFeedback');
+  if (host) {
+    host.textContent = message;
+    host.classList.add('success');
+  }
 }
 
 function upsertById(items, item) {

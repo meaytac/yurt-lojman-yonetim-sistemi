@@ -428,6 +428,22 @@ tr:hover td { background: rgba(56, 189, 248, 0.02); }
   gap: 8px;
   overflow: hidden;
 }
+.inline-feedback {
+  flex: 0 0 auto;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: #f8fafc;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.inline-feedback.success {
+  background: #d1fae5;
+  border-color: #a7f3d0;
+  color: #047857;
+}
 .inline-check { display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 0.9rem; }
 .inline-check input { width: auto; min-height: auto; margin: 0; }
 

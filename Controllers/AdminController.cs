@@ -133,11 +133,8 @@ public class AdminController(
         var query = db.Applications.AsNoTracking()
             .Include(x => x.User)
             .Where(x => ApplicantRoles.Contains(x.User.Role))
+            .Where(x => x.Status == ApplicationStatus.Pending)
             .AsQueryable();
-        if (status.HasValue)
-        {
-            query = query.Where(x => x.Status == status.Value);
-        }
 
         if (scope != null)
         {
@@ -165,8 +162,9 @@ public class AdminController(
     public async Task<IActionResult> AssignApplication(int id, ApplicationDecisionRequest request, CancellationToken cancellationToken)
     {
         var application = await db.Applications.Include(x => x.User).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
-        if (application is null) return NotFound("Basvuru bulunamadi.");
-        if (!ApplicantRoles.Contains(application.User.Role)) return BadRequest("Yonetici ve yetkili profilleri basvuru akışına dahil edilemez.");
+        if (application is null) return NotFound(new { success = false, message = "Başvuru bulunamadı." });
+        if (!ApplicantRoles.Contains(application.User.Role)) return BadRequest(new { success = false, message = "Yönetici ve yetkili profilleri başvuru akışına dahil edilemez." });
+        if (application.Status != ApplicationStatus.Pending) return BadRequest(new { success = false, message = "Yalnızca beklemedeki başvurular onaylanabilir." });
 
         var scope = await GetFacilityScopeAsync(cancellationToken);
         IReadOnlyList<int>? dormIds = scope?.DormitoryIds;
@@ -178,7 +176,7 @@ public class AdminController(
                 .Where(x => x.Id == request.RoomId.Value)
                 .AnyAsync(x => (x.BlockFloor.Building.DormitoryId != null && (dormIds == null || dormIds.Contains(x.BlockFloor.Building.DormitoryId.Value))) ||
                                (x.BlockFloor.Building.HousingUnitId != null && (unitIds == null || unitIds.Contains(x.BlockFloor.Building.HousingUnitId.Value))), cancellationToken);
-            if (!roomInScope) return BadRequest("Secilen oda yetkili oldugunuz tesiste bulunmuyor.");
+            if (!roomInScope) return BadRequest(new { success = false, message = "Seçilen oda yetkili olduğunuz tesiste bulunmuyor." });
         }
 
         try
@@ -186,12 +184,26 @@ public class AdminController(
             application.Status = ApplicationStatus.Approved;
             application.UpdatedAt = DateTime.UtcNow;
             await accommodationService.PlaceUserAsync(application.UserId, application.AccommodationType, request.RoomId, cancellationToken, dormIds, unitIds);
-            return NoContent();
+            return Ok(new { success = true, message = "Başvuru başarıyla onaylandı ve aday yerleşim kaydına aktarıldı." });
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(ex.Message);
+            return BadRequest(new { success = false, message = ex.Message });
         }
+    }
+
+    [HttpPost("applications/{id:int}/reject")]
+    public async Task<IActionResult> RejectApplication(int id, ApplicationDecisionRequest request, CancellationToken cancellationToken)
+    {
+        var application = await db.Applications.Include(x => x.User).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (application is null) return NotFound(new { success = false, message = "Başvuru bulunamadı." });
+        if (!ApplicantRoles.Contains(application.User.Role)) return BadRequest(new { success = false, message = "Yönetici ve yetkili profilleri başvuru akışına dahil edilemez." });
+        if (application.Status != ApplicationStatus.Pending) return BadRequest(new { success = false, message = "Yalnızca beklemedeki başvurular reddedilebilir." });
+
+        application.Status = ApplicationStatus.Rejected;
+        application.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { success = true, message = "Başvuru reddedildi ve bekleyen başvurular listesinden kaldırıldı." });
     }
 
     [HttpGet("requests")]

@@ -23,6 +23,7 @@ public class ApplicationsController(AppDbContext db, IFileStorageService fileSto
         return db.Applications.AsNoTracking()
             .Include(x => x.User)
             .Where(x => ApplicantRoles.Contains(x.User.Role))
+            .Where(x => x.Status == ApplicationStatus.Pending)
             .OrderByDescending(x => x.CreatedAt)
             .Select(x => new ApplicationResponse(x.Id, x.UserId, x.User.FullName, x.AccommodationType, x.DocumentUrl, x.Status, x.CreatedAt, x.UpdatedAt))
             .ToListAsync();
