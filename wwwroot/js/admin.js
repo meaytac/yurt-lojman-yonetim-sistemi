@@ -412,9 +412,15 @@ function facilityForm(item = null, type = 'Yurt') {
       <label class="full">Ad<input name="name" value="${escapeAttr(item?.name)}" required maxlength="120"></label>
       <label class="full">Kampüs<input name="campusLocation" value="${escapeAttr(item?.campusLocation)}" required maxlength="180"></label>
       <label>Kapasite<input name="totalCapacity" type="number" min="0" value="${item?.totalCapacity ?? 0}" required></label>
-      <button class="primary-btn full" type="submit">Kaydet</button>
+      <div class="form-actions full">
+        ${item ? '<button class="danger-btn" id="deleteFacilityFromModal" type="button">Sil</button>' : ''}
+        <button class="primary-btn" type="submit">Kaydet</button>
+      </div>
     </form>`,
-    bind: () => document.getElementById('facilityForm').addEventListener('submit', event => submitFacility(event, item))
+    bind: () => {
+      document.getElementById('facilityForm').addEventListener('submit', event => submitFacility(event, item));
+      document.getElementById('deleteFacilityFromModal')?.addEventListener('click', () => deleteFacility(type, item.id));
+    }
   };
 }
 
@@ -435,16 +441,45 @@ async function submitFacility(event, item) {
   await Promise.allSettled([loadDashboard()]);
 }
 
-function buildingForm() {
+function buildingForm(item = null) {
   const facilities = state.facilities || [];
+  const selectedValue = item ? `${item.dormitoryId ? 'd' : 'h'}-${item.dormitoryId || item.housingUnitId}` : '';
+  const facilityOptions = facilities.map(x => {
+    const value = `${x.type === 'Yurt' ? 'd' : 'h'}-${x.id}`;
+    return `<option value="${value}" ${value === selectedValue ? 'selected' : ''}>${escapeHtml(x.name)}</option>`;
+  }).join('');
+  const buildingRows = (state.buildings || []).map(building => `
+    <tr>
+      <td><strong>${escapeHtml(building.blockName)}</strong></td>
+      <td>${escapeHtml(buildingLabel(building).replace(` / ${building.blockName}`, ''))}</td>
+      <td>${building.floors?.length ?? state.floors.filter(floor => floor.buildingId === building.id).length}</td>
+      <td>
+        <button class="row-btn" type="button" data-edit-building="${building.id}">Düzenle</button>
+        <button class="row-btn danger" type="button" data-delete-building="${building.id}">Sil</button>
+      </td>
+    </tr>
+  `).join('');
   return {
-    title: 'Blok / Bina Ekle',
-    html: `<form id="buildingForm" class="form-grid"><label class="full">Bağlı Tesis<select name="facility" required>${facilities.map(x => `<option value="${x.type === 'Yurt' ? 'd' : 'h'}-${x.id}">${escapeHtml(x.name)}</option>`).join('')}</select></label><label class="full">Blok Adı<input name="blockName" required maxlength="50"></label><button class="primary-btn full" type="submit">Kaydet</button></form>`,
-    bind: () => document.getElementById('buildingForm').addEventListener('submit', submitBuilding)
+    title: item ? 'Blok Düzenle' : 'Blok Yönetimi',
+    html: `<form id="buildingForm" class="form-grid">
+      <label class="full">Bağlı Tesis<select name="facility" required>${facilityOptions || '<option value="">Önce tesis ekleyin</option>'}</select></label>
+      <label class="full">Blok Adı<input name="blockName" value="${escapeAttr(item?.blockName)}" required maxlength="50"></label>
+      <div class="form-actions full">
+        ${item ? '<button class="danger-btn" id="deleteBuildingFromModal" type="button">Sil</button>' : ''}
+        <button class="primary-btn" type="submit">${item ? 'Güncelle' : 'Kaydet'}</button>
+      </div>
+    </form>
+    ${item ? '' : `<div class="modal-list"><h3>Kayıtlı Bloklar</h3><div class="table-wrap compact"><table><thead><tr><th>Blok</th><th>Tesis</th><th>Kat</th><th>Aksiyon</th></tr></thead><tbody>${buildingRows || '<tr><td colspan="4">Kayıt bulunamadı.</td></tr>'}</tbody></table></div></div>`}`,
+    bind: () => {
+      document.getElementById('buildingForm').addEventListener('submit', event => submitBuilding(event, item));
+      document.getElementById('deleteBuildingFromModal')?.addEventListener('click', () => deleteBuilding(item.id));
+      document.querySelectorAll('[data-edit-building]').forEach(button => button.addEventListener('click', () => editBuilding(Number(button.dataset.editBuilding))));
+      document.querySelectorAll('[data-delete-building]').forEach(button => button.addEventListener('click', () => deleteBuilding(Number(button.dataset.deleteBuilding))));
+    }
   };
 }
 
-async function submitBuilding(event) {
+async function submitBuilding(event, item = null) {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(event.currentTarget).entries());
   if (!data.facility) {
@@ -452,38 +487,72 @@ async function submitBuilding(event) {
     return;
   }
   const [kind, id] = data.facility.split('-');
-  const result = await saveEntity('/api/admin/buildings', 'POST', { dormitoryId: kind === 'd' ? Number(id) : null, housingUnitId: kind === 'h' ? Number(id) : null, blockName: data.blockName });
+  const payload = { dormitoryId: kind === 'd' ? Number(id) : null, housingUnitId: kind === 'h' ? Number(id) : null, blockName: data.blockName };
+  const result = await saveEntity(item ? `/api/admin/buildings/${item.id}` : '/api/admin/buildings', item ? 'PUT' : 'POST', payload);
   if (!result) return;
-  const facility = state.facilities.find(x => (kind === 'd' && x.type === 'Yurt' && x.id === Number(id)) || (kind === 'h' && x.type === 'Lojman' && x.id === Number(id)));
-  if (facility) facility.buildingCount = (facility.buildingCount || 0) + 1;
   upsertById(state.buildings, result);
+  recomputeFacilityBuildingCounts();
   renderFacilities();
+  await Promise.allSettled([loadRooms()]);
 }
 
-function floorForm() {
+function floorForm(item = null) {
   const options = (state.buildings || []).map(building => `<option value="${building.id}">${escapeHtml(buildingLabel(building))}</option>`).join('');
-  return { title: 'Kat Ekle', html: `<form id="floorForm" class="form-grid"><label class="full">Blok<select name="buildingId" required>${options || '<option value="">Önce blok ekleyin</option>'}</select></label><label>Kat No<input name="floorNumber" type="number" min="0" max="100" required></label><button class="primary-btn full" type="submit">Kaydet</button></form>`, bind: () => document.getElementById('floorForm').addEventListener('submit', submitFloor) };
+  const selectedOptions = (state.buildings || []).map(building => `<option value="${building.id}" ${building.id === item?.buildingId ? 'selected' : ''}>${escapeHtml(buildingLabel(building))}</option>`).join('');
+  const floorRows = (state.floors || []).map(floor => `
+    <tr>
+      <td><strong>Kat ${floor.floorNumber}</strong></td>
+      <td>${escapeHtml(buildingLabel(state.buildings.find(building => building.id === floor.buildingId) || {}))}</td>
+      <td>${state.rooms.filter(room => room.blockFloorId === floor.id).length}</td>
+      <td>
+        <button class="row-btn" type="button" data-edit-floor="${floor.id}">Düzenle</button>
+        <button class="row-btn danger" type="button" data-delete-floor="${floor.id}">Sil</button>
+      </td>
+    </tr>
+  `).join('');
+  return {
+    title: item ? 'Kat Düzenle' : 'Kat Ekle',
+    html: `<form id="floorForm" class="form-grid">
+      <label class="full">Blok<select name="buildingId" required>${selectedOptions || options || '<option value="">Önce blok ekleyin</option>'}</select></label>
+      <label>Kat No<input name="floorNumber" type="number" min="0" max="100" value="${item?.floorNumber ?? ''}" required></label>
+      <div class="form-actions full">
+        ${item ? '<button class="danger-btn" id="deleteFloorFromModal" type="button">Sil</button>' : ''}
+        <button class="primary-btn" type="submit">${item ? 'Güncelle' : 'Kaydet'}</button>
+      </div>
+    </form>
+    ${item ? '' : `<div class="modal-list"><h3>Kayıtlı Katlar</h3><div class="table-wrap compact"><table><thead><tr><th>Kat</th><th>Blok</th><th>Oda</th><th>Aksiyon</th></tr></thead><tbody>${floorRows || '<tr><td colspan="4">Kayıt bulunamadı.</td></tr>'}</tbody></table></div></div>`}`,
+    bind: () => {
+      document.getElementById('floorForm').addEventListener('submit', event => submitFloor(event, item));
+      document.getElementById('deleteFloorFromModal')?.addEventListener('click', () => deleteFloor(item.id));
+      document.querySelectorAll('[data-edit-floor]').forEach(button => button.addEventListener('click', () => editFloor(Number(button.dataset.editFloor))));
+      document.querySelectorAll('[data-delete-floor]').forEach(button => button.addEventListener('click', () => deleteFloor(Number(button.dataset.deleteFloor))));
+    }
+  };
 }
 
-async function submitFloor(event) {
+async function submitFloor(event, item = null) {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(event.currentTarget).entries());
   if (!data.buildingId) {
     toast('Önce bağlı blok seçin.', true);
     return;
   }
-  const result = await saveEntity('/api/admin/floors', 'POST', { buildingId: Number(data.buildingId), floorNumber: Number(data.floorNumber) });
+  const result = await saveEntity(item ? `/api/admin/floors/${item.id}` : '/api/admin/floors', item ? 'PUT' : 'POST', { buildingId: Number(data.buildingId), floorNumber: Number(data.floorNumber) });
   if (!result) return;
   upsertById(state.floors, result);
   renderRooms();
+  await Promise.allSettled([loadRooms()]);
 }
 
 function roomForm(item = null) {
   const floorOptions = (state.floors || []).map(floor => `<option value="${floor.id}" ${floor.id === item?.blockFloorId ? 'selected' : ''}>${escapeHtml(floorLabel(floor))}</option>`).join('');
   return {
     title: item ? 'Oda Düzenle' : 'Yeni Oda',
-    html: `<form id="roomForm" class="form-grid"><label class="full">Kat<select name="blockFloorId" required>${floorOptions || '<option value="">Önce kat ekleyin</option>'}</select></label><label>Oda No<input name="roomNumber" value="${escapeAttr(item?.roomNumber)}" required maxlength="30"></label><label>Kapasite<input name="capacity" type="number" min="1" max="50" value="${item?.capacity ?? 1}" required></label><label>Durum<select name="status">${['Empty', 'PartiallyFull', 'Full', 'Maintenance'].map(status => `<option value="${status}" ${status === (item?.status || 'Empty') ? 'selected' : ''}>${roomDisplayStatus(status)}</option>`).join('')}</select></label><label>Fiyat<input name="price" type="number" min="0" max="999999" step="0.01" value="${item?.price ?? 0}" required></label><button class="primary-btn full" type="submit">Kaydet</button></form>`,
-    bind: () => document.getElementById('roomForm').addEventListener('submit', event => submitRoom(event, item))
+    html: `<form id="roomForm" class="form-grid"><label class="full">Kat<select name="blockFloorId" required>${floorOptions || '<option value="">Önce kat ekleyin</option>'}</select></label><label>Oda No<input name="roomNumber" value="${escapeAttr(item?.roomNumber)}" required maxlength="30"></label><label>Kapasite<input name="capacity" type="number" min="1" max="50" value="${item?.capacity ?? 1}" required></label><label>Durum<select name="status">${['Empty', 'PartiallyFull', 'Full', 'Maintenance'].map(status => `<option value="${status}" ${status === (item?.status || 'Empty') ? 'selected' : ''}>${roomDisplayStatus(status)}</option>`).join('')}</select></label><label>Fiyat<input name="price" type="number" min="0" max="999999" step="0.01" value="${item?.price ?? 0}" required></label><div class="form-actions full">${item ? '<button class="danger-btn" id="deleteRoomFromModal" type="button">Sil</button>' : ''}<button class="primary-btn" type="submit">Kaydet</button></div></form>`,
+    bind: () => {
+      document.getElementById('roomForm').addEventListener('submit', event => submitRoom(event, item));
+      document.getElementById('deleteRoomFromModal')?.addEventListener('click', () => deleteRoom(item.id));
+    }
   };
 }
 
@@ -1060,11 +1129,43 @@ async function toggleFacility(type, id, isActive) {
 }
 
 async function deleteFacility(type, id) {
-  if (!confirm('Bu tesisi silmek istiyor musunuz?')) return;
+  if (!confirm('Bu tesis kaydını silmek istediğinize emin misiniz? Bağlı alt öğeler etkilenebilir.')) return;
   const result = await saveEntity(`/api/admin/facilities/${type}/${id}`, 'DELETE', null);
   if (!result) return;
   state.facilities = state.facilities.filter(x => !(x.type === type && x.id === id));
+  recomputeFacilityBuildingCounts();
   renderFacilities();
+}
+
+function editBuilding(id) {
+  const item = state.buildings.find(x => x.id === id);
+  if (!item) return;
+  const form = buildingForm(item);
+  openModal(form.title, form.html, form.bind);
+}
+
+async function deleteBuilding(id) {
+  if (!confirm('Bu blok kaydını silmek istediğinize emin misiniz? Bağlı alt öğeler etkilenebilir.')) return;
+  const result = await saveEntity(`/api/admin/buildings/${id}`, 'DELETE', null);
+  if (!result) return;
+  state.buildings = state.buildings.filter(x => x.id !== id);
+  recomputeFacilityBuildingCounts();
+  renderFacilities();
+}
+
+function editFloor(id) {
+  const item = state.floors.find(x => x.id === id);
+  if (!item) return;
+  const form = floorForm(item);
+  openModal(form.title, form.html, form.bind);
+}
+
+async function deleteFloor(id) {
+  if (!confirm('Bu kat kaydını silmek istediğinize emin misiniz? Bağlı alt öğeler etkilenebilir.')) return;
+  const result = await saveEntity(`/api/admin/floors/${id}`, 'DELETE', null);
+  if (!result) return;
+  state.floors = state.floors.filter(x => x.id !== id);
+  renderRooms();
 }
 
 function editRoom(id) {
@@ -1074,7 +1175,7 @@ function editRoom(id) {
 }
 
 async function deleteRoom(id) {
-  if (!confirm('Bu odayı silmek istiyor musunuz?')) return;
+  if (!confirm('Bu oda kaydını silmek istediğinize emin misiniz? Bağlı alt öğeler etkilenebilir.')) return;
   const result = await saveEntity(`/api/admin/rooms/${id}`, 'DELETE', null);
   if (!result) return;
   state.rooms = state.rooms.filter(x => x.id !== id);
@@ -1200,11 +1301,20 @@ function upsertByCompositeKey(items, item, matcher) {
   }
 }
 
+function recomputeFacilityBuildingCounts() {
+  state.facilities.forEach(facility => {
+    facility.buildingCount = state.buildings.filter(building =>
+      (facility.type === 'Yurt' && building.dormitoryId === facility.id) ||
+      (facility.type === 'Lojman' && building.housingUnitId === facility.id)).length;
+  });
+}
+
 function buildingLabel(building) {
+  if (!building?.id) return 'Blok';
   const facility = state.facilities.find(x =>
     (building.dormitoryId && x.type === 'Yurt' && x.id === building.dormitoryId) ||
     (building.housingUnitId && x.type === 'Lojman' && x.id === building.housingUnitId));
-  return `${facility?.name || 'Tesis'} / ${building.blockName}`;
+  return `${facility?.name || 'Tesis'} / ${building.blockName || 'Blok'}`;
 }
 
 function floorLabel(floor) {

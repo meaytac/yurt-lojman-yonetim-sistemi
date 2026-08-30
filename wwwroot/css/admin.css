@@ -284,7 +284,7 @@ input:focus, select:focus, textarea:focus {
 }
 textarea { min-height: 100px; resize: vertical; }
 
-.primary-btn, .secondary-btn, .ghost-btn, .icon-btn, .row-btn {
+.primary-btn, .secondary-btn, .ghost-btn, .icon-btn, .row-btn, .danger-btn {
   min-height: 40px;
   border-radius: 10px;
   padding: 10px 14px;
@@ -328,6 +328,16 @@ textarea { min-height: 100px; resize: vertical; }
 .row-btn.warn { color: var(--warning); }
 .row-btn.danger { color: var(--danger); }
 .row-btn:hover { border-color: var(--primary-emerald); color: var(--primary-emerald); }
+.danger-btn {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: var(--danger);
+}
+.danger-btn:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: white;
+}
 
 .table-wrap {
   flex: 1 1 auto;
@@ -462,6 +472,33 @@ tr:hover td { background: rgba(56, 189, 248, 0.02); }
   font-weight: 600;
 }
 .form-grid label.full, .form-grid .full { grid-column: 1 / -1; }
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.form-actions .danger-btn { margin-right: auto; }
+.modal-list {
+  margin-top: 22px;
+  display: grid;
+  gap: 10px;
+}
+.modal-list h3 {
+  margin: 0;
+  color: var(--primary-navy);
+  font-size: 0.95rem;
+}
+.table-wrap.compact {
+  max-height: 280px;
+  flex: none;
+}
+.table-wrap.compact table {
+  min-width: 560px;
+}
+.table-wrap.compact th,
+.table-wrap.compact td {
+  padding: 10px 12px;
+}
 
 .toast-host {
   position: fixed;

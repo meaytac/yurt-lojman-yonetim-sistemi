@@ -81,7 +81,7 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
         if (await db.Buildings.AnyAsync(x => x.DormitoryId == id)) return ConflictError("Bu yurda bağlı bloklar bulunduğu için önce bloklar silinmelidir.");
         db.Dormitories.Remove(entity);
         await db.SaveChangesAsync();
-        return NoContent();
+        return Ok(new { success = true, message = "Yurt silindi." });
     }
 
     [HttpGet("housing-units")]
@@ -132,7 +132,7 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
         if (await db.Buildings.AnyAsync(x => x.HousingUnitId == id)) return ConflictError("Bu lojmana bağlı bloklar bulunduğu için önce bloklar silinmelidir.");
         db.HousingUnits.Remove(entity);
         await db.SaveChangesAsync();
-        return NoContent();
+        return Ok(new { success = true, message = "Lojman silindi." });
     }
 
     [HttpPost("facilities")]
@@ -212,7 +212,7 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
         }
 
         await db.SaveChangesAsync(cancellationToken);
-        return NoContent();
+        return Ok(new { success = true, message = "Tesis silindi." });
     }
 
     [HttpGet("buildings")]
@@ -276,7 +276,7 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
         if (await db.Floors.AnyAsync(x => x.BuildingId == id)) return ConflictError("Bu bloğa bağlı katlar bulunduğu için önce katlar silinmelidir.");
         db.Buildings.Remove(entity);
         await db.SaveChangesAsync();
-        return NoContent();
+        return Ok(new { success = true, message = "Blok silindi." });
     }
 
     [HttpGet("floors")]
@@ -333,7 +333,7 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
         if (await db.Rooms.AnyAsync(x => x.BlockFloorId == id)) return ConflictError("Bu kata bağlı odalar bulunduğu için önce odalar silinmelidir.");
         db.Floors.Remove(entity);
         await db.SaveChangesAsync();
-        return NoContent();
+        return Ok(new { success = true, message = "Kat silindi." });
     }
 
     [HttpGet("rooms")]
@@ -428,9 +428,11 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
         var entity = await db.Rooms.FindAsync(id);
         if (entity is null) return NotFoundError("Oda bulunamadı.");
         if (await db.Placements.AnyAsync(x => x.RoomId == id && x.IsActive)) return ConflictError("Bu odada aktif yerleşim bulunduğu için oda silinemez.");
+        if (await db.Placements.AnyAsync(x => x.RoomId == id)) return ConflictError("Bu odaya bağlı yerleşim geçmişi bulunduğu için oda silinemez.");
+        if (await db.Requests.AnyAsync(x => x.RoomId == id)) return ConflictError("Bu odaya bağlı arıza talepleri bulunduğu için önce ilişkili kayıtlar temizlenmelidir.");
         db.Rooms.Remove(entity);
         await db.SaveChangesAsync();
-        return NoContent();
+        return Ok(new { success = true, message = "Oda silindi." });
     }
 
     private static AdminFacilityListItemDto ToFacilityDto(Dormitory entity, int buildingCount)
