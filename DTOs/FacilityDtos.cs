@@ -9,6 +9,13 @@ public record FacilityRequest(
     [Range(0, int.MaxValue)] int TotalCapacity,
     bool IsActive);
 
+public record FacilityMutationRequest(
+    [Required] AccommodationType Type,
+    [Required, MaxLength(120)] string Name,
+    [Required, MaxLength(180)] string CampusLocation,
+    [Range(0, int.MaxValue)] int TotalCapacity,
+    bool IsActive);
+
 public record BuildingRequest(int? DormitoryId, int? HousingUnitId, [Required, MaxLength(50)] string BlockName);
 
 public record FloorRequest([Required] int BuildingId, [Range(0, 100)] int FloorNumber);

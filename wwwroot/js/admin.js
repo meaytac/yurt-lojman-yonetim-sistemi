@@ -4,6 +4,8 @@ const apiBaseUrl = window.ADMIN_API_BASE_URL || 'http://localhost:5125';
 const state = {
   stats: null,
   facilities: [],
+  buildings: [],
+  floors: [],
   rooms: [],
   users: { items: [], page: 1, pageSize: 10, totalCount: 0 },
   applications: [],
@@ -110,7 +112,7 @@ async function openApp(token) {
   document.getElementById('adminName').textContent = claims.fullName || claims.name || 'Sistem Yöneticisi';
   document.getElementById('adminRole').textContent = role;
   switchSection('dashboard');
-  await Promise.allSettled([loadDashboard(), loadFacilities(), loadRooms(), loadApplications(), loadUsers(1), loadPlacements(), loadOperations(), loadAnnouncements()]);
+  await Promise.allSettled([loadDashboard(), loadFacilities(), loadBuildings(), loadFloors(), loadRooms(), loadApplications(), loadUsers(1), loadPlacements(), loadOperations(), loadAnnouncements()]);
 }
 
 function logout() {
@@ -201,6 +203,24 @@ async function loadFacilities() {
   renderFacilities();
 }
 
+async function loadBuildings() {
+  try {
+    state.buildings = await api('/api/admin/buildings');
+  } catch (error) {
+    console.error('[Admin API] Bloklar yüklenemedi:', error);
+    state.buildings = [];
+  }
+}
+
+async function loadFloors() {
+  try {
+    state.floors = await api('/api/admin/floors');
+  } catch (error) {
+    console.error('[Admin API] Katlar yüklenemedi:', error);
+    state.floors = [];
+  }
+}
+
 function renderFacilities() {
   const term = document.getElementById('facilitySearch').value.toLowerCase();
   const rows = state.facilities.filter(x => {
@@ -221,6 +241,7 @@ function renderFacilities() {
       <td>${getStatusBadge(item.isActive ? 'Hizmet Veriyor' : 'Pasif')}</td>
       <td>
         <button class="row-btn" onclick="editFacility('${item.type}', ${item.id})">Düzenle</button>
+        <button class="row-btn danger" onclick="deleteFacility('${item.type}', ${item.id})">Sil</button>
       </td>
     </tr>
   `);
@@ -281,6 +302,10 @@ async function loadUsers(page = state.users.page) {
     state.users = { items: [], page, pageSize: state.listPageSize, totalCount: 0 };
   }
   renderUsers();
+}
+
+async function refreshFacilityHierarchy() {
+  await Promise.allSettled([loadFacilities(), loadBuildings(), loadFloors(), loadRooms(), loadDashboard()]);
 }
 
 function renderUsers() {
@@ -397,13 +422,17 @@ async function submitFacility(event, item) {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(event.currentTarget).entries());
   const type = item ? item.type : data.type;
-  const base = type === 'Yurt' ? '/api/admin/dormitories' : '/api/admin/housing-units';
-  await saveAndRefresh(item ? `${base}/${item.id}` : base, item ? 'PUT' : 'POST', {
+  const result = await saveEntity(item ? `/api/admin/facilities/${type}/${item.id}` : '/api/admin/facilities', item ? 'PUT' : 'POST', {
+    type,
     name: data.name,
     campusLocation: data.campusLocation,
     totalCapacity: Number(data.totalCapacity),
     isActive: data.isActive === 'true'
-  }, loadFacilities);
+  });
+  if (!result) return;
+  upsertByCompositeKey(state.facilities, result, existing => existing.type === result.type && existing.id === result.id);
+  renderFacilities();
+  await Promise.allSettled([loadDashboard()]);
 }
 
 function buildingForm() {
@@ -418,24 +447,42 @@ function buildingForm() {
 async function submitBuilding(event) {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  if (!data.facility) {
+    toast('Önce bağlı tesis seçin.', true);
+    return;
+  }
   const [kind, id] = data.facility.split('-');
-  await saveAndRefresh('/api/admin/buildings', 'POST', { dormitoryId: kind === 'd' ? Number(id) : null, housingUnitId: kind === 'h' ? Number(id) : null, blockName: data.blockName }, loadFacilities);
+  const result = await saveEntity('/api/admin/buildings', 'POST', { dormitoryId: kind === 'd' ? Number(id) : null, housingUnitId: kind === 'h' ? Number(id) : null, blockName: data.blockName });
+  if (!result) return;
+  const facility = state.facilities.find(x => (kind === 'd' && x.type === 'Yurt' && x.id === Number(id)) || (kind === 'h' && x.type === 'Lojman' && x.id === Number(id)));
+  if (facility) facility.buildingCount = (facility.buildingCount || 0) + 1;
+  upsertById(state.buildings, result);
+  renderFacilities();
 }
 
 function floorForm() {
-  return { title: 'Kat Ekle', html: `<form id="floorForm" class="form-grid"><label>Bina ID<input name="buildingId" type="number" min="1" required></label><label>Kat No<input name="floorNumber" type="number" min="0" max="100" required></label><button class="primary-btn full" type="submit">Kaydet</button></form>`, bind: () => document.getElementById('floorForm').addEventListener('submit', submitFloor) };
+  const options = (state.buildings || []).map(building => `<option value="${building.id}">${escapeHtml(buildingLabel(building))}</option>`).join('');
+  return { title: 'Kat Ekle', html: `<form id="floorForm" class="form-grid"><label class="full">Blok<select name="buildingId" required>${options || '<option value="">Önce blok ekleyin</option>'}</select></label><label>Kat No<input name="floorNumber" type="number" min="0" max="100" required></label><button class="primary-btn full" type="submit">Kaydet</button></form>`, bind: () => document.getElementById('floorForm').addEventListener('submit', submitFloor) };
 }
 
 async function submitFloor(event) {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(event.currentTarget).entries());
-  await saveAndRefresh('/api/admin/floors', 'POST', { buildingId: Number(data.buildingId), floorNumber: Number(data.floorNumber) }, loadRooms);
+  if (!data.buildingId) {
+    toast('Önce bağlı blok seçin.', true);
+    return;
+  }
+  const result = await saveEntity('/api/admin/floors', 'POST', { buildingId: Number(data.buildingId), floorNumber: Number(data.floorNumber) });
+  if (!result) return;
+  upsertById(state.floors, result);
+  renderRooms();
 }
 
 function roomForm(item = null) {
+  const floorOptions = (state.floors || []).map(floor => `<option value="${floor.id}" ${floor.id === item?.blockFloorId ? 'selected' : ''}>${escapeHtml(floorLabel(floor))}</option>`).join('');
   return {
     title: item ? 'Oda Düzenle' : 'Yeni Oda',
-    html: `<form id="roomForm" class="form-grid"><label>Kat ID<input name="blockFloorId" type="number" min="1" value="${item?.blockFloorId ?? ''}" required></label><label>Oda No<input name="roomNumber" value="${escapeAttr(item?.roomNumber)}" required maxlength="30"></label><label>Kapasite<input name="capacity" type="number" min="1" max="50" value="${item?.capacity ?? 1}" required></label><label>Durum<select name="status">${['Empty', 'PartiallyFull', 'Full', 'Maintenance'].map(status => `<option value="${status}" ${status === (item?.status || 'Empty') ? 'selected' : ''}>${roomDisplayStatus(status)}</option>`).join('')}</select></label><label>Fiyat<input name="price" type="number" min="0" max="999999" step="0.01" value="${item?.price ?? 0}" required></label><button class="primary-btn full" type="submit">Kaydet</button></form>`,
+    html: `<form id="roomForm" class="form-grid"><label class="full">Kat<select name="blockFloorId" required>${floorOptions || '<option value="">Önce kat ekleyin</option>'}</select></label><label>Oda No<input name="roomNumber" value="${escapeAttr(item?.roomNumber)}" required maxlength="30"></label><label>Kapasite<input name="capacity" type="number" min="1" max="50" value="${item?.capacity ?? 1}" required></label><label>Durum<select name="status">${['Empty', 'PartiallyFull', 'Full', 'Maintenance'].map(status => `<option value="${status}" ${status === (item?.status || 'Empty') ? 'selected' : ''}>${roomDisplayStatus(status)}</option>`).join('')}</select></label><label>Fiyat<input name="price" type="number" min="0" max="999999" step="0.01" value="${item?.price ?? 0}" required></label><button class="primary-btn full" type="submit">Kaydet</button></form>`,
     bind: () => document.getElementById('roomForm').addEventListener('submit', event => submitRoom(event, item))
   };
 }
@@ -443,7 +490,15 @@ function roomForm(item = null) {
 async function submitRoom(event, item) {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(event.currentTarget).entries());
-  await saveAndRefresh(item ? `/api/admin/rooms/${item.id}` : '/api/admin/rooms', item ? 'PUT' : 'POST', { blockFloorId: Number(data.blockFloorId), roomNumber: data.roomNumber, capacity: Number(data.capacity), status: data.status, price: Number(data.price) }, loadRooms);
+  if (!data.blockFloorId) {
+    toast('Önce bağlı kat seçin.', true);
+    return;
+  }
+  const result = await saveEntity(item ? `/api/admin/rooms/${item.id}` : '/api/admin/rooms', item ? 'PUT' : 'POST', { blockFloorId: Number(data.blockFloorId), roomNumber: data.roomNumber, capacity: Number(data.capacity), status: data.status, price: Number(data.price) });
+  if (!result) return;
+  upsertById(state.rooms, result);
+  renderRooms();
+  await Promise.allSettled([loadDashboard()]);
 }
 
 const APPLICANT_ROLES = ['Ogrenci', 'Personel'];
@@ -544,7 +599,11 @@ async function submitStaffAssignment(event) {
   }, loadStaffAssignments);
 }
 
-function openNamedModal(name) {
+async function openNamedModal(name) {
+  if (['buildingModal', 'floorModal', 'roomModal'].includes(name)) {
+    await Promise.allSettled([loadFacilities(), loadBuildings(), loadFloors()]);
+  }
+
   const forms = {
     facilityModal: facilityForm(),
     buildingModal: buildingForm(),
@@ -964,6 +1023,23 @@ async function saveAndRefresh(url, method, body, refresh) {
   }
 }
 
+async function saveEntity(url, method, body) {
+  try {
+    const options = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body !== null && body !== undefined) {
+      options.body = JSON.stringify(body);
+    }
+    const result = await api(url, options);
+    closeModalIfOpen();
+    toast('İşlem başarılı.');
+    return result ?? true;
+  } catch (error) {
+    console.error(`[Admin API] Kayıt işlemi başarısız: ${method} ${url}`, error);
+    toast(error.message || 'İşlem gerçekleştirilemedi.', true);
+    return null;
+  }
+}
+
 function closeModalIfOpen() {
   const backdrop = document.getElementById('modalBackdrop');
   if (backdrop.style.display !== 'none') {
@@ -985,8 +1061,10 @@ async function toggleFacility(type, id, isActive) {
 
 async function deleteFacility(type, id) {
   if (!confirm('Bu tesisi silmek istiyor musunuz?')) return;
-  const url = type === 'Yurt' ? `/api/admin/dormitories/${id}` : `/api/admin/housing-units/${id}`;
-  await saveAndRefresh(url, 'DELETE', null, loadFacilities);
+  const result = await saveEntity(`/api/admin/facilities/${type}/${id}`, 'DELETE', null);
+  if (!result) return;
+  state.facilities = state.facilities.filter(x => !(x.type === type && x.id === id));
+  renderFacilities();
 }
 
 function editRoom(id) {
@@ -997,7 +1075,11 @@ function editRoom(id) {
 
 async function deleteRoom(id) {
   if (!confirm('Bu odayı silmek istiyor musunuz?')) return;
-  await saveAndRefresh(`/api/admin/rooms/${id}`, 'DELETE', null, loadRooms);
+  const result = await saveEntity(`/api/admin/rooms/${id}`, 'DELETE', null);
+  if (!result) return;
+  state.rooms = state.rooms.filter(x => x.id !== id);
+  renderRooms();
+  await Promise.allSettled([loadDashboard()]);
 }
 
 async function showOccupants(id) {
@@ -1063,8 +1145,15 @@ async function api(path, options = {}, attachToken = true) {
   }
   if (!response.ok) {
     const text = await response.text();
+    let message = text || response.statusText;
+    try {
+      const payload = text ? JSON.parse(text) : null;
+      message = payload?.message || payload?.title || message;
+    } catch {
+      // Text response is already usable.
+    }
     console.error(`[Admin API] ${response.status}: ${options.method || 'GET'} ${requestUrl}`, text);
-    throw new Error(text || response.statusText);
+    throw new Error(message || response.statusText);
   }
   if (response.status === 204) return null;
   const contentType = response.headers.get('content-type') || '';
@@ -1096,6 +1185,31 @@ function paginateItems(items, key, pageSize = state.listPageSize) {
     page,
     totalPages
   };
+}
+
+function upsertById(items, item) {
+  upsertByCompositeKey(items, item, existing => existing.id === item.id);
+}
+
+function upsertByCompositeKey(items, item, matcher) {
+  const index = items.findIndex(matcher);
+  if (index >= 0) {
+    items.splice(index, 1, item);
+  } else {
+    items.unshift(item);
+  }
+}
+
+function buildingLabel(building) {
+  const facility = state.facilities.find(x =>
+    (building.dormitoryId && x.type === 'Yurt' && x.id === building.dormitoryId) ||
+    (building.housingUnitId && x.type === 'Lojman' && x.id === building.housingUnitId));
+  return `${facility?.name || 'Tesis'} / ${building.blockName}`;
+}
+
+function floorLabel(floor) {
+  const building = state.buildings.find(x => x.id === floor.buildingId);
+  return `${building ? buildingLabel(building) : 'Blok'} / Kat ${floor.floorNumber}`;
 }
 
 function toast(message, isError = false) {
