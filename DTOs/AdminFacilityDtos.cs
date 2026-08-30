@@ -16,6 +16,8 @@ public record AdminFacilityListItemDto(
 public record AdminRoomListItemDto(
     int Id,
     int BlockFloorId,
+    int FacilityId,
+    AccommodationType FacilityType,
     string FacilityName,
     string BlockName,
     int FloorNumber,

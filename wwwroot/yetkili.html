@@ -18,6 +18,7 @@
       </div>
       <nav class="side-nav" aria-label="Yetkili menüsü">
         <button class="nav-item active" data-section="dashboard"><span>📊</span>Kontrol Paneli</button>
+        <button class="nav-item" data-section="applications"><span>📝</span>Başvurular</button>
         <button class="nav-item" data-section="students"><span>👨‍🎓</span>Öğrenciler</button>
         <button class="nav-item" data-section="manage"><span>🛏️</span>Yerleşim Düzenleme</button>
         <button class="nav-item" data-section="announcements"><span>📢</span>Duyurular</button>
@@ -52,12 +53,39 @@
             </article>
             <article class="panel">
               <div class="panel-head">
-                <h2>Son Eklenen Öğrenciler</h2>
-                <button class="ghost-btn" data-section-jump="students">Öğrenciler</button>
+                <h2>Bekleyen Başvurular</h2>
+                <button class="ghost-btn" data-section-jump="applications">Başvurular</button>
               </div>
-              <div id="recentStudents" class="activity-list"></div>
+              <div id="recentApplications" class="activity-list"></div>
             </article>
           </div>
+        </section>
+
+        <section id="applications" class="page-section">
+          <div class="toolbar">
+            <div>
+              <h2>Başvuru Yönetimi</h2>
+              <p>Size atanmış tesis türüne uygun bekleyen başvuruları yerleştirin veya reddedin.</p>
+            </div>
+          </div>
+          <div id="applicationFeedback" class="inline-feedback" aria-live="polite">Sadece Beklemede durumundaki başvurular listelenir.</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ad Soyad</th>
+                  <th>TC</th>
+                  <th>No</th>
+                  <th>Tür</th>
+                  <th>Durum</th>
+                  <th>Tarih</th>
+                  <th>Aksiyon</th>
+                </tr>
+              </thead>
+              <tbody id="applicationRows"></tbody>
+            </table>
+          </div>
+          <div id="applicationPager" class="pager"></div>
         </section>
 
         <section id="students" class="page-section">
@@ -79,6 +107,7 @@
                   <th>E-posta</th>
                   <th>TC</th>
                   <th>No</th>
+                  <th>Rol</th>
                   <th>Durum</th>
                   <th>Aksiyon</th>
                 </tr>
@@ -118,6 +147,7 @@
               <tbody id="availableRoomRows"></tbody>
             </table>
           </div>
+          <div id="availableRoomPager" class="pager"></div>
         </section>
 
         <section id="manage" class="page-section">
@@ -143,13 +173,16 @@
                     <th>No</th>
                     <th>Yurt</th>
                     <th>Blok</th>
+                    <th>Kat</th>
                     <th>Oda</th>
                     <th>Giriş</th>
+                    <th>Aksiyon</th>
                   </tr>
                 </thead>
                 <tbody id="studentRoomRows"></tbody>
               </table>
             </div>
+            <div id="studentRoomPager" class="pager"></div>
           </article>
 
           <article class="panel">
@@ -171,9 +204,10 @@
                     <th>Aksiyon</th>
                   </tr>
                 </thead>
-                <tbody id="manageRoomRows"></tbody>
-              </table>
+              <tbody id="manageRoomRows"></tbody>
+            </table>
             </div>
+            <div id="manageRoomPager" class="pager"></div>
           </article>
         </section>
 
@@ -202,6 +236,7 @@
               <tbody id="announcementRows"></tbody>
             </table>
           </div>
+          <div id="announcementPager" class="pager"></div>
         </section>
       </main>
     </div>
@@ -218,6 +253,6 @@
   </div>
 
   <div id="toastHost" class="toast-host"></div>
-  <script src="/js/yetkili.js?v=20260825"></script>
+  <script src="/js/yetkili.js?v=20260830"></script>
 </body>
 </html>

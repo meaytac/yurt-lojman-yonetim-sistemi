@@ -417,6 +417,8 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
             .Select(x => new AdminRoomListItemDto(
                 x.Id,
                 x.BlockFloorId,
+                x.BlockFloor.Building.DormitoryId ?? x.BlockFloor.Building.HousingUnitId!.Value,
+                x.BlockFloor.Building.Dormitory != null ? AccommodationType.Yurt : AccommodationType.Lojman,
                 x.BlockFloor.Building.Dormitory != null ? x.BlockFloor.Building.Dormitory.Name : x.BlockFloor.Building.HousingUnit!.Name,
                 x.BlockFloor.Building.BlockName,
                 x.BlockFloor.FloorNumber,

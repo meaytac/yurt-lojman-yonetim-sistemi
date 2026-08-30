@@ -4,11 +4,20 @@ const state = {
   stats: null,
   assignedFacilities: [],
   students: { items: [], page: 1, pageSize: 10, totalCount: 0 },
+  applications: [],
   availableRooms: [],
   studentsWithRooms: [],
   manageRooms: [],
   announcements: [],
-  fallbackMode: false
+  fallbackMode: false,
+  listPageSize: 10,
+  pages: {
+    applications: 1,
+    availableRooms: 1,
+    studentsWithRooms: 1,
+    manageRooms: 1,
+    announcements: 1
+  }
 };
 
 const REFRESH_INTERVAL = 15000;
@@ -16,6 +25,7 @@ let activeSection = 'dashboard';
 
 const sectionTitles = {
   dashboard: 'Kontrol Paneli',
+  applications: 'Başvuru Yönetimi',
   students: 'Öğrenci Yönetimi',
   manage: 'Yerleşim & Oda Düzenleme',
   announcements: 'Duyuru Yönetimi',
@@ -68,7 +78,7 @@ function bindShell() {
   });
 
   document.getElementById('studentSearch').addEventListener('input', debounce(() => loadStudents(1), 350));
-  document.getElementById('roomTypeFilter').addEventListener('change', loadAvailableRooms);
+  document.getElementById('roomTypeFilter').addEventListener('change', () => { state.pages.availableRooms = 1; loadAvailableRooms(); });
 
   setInterval(() => {
     if (document.hidden) return;
@@ -82,7 +92,8 @@ async function openApp(token) {
   document.getElementById('yetkiliName').textContent = claims.fullName || claims.name || 'Yetkili';
   document.getElementById('yetkiliRole').textContent = 'Yetkili';
   switchSection('dashboard');
-  await Promise.allSettled([loadDashboard(), loadAssignedFacilities(), loadStudents(1), loadAvailableRooms(), loadManage(), loadAnnouncements()]);
+  await Promise.allSettled([loadAssignedFacilities(), loadStudents(1), loadApplications(), loadAvailableRooms(), loadManage(), loadAnnouncements()]);
+  await loadDashboard();
 }
 
 function logout() {
@@ -100,6 +111,7 @@ function switchSection(id) {
 function refreshActiveSection() {
   const refreshers = {
     dashboard: loadDashboard,
+    applications: loadApplications,
     students: () => loadStudents(state.students.page || 1),
     manage: loadManage,
     announcements: loadAnnouncements,
@@ -110,20 +122,23 @@ function refreshActiveSection() {
 
 async function loadDashboard() {
   try {
-    state.stats = await api('/api/yetkili/facilities');
+    state.stats = await api('/api/yetkili/dashboard-stats');
+    state.fallbackMode = false;
   } catch {
     state.fallbackMode = true;
-    state.stats = [];
+    state.stats = null;
   }
   renderDashboard();
 }
 
 function renderDashboard() {
-  const facilities = state.stats || [];
+  const stats = state.stats || {};
+  const facilities = state.assignedFacilities || [];
   const cards = [
-    ['Atanmış Yurt', facilities.length, '🏢'],
-    ['Öğrenci Sayısı', state.students.totalCount ?? 0, '👨‍🎓'],
-    ['Müsait Oda', state.availableRooms?.filter(r => r.currentOccupancy < r.capacity).length ?? 0, '🚪']
+    ['Atanmış Tesis', facilities.length, '🏢'],
+    ['Doluluk Oranı', `${stats.occupancyRate ?? 0}%`, '📊'],
+    ['Toplam Sakin', stats.currentOccupancy ?? 0, '👨‍🎓'],
+    ['Bekleyen Başvuru', stats.pendingApplicationCount ?? state.applications.length ?? 0, '📝']
   ];
 
   document.getElementById('kpiGrid').innerHTML = cards.map(([label, value, icon]) => `
@@ -150,13 +165,13 @@ function renderDashboard() {
     </div>
   `);
 
-  document.getElementById('recentStudents').innerHTML = emptyOr(state.students.items.slice(0, 5), s => `
+  document.getElementById('recentApplications').innerHTML = emptyOr(state.applications.slice(0, 5), application => `
     <div class="activity-item">
       <div>
-        <strong>${escapeHtml(s.fullName)}</strong>
-        <small>${escapeHtml(s.email)}</small>
+        <strong>${escapeHtml(application.fullName)}</strong>
+        <small>${escapeHtml(application.accommodationType)} · ${date(application.createdAt)}</small>
       </div>
-      <span class="badge ${s.isActive ? 'badge-success' : 'badge-muted'}">${s.isActive ? 'Aktif' : 'Pasif'}</span>
+      ${getStatusBadge(application.status)}
     </div>
   `);
 }
@@ -166,6 +181,20 @@ async function loadAssignedFacilities() {
     state.assignedFacilities = state.fallbackMode ? [] : await api('/api/yetkili/facilities');
   } catch {
     state.assignedFacilities = [];
+  }
+  syncRoomTypeFilter();
+}
+
+function syncRoomTypeFilter() {
+  const select = document.getElementById('roomTypeFilter');
+  if (!select) return;
+  const current = select.value;
+  const types = [...new Set((state.assignedFacilities || []).map(facility => facility.type))];
+  select.innerHTML = types.length
+    ? types.map(type => `<option value="${type}" ${type === current ? 'selected' : ''}>${type}</option>`).join('')
+    : '<option value="Yurt">Yurt</option>';
+  if (types.length && !types.includes(select.value)) {
+    select.value = types[0];
   }
 }
 
@@ -188,16 +217,234 @@ function renderStudents() {
       <td>${escapeHtml(item.email)}</td>
       <td>${escapeHtml(item.tcNo)}</td>
       <td>${escapeHtml(item.studentStaffNo || '-')}</td>
+      <td>${escapeHtml(roleDisplay(item.role))}</td>
       <td>${item.isActive ? '<span class="badge badge-success">Aktif</span>' : '<span class="badge badge-muted">Pasif</span>'}</td>
       <td>
-        <button class="row-btn" onclick="editStudent('${item.id}')">Düzenle</button>
-        <button class="row-btn danger" onclick="deleteStudent('${item.id}')">Sil</button>
+        ${item.role === 'Ogrenci' ? `<button class="row-btn" onclick="editStudent('${item.id}')">Düzenle</button>
+        <button class="row-btn danger" onclick="deleteStudent('${item.id}')">Sil</button>` : '-'}
       </td>
     </tr>
   `);
 
   const totalPages = Math.max(1, Math.ceil((state.students.totalCount || 0) / (state.students.pageSize || 10)));
   renderPager('studentPager', state.students.page || 1, totalPages, loadStudents);
+}
+
+async function loadApplications() {
+  try {
+    state.applications = state.fallbackMode ? [] : await api('/api/yetkili/applications');
+  } catch {
+    state.applications = [];
+  }
+  renderApplications();
+}
+
+function renderApplications() {
+  const page = paginateItems(state.applications, 'applications');
+  document.getElementById('applicationRows').innerHTML = emptyTable(page.items, item => `
+    <tr>
+      <td><strong>${escapeHtml(item.fullName)}</strong></td>
+      <td>${escapeHtml(item.tcNo)}</td>
+      <td>${escapeHtml(item.studentStaffNo || '-')}</td>
+      <td>${escapeHtml(item.accommodationType)}</td>
+      <td>${getStatusBadge(item.status)}</td>
+      <td>${date(item.createdAt)}</td>
+      <td>
+        <button class="row-btn" onclick="openAssignModal(${item.id}, '${item.userId}', '${escapeAttr(item.fullName)}', '${item.accommodationType}')">Odaya Yerleştir</button>
+        <button class="row-btn danger" onclick="rejectApplication(${item.id})">Reddet</button>
+      </td>
+    </tr>
+  `);
+  renderPager('applicationPager', page.page, page.totalPages, next => { state.pages.applications = next; renderApplications(); });
+}
+
+function facilitiesForAccommodationType(accommodationType) {
+  return (state.assignedFacilities || []).filter(facility => facility.type === accommodationType && facility.isActive !== false);
+}
+
+function parseFacilityKey(value) {
+  const [type, rawId] = String(value || '').split(':');
+  const id = Number(rawId);
+  if (!type || !id) return null;
+  return {
+    type,
+    id,
+    dormitoryId: type === 'Yurt' ? id : null,
+    housingUnitId: type === 'Lojman' ? id : null
+  };
+}
+
+function roomsForAssignment(accommodationType, facilityKey = null) {
+  return (state.manageRooms || [])
+    .filter(room => room.facilityType === accommodationType)
+    .filter(room => !facilityKey || (room.facilityType === facilityKey.type && room.facilityId === facilityKey.id))
+    .filter(room => room.status !== 'Maintenance' && Number(room.currentOccupancy || 0) < Number(room.capacity || 0))
+    .sort((a, b) => String(a.facilityName || '').localeCompare(String(b.facilityName || ''), 'tr')
+      || String(a.blockName || '').localeCompare(String(b.blockName || ''), 'tr')
+      || Number(a.floorNumber || 0) - Number(b.floorNumber || 0)
+      || String(a.roomNumber || '').localeCompare(String(b.roomNumber || ''), 'tr'));
+}
+
+function assignmentRoomLabel(room) {
+  const freeBeds = Math.max(0, Number(room.capacity || 0) - Number(room.currentOccupancy || 0));
+  return `${room.facilityName} / ${room.blockName} / Kat ${room.floorNumber} / Oda ${room.roomNumber} - ${room.capacity} yatak, ${room.currentOccupancy} dolu / ${freeBeds} boş`;
+}
+
+function assignmentRoomCard(room) {
+  const freeBeds = Math.max(0, Number(room.capacity || 0) - Number(room.currentOccupancy || 0));
+  return `
+    <div class="assignment-room-card">
+      <div>
+        <strong>${escapeHtml(room.facilityName)} / ${escapeHtml(room.blockName)}</strong>
+        <small>Kat ${escapeHtml(room.floorNumber)} - Oda ${escapeHtml(room.roomNumber)}</small>
+      </div>
+      <div class="assignment-room-meta">
+        <span>${room.capacity} yatak</span>
+        <span>${room.currentOccupancy} dolu</span>
+        <span>${freeBeds} boş</span>
+        ${getStatusBadge(room.status)}
+      </div>
+    </div>
+  `;
+}
+
+function assignForm(applicationId, userId, accommodationType) {
+  const facilities = facilitiesForAccommodationType(accommodationType);
+  const facilityOptions = facilities.map(facility => `<option value="${facility.type}:${facility.id}">${escapeHtml(facility.name)} (${escapeHtml(facility.type)})</option>`).join('');
+  return {
+    title: 'Odaya Ata',
+    html: `<form id="assignForm" class="form-grid">
+      <input type="hidden" name="applicationId" value="${escapeAttr(applicationId)}">
+      <input type="hidden" name="userId" value="${escapeAttr(userId)}">
+      <input type="hidden" name="accommodationType" value="${escapeAttr(accommodationType)}">
+      <label class="full">Atama Tipi<select name="allocationMode" id="allocationMode">
+        <option value="manual">Manuel oda seçimi</option>
+        <option value="auto">Otomatik uygun oda ata</option>
+      </select></label>
+      <label class="full">Tesis<select name="facilityKey" id="assignmentFacility" required>${facilityOptions || '<option value="">Size atanmış uygun tesis yok</option>'}</select></label>
+      <label class="full" id="manualRoomField">Oda<select name="roomId" id="assignmentRoom"></select></label>
+      <div id="assignmentRoomPreview" class="assignment-preview full"></div>
+      <button class="primary-btn full" type="submit">Atamayı Tamamla</button>
+    </form>`,
+    bind: () => {
+      const form = document.getElementById('assignForm');
+      bindAssignmentControls(form, accommodationType);
+      form.addEventListener('submit', submitApplicationAssign);
+    }
+  };
+}
+
+function bindAssignmentControls(form, accommodationType) {
+  const modeSelect = form.querySelector('#allocationMode');
+  const facilitySelect = form.querySelector('#assignmentFacility');
+  const roomSelect = form.querySelector('#assignmentRoom');
+  const roomField = form.querySelector('#manualRoomField');
+  const preview = form.querySelector('#assignmentRoomPreview');
+
+  const refreshRooms = () => {
+    const facilityKey = parseFacilityKey(facilitySelect.value);
+    const isAuto = modeSelect.value === 'auto';
+    const rooms = roomsForAssignment(accommodationType, facilityKey);
+    roomField.style.display = isAuto ? 'none' : '';
+    roomSelect.required = !isAuto;
+    roomSelect.disabled = isAuto || rooms.length === 0;
+
+    if (isAuto) {
+      preview.innerHTML = facilityKey
+        ? `<div class="assignment-room-card"><strong>${rooms.length} uygun oda bulundu</strong><small>Sistem seçilen tesiste boş yatağı olan uygun bir odayı otomatik seçecek.</small></div>`
+        : '<p class="muted">Otomatik atama için tesis seçin.</p>';
+      return;
+    }
+
+    roomSelect.innerHTML = rooms.length
+      ? rooms.map(room => `<option value="${room.id}">${escapeHtml(assignmentRoomLabel(room))}</option>`).join('')
+      : '<option value="">Bu tesiste uygun oda yok</option>';
+    refreshPreview();
+  };
+
+  const refreshPreview = () => {
+    const selectedRoom = state.manageRooms.find(room => room.id === Number(roomSelect.value));
+    preview.innerHTML = selectedRoom ? assignmentRoomCard(selectedRoom) : '<p class="muted">Uygun oda seçin.</p>';
+  };
+
+  modeSelect.addEventListener('change', refreshRooms);
+  facilitySelect.addEventListener('change', refreshRooms);
+  roomSelect.addEventListener('change', refreshPreview);
+  refreshRooms();
+}
+
+function buildAssignmentPayload(data) {
+  const isAuto = data.allocationMode === 'auto';
+  const facilityKey = parseFacilityKey(data.facilityKey);
+  if (isAuto && !facilityKey) {
+    toast('Otomatik atama için tesis seçin.', true);
+    return null;
+  }
+  if (!isAuto && !data.roomId) {
+    toast('Manuel atama için uygun bir oda seçin.', true);
+    return null;
+  }
+  return {
+    approved: true,
+    reason: null,
+    roomId: isAuto ? null : Number(data.roomId),
+    autoPlace: isAuto,
+    dormitoryId: isAuto && facilityKey?.type === 'Yurt' ? facilityKey.id : null,
+    housingUnitId: isAuto && facilityKey?.type === 'Lojman' ? facilityKey.id : null
+  };
+}
+
+async function openAssignModal(applicationId, userId, fullName, accommodationType) {
+  if (!state.manageRooms.length) {
+    await loadManageRooms();
+  }
+  const form = assignForm(applicationId, userId, accommodationType);
+  openModal(`Odaya Ata: ${escapeHtml(fullName)}`, form.html, form.bind);
+}
+
+async function submitApplicationAssign(event) {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  const payload = buildAssignmentPayload(data);
+  if (!payload) return;
+  try {
+    const result = await api(`/api/yetkili/applications/${Number(data.applicationId)}/assign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    closeModalIfOpen();
+    state.applications = state.applications.filter(item => item.id !== Number(data.applicationId));
+    renderApplications();
+    showApplicationFeedback(result?.message || 'Başvuru başarıyla onaylandı ve yerleştirildi.');
+    await Promise.allSettled([loadManage(), loadAvailableRooms(), loadDashboard()]);
+  } catch (error) {
+    toast(error.message || 'Başvuru onaylanamadı.', true);
+  }
+}
+
+async function rejectApplication(id) {
+  if (!confirm('Bu başvuruyu reddetmek istediğinize emin misiniz?')) return;
+  try {
+    const result = await api(`/api/yetkili/applications/${id}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approved: false, reason: 'Yetkili panelinden reddedildi.', roomId: null, autoPlace: false, dormitoryId: null, housingUnitId: null })
+    });
+    state.applications = state.applications.filter(item => item.id !== id);
+    renderApplications();
+    showApplicationFeedback(result?.message || 'Başvuru reddedildi.');
+    await loadDashboard();
+  } catch (error) {
+    toast(error.message || 'Başvuru reddedilemedi.', true);
+  }
+}
+
+function showApplicationFeedback(message) {
+  const host = document.getElementById('applicationFeedback');
+  if (!host) return;
+  host.textContent = message;
+  host.classList.add('success');
 }
 
 async function loadAvailableRooms() {
@@ -211,7 +458,8 @@ async function loadAvailableRooms() {
 }
 
 function renderAvailableRooms() {
-  document.getElementById('availableRoomRows').innerHTML = emptyTable(state.availableRooms, item => `
+  const page = paginateItems(state.availableRooms, 'availableRooms');
+  document.getElementById('availableRoomRows').innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.roomNumber)}</strong></td>
       <td>${escapeHtml(item.facilityName)}</td>
@@ -222,6 +470,7 @@ function renderAvailableRooms() {
       <td>${getStatusBadge(item.status)}</td>
     </tr>
   `);
+  renderPager('availableRoomPager', page.page, page.totalPages, next => { state.pages.availableRooms = next; renderAvailableRooms(); });
 }
 
 function studentForm(item = null) {
@@ -350,7 +599,8 @@ async function loadStudentsWithRooms() {
 }
 
 function renderStudentsWithRooms() {
-  document.getElementById('studentRoomRows').innerHTML = emptyTable(state.studentsWithRooms, item => `
+  const page = paginateItems(state.studentsWithRooms, 'studentsWithRooms');
+  document.getElementById('studentRoomRows').innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.fullName)}</strong></td>
       <td>${escapeHtml(item.email)}</td>
@@ -358,10 +608,16 @@ function renderStudentsWithRooms() {
       <td>${escapeHtml(item.studentStaffNo || '-')}</td>
       <td>${escapeHtml(item.facilityName)}</td>
       <td>${escapeHtml(item.blockName)}</td>
+      <td>${escapeHtml(item.floorNumber)}</td>
       <td><strong>${escapeHtml(item.roomNumber)}</strong></td>
       <td>${date(item.checkInDate)}</td>
+      <td>
+        <button class="row-btn" onclick="openChangeRoomModal(${item.placementId})">Oda Değiştir</button>
+        <button class="row-btn danger" onclick="checkoutPlacement(${item.placementId})">Çıkış Yap</button>
+      </td>
     </tr>
   `);
+  renderPager('studentRoomPager', page.page, page.totalPages, next => { state.pages.studentsWithRooms = next; renderStudentsWithRooms(); });
 }
 
 async function loadManageRooms() {
@@ -374,7 +630,8 @@ async function loadManageRooms() {
 }
 
 function renderManageRooms() {
-  document.getElementById('manageRoomRows').innerHTML = emptyTable(state.manageRooms, item => `
+  const page = paginateItems(state.manageRooms, 'manageRooms');
+  document.getElementById('manageRoomRows').innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.roomNumber)}</strong></td>
       <td>${escapeHtml(item.facilityName)}</td>
@@ -386,6 +643,7 @@ function renderManageRooms() {
       <td><button class="row-btn" onclick="openRoomEdit(${item.id})">Düzenle</button></td>
     </tr>
   `);
+  renderPager('manageRoomPager', page.page, page.totalPages, next => { state.pages.manageRooms = next; renderManageRooms(); });
 }
 
 function openRoomEdit(id) {
@@ -393,6 +651,60 @@ function openRoomEdit(id) {
   if (!item) return;
   const form = roomEditForm(item);
   openModal(form.title, form.html, form.bind);
+}
+
+function openChangeRoomModal(placementId) {
+  const resident = state.studentsWithRooms.find(item => item.placementId === placementId);
+  if (!resident) return;
+  const rooms = roomsForAssignment(resident.facilityType).filter(room => room.id !== resident.roomId);
+  const options = rooms.map(room => `<option value="${room.id}">${escapeHtml(assignmentRoomLabel(room))}</option>`).join('');
+  openModal(`Oda Değiştir: ${escapeHtml(resident.fullName)}`, `
+    <form id="changeRoomForm" class="form-grid" data-placement-id="${placementId}">
+      <div class="assignment-preview full">
+        <div class="assignment-room-card">
+          <strong>${escapeHtml(resident.facilityName)} / ${escapeHtml(resident.blockName)}</strong>
+          <small>Mevcut oda: Kat ${escapeHtml(resident.floorNumber)} - Oda ${escapeHtml(resident.roomNumber)}</small>
+        </div>
+      </div>
+      <label class="full">Yeni Oda<select name="roomId" required>${options || '<option value="">Uygun boş oda yok</option>'}</select></label>
+      <button class="primary-btn full" type="submit">Odayı Değiştir</button>
+    </form>
+  `, () => document.getElementById('changeRoomForm').addEventListener('submit', submitChangeRoom));
+}
+
+async function submitChangeRoom(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = Object.fromEntries(new FormData(form).entries());
+  if (!data.roomId) {
+    toast('Yeni oda seçin.', true);
+    return;
+  }
+  try {
+    const result = await api(`/api/yetkili/placements/${form.dataset.placementId}/change-room`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomId: Number(data.roomId) })
+    });
+    closeModalIfOpen();
+    toast(result?.message || 'Oda değişikliği tamamlandı.');
+    await Promise.allSettled([loadManage(), loadAvailableRooms(), loadDashboard()]);
+  } catch (error) {
+    toast(error.message || 'Oda değiştirilemedi.', true);
+  }
+}
+
+async function checkoutPlacement(placementId) {
+  if (!confirm('Bu sakinin yerleşimini sonlandırmak istediğinize emin misiniz?')) return;
+  try {
+    const result = await api(`/api/yetkili/placements/${placementId}/checkout`, { method: 'POST' });
+    state.studentsWithRooms = state.studentsWithRooms.filter(item => item.placementId !== placementId);
+    renderStudentsWithRooms();
+    toast(result?.message || 'Yerleşim sonlandırıldı.');
+    await Promise.allSettled([loadStudents(state.students.page || 1), loadManageRooms(), loadAvailableRooms(), loadDashboard()]);
+  } catch (error) {
+    toast(error.message || 'Çıkış işlemi tamamlanamadı.', true);
+  }
 }
 
 function roomEditForm(item = null) {
@@ -452,7 +764,8 @@ function targetRoleDisplay(role) {
 }
 
 function renderAnnouncements() {
-  document.getElementById('announcementRows').innerHTML = emptyTable(state.announcements, item => `
+  const page = paginateItems(state.announcements, 'announcements');
+  document.getElementById('announcementRows').innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.title)}</strong></td>
       <td class="desc-cell">${escapeHtml(item.content)}</td>
@@ -464,6 +777,7 @@ function renderAnnouncements() {
       </td>
     </tr>
   `);
+  renderPager('announcementPager', page.page, page.totalPages, next => { state.pages.announcements = next; renderAnnouncements(); });
 }
 
 function announcementForm() {
@@ -564,7 +878,14 @@ async function api(path, options = {}) {
   }
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || response.statusText);
+    let message = text || response.statusText;
+    try {
+      const payload = text ? JSON.parse(text) : null;
+      message = payload?.message || payload?.title || message;
+    } catch {
+      // Text response is already usable.
+    }
+    throw new Error(message || response.statusText);
   }
   if (response.status === 204) return null;
   const contentType = response.headers.get('content-type') || '';
@@ -604,8 +925,20 @@ function roomDisplayStatus(status) {
   return map[status] || status;
 }
 
+function roleDisplay(role) {
+  const map = {
+    Ogrenci: 'Öğrenci',
+    Personel: 'Personel',
+    Yetkili: 'Yetkili',
+    Admin: 'Admin',
+    TeknikPersonel: 'Teknik Personel',
+    TemizlikPersoneli: 'Temizlik Personeli'
+  };
+  return map[role] || role;
+}
+
 function emptyTable(items, renderer) {
-  return (items || []).length ? (items || []).map(renderer).join('') : '<tr><td colspan="8">Kayıt bulunamadı.</td></tr>';
+  return (items || []).length ? (items || []).map(renderer).join('') : '<tr><td colspan="10">Kayıt bulunamadı.</td></tr>';
 }
 
 function emptyOr(items, renderer) {
@@ -639,6 +972,7 @@ function debounce(fn, wait) {
 
 function renderPager(id, page, totalPages, onChange) {
   const host = document.getElementById(id);
+  if (!host) return;
   host.innerHTML = `
     <button class="ghost-btn" ${page <= 1 ? 'disabled' : ''}>Önceki</button>
     <span class="badge badge-muted">${page} / ${totalPages}</span>
@@ -647,4 +981,18 @@ function renderPager(id, page, totalPages, onChange) {
   const [prev, next] = host.querySelectorAll('button');
   prev.addEventListener('click', () => onChange(page - 1));
   next.addEventListener('click', () => onChange(page + 1));
+}
+
+function paginateItems(items, key, pageSize = state.listPageSize) {
+  const source = items || [];
+  const totalPages = Math.max(1, Math.ceil(source.length / pageSize));
+  const requestedPage = Number(state.pages[key] || 1);
+  const page = Math.min(Math.max(1, requestedPage), totalPages);
+  state.pages[key] = page;
+  const start = (page - 1) * pageSize;
+  return {
+    items: source.slice(start, start + pageSize),
+    page,
+    totalPages
+  };
 }

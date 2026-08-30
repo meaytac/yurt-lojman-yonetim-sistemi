@@ -40,6 +40,7 @@ public class AdminCreateUserRequest
 }
 
 public record YetkiliStudentListItemDto(
+    int PlacementId,
     Guid Id,
     string FullName,
     string Email,
@@ -47,9 +48,15 @@ public record YetkiliStudentListItemDto(
     string? StudentStaffNo,
     string? PhoneNumber,
     DateTime CheckInDate,
+    int RoomId,
     string RoomNumber,
     string BlockName,
+    int FloorNumber,
+    int FacilityId,
+    AccommodationType FacilityType,
     string FacilityName);
+
+public record YetkiliPlacementMoveRequest([Required] int RoomId);
 
 public class YetkiliRoomUpdateRequest
 {

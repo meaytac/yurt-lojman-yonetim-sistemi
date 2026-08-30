@@ -21,6 +21,10 @@ public class YetkiliController(IYetkiliService yetkiliService) : ControllerBase
     public Task<IReadOnlyList<AdminFacilityListItemDto>> GetAssignedFacilities(CancellationToken cancellationToken)
         => yetkiliService.GetAssignedFacilitiesAsync(CurrentYetkiliId(), cancellationToken);
 
+    [HttpGet("dashboard-stats")]
+    public Task<AdminDashboardStatsDto> GetDashboardStats(CancellationToken cancellationToken)
+        => yetkiliService.GetDashboardStatsAsync(CurrentYetkiliId(), cancellationToken);
+
     [HttpGet("students")]
     public Task<AdminPagedResponse<AdminUserListItemDto>> GetStudents([FromQuery] AdminUserQuery query, CancellationToken cancellationToken)
         => yetkiliService.GetStudentsAsync(CurrentYetkiliId(), query, cancellationToken);
@@ -79,6 +83,46 @@ public class YetkiliController(IYetkiliService yetkiliService) : ControllerBase
         }
     }
 
+    [HttpGet("applications")]
+    public Task<IReadOnlyList<AdminApplicationListItemDto>> GetApplications(CancellationToken cancellationToken)
+        => yetkiliService.GetApplicationsAsync(CurrentYetkiliId(), cancellationToken);
+
+    [HttpPost("applications/{id:int}/assign")]
+    public async Task<IActionResult> AssignApplication(int id, ApplicationDecisionRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var placement = await yetkiliService.AssignApplicationAsync(CurrentYetkiliId(), id, request, cancellationToken);
+            return Ok(new { success = true, placementId = placement.Id, roomId = placement.RoomId, message = "Başvuru başarıyla onaylandı ve seçilen tesisteki uygun odaya yerleştirildi." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpPost("applications/{id:int}/reject")]
+    public async Task<IActionResult> RejectApplication(int id, ApplicationDecisionRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await yetkiliService.RejectApplicationAsync(CurrentYetkiliId(), id, request, cancellationToken);
+            return Ok(new { success = true, message = "Başvuru reddedildi ve bekleyen başvurular listesinden kaldırıldı." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
     [HttpGet("rooms/available")]
     public Task<IReadOnlyList<AdminRoomListItemDto>> GetAvailableRooms([FromQuery] AccommodationType type, CancellationToken cancellationToken)
         => yetkiliService.GetAvailableRoomsAsync(CurrentYetkiliId(), type, cancellationToken);
@@ -106,6 +150,42 @@ public class YetkiliController(IYetkiliService yetkiliService) : ControllerBase
         catch (InvalidOperationException ex)
         {
             return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPost("placements/{id:int}/change-room")]
+    public async Task<IActionResult> ChangeRoom(int id, YetkiliPlacementMoveRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var resident = await yetkiliService.ChangeRoomAsync(CurrentYetkiliId(), id, request, cancellationToken);
+            return Ok(new { success = true, message = "Oda değişikliği başarıyla tamamlandı.", resident });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpPost("placements/{id:int}/checkout")]
+    public async Task<IActionResult> Checkout(int id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await yetkiliService.CheckoutAsync(CurrentYetkiliId(), id, cancellationToken);
+            return Ok(new { success = true, message = "Yerleşim sonlandırıldı." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
         }
     }
 }
