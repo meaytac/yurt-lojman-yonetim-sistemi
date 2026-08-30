@@ -404,6 +404,18 @@ function closeModal() {
 }
 
 function facilityForm(item = null, type = 'Yurt') {
+  const relatedBlocks = item ? buildingsForFacility(item) : [];
+  const relatedBlockRows = relatedBlocks.map(building => `
+    <tr>
+      <td><strong>${escapeHtml(building.blockName)}</strong></td>
+      <td>${state.floors.filter(floor => floor.buildingId === building.id).length}</td>
+      <td>${roomsForBuilding(building.id).length}</td>
+      <td>
+        <button class="row-btn" type="button" data-edit-building="${building.id}">Düzenle</button>
+        <button class="row-btn danger" type="button" data-delete-building="${building.id}">Sil</button>
+      </td>
+    </tr>
+  `).join('');
   return {
     title: item ? 'Tesis Düzenle' : 'Yeni Tesis',
     html: `<form id="facilityForm" class="form-grid">
@@ -416,10 +428,13 @@ function facilityForm(item = null, type = 'Yurt') {
         ${item ? '<button class="danger-btn" id="deleteFacilityFromModal" type="button">Sil</button>' : ''}
         <button class="primary-btn" type="submit">Kaydet</button>
       </div>
-    </form>`,
+    </form>
+    ${item ? `<div class="modal-list"><h3>Bağlı Bloklar</h3><div class="table-wrap compact"><table><thead><tr><th>Blok</th><th>Kat</th><th>Oda</th><th>Aksiyon</th></tr></thead><tbody>${relatedBlockRows || '<tr><td colspan="4">Bu tesise bağlı blok yok.</td></tr>'}</tbody></table></div></div>` : ''}`,
     bind: () => {
       document.getElementById('facilityForm').addEventListener('submit', event => submitFacility(event, item));
       document.getElementById('deleteFacilityFromModal')?.addEventListener('click', () => deleteFacility(type, item.id));
+      document.querySelectorAll('[data-edit-building]').forEach(button => button.addEventListener('click', () => editBuilding(Number(button.dataset.editBuilding))));
+      document.querySelectorAll('[data-delete-building]').forEach(button => button.addEventListener('click', () => deleteBuilding(Number(button.dataset.deleteBuilding))));
     }
   };
 }
@@ -1133,6 +1148,11 @@ async function deleteFacility(type, id) {
   const result = await saveEntity(`/api/admin/facilities/${type}/${id}`, 'DELETE', null);
   if (!result) return;
   state.facilities = state.facilities.filter(x => !(x.type === type && x.id === id));
+  const removedBuildingIds = state.buildings
+    .filter(building => (type === 'Yurt' && building.dormitoryId === id) || (type === 'Lojman' && building.housingUnitId === id))
+    .map(building => building.id);
+  state.buildings = state.buildings.filter(building => !removedBuildingIds.includes(building.id));
+  state.floors = state.floors.filter(floor => !removedBuildingIds.includes(floor.buildingId));
   recomputeFacilityBuildingCounts();
   renderFacilities();
 }
@@ -1149,6 +1169,7 @@ async function deleteBuilding(id) {
   const result = await saveEntity(`/api/admin/buildings/${id}`, 'DELETE', null);
   if (!result) return;
   state.buildings = state.buildings.filter(x => x.id !== id);
+  state.floors = state.floors.filter(x => x.buildingId !== id);
   recomputeFacilityBuildingCounts();
   renderFacilities();
 }
@@ -1307,6 +1328,17 @@ function recomputeFacilityBuildingCounts() {
       (facility.type === 'Yurt' && building.dormitoryId === facility.id) ||
       (facility.type === 'Lojman' && building.housingUnitId === facility.id)).length;
   });
+}
+
+function buildingsForFacility(facility) {
+  return state.buildings.filter(building =>
+    (facility.type === 'Yurt' && building.dormitoryId === facility.id) ||
+    (facility.type === 'Lojman' && building.housingUnitId === facility.id));
+}
+
+function roomsForBuilding(buildingId) {
+  const floorIds = state.floors.filter(floor => floor.buildingId === buildingId).map(floor => floor.id);
+  return state.rooms.filter(room => floorIds.includes(room.blockFloorId));
 }
 
 function buildingLabel(building) {

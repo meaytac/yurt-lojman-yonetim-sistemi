@@ -74,15 +74,8 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
 
     [HttpDelete("dormitories/{id:int}")]
     [Authorize(Roles = AppRoles.Admin)]
-    public async Task<IActionResult> DeleteDormitory(int id)
-    {
-        var entity = await db.Dormitories.FindAsync(id);
-        if (entity is null) return NotFoundError("Yurt bulunamadı.");
-        if (await db.Buildings.AnyAsync(x => x.DormitoryId == id)) return ConflictError("Bu yurda bağlı bloklar bulunduğu için önce bloklar silinmelidir.");
-        db.Dormitories.Remove(entity);
-        await db.SaveChangesAsync();
-        return Ok(new { success = true, message = "Yurt silindi." });
-    }
+    public Task<IActionResult> DeleteDormitory(int id, CancellationToken cancellationToken)
+        => DeleteFacilityHierarchyAsync(AccommodationType.Yurt, id, cancellationToken);
 
     [HttpGet("housing-units")]
     public async Task<List<HousingUnit>> GetHousingUnits(CancellationToken cancellationToken)
@@ -125,15 +118,8 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
 
     [HttpDelete("housing-units/{id:int}")]
     [Authorize(Roles = AppRoles.Admin)]
-    public async Task<IActionResult> DeleteHousingUnit(int id)
-    {
-        var entity = await db.HousingUnits.FindAsync(id);
-        if (entity is null) return NotFoundError("Lojman bulunamadı.");
-        if (await db.Buildings.AnyAsync(x => x.HousingUnitId == id)) return ConflictError("Bu lojmana bağlı bloklar bulunduğu için önce bloklar silinmelidir.");
-        db.HousingUnits.Remove(entity);
-        await db.SaveChangesAsync();
-        return Ok(new { success = true, message = "Lojman silindi." });
-    }
+    public Task<IActionResult> DeleteHousingUnit(int id, CancellationToken cancellationToken)
+        => DeleteFacilityHierarchyAsync(AccommodationType.Lojman, id, cancellationToken);
 
     [HttpPost("facilities")]
     [Authorize(Roles = AppRoles.Admin)]
@@ -196,23 +182,7 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
     {
         if (!TryParseFacilityType(type, out var facilityType)) return BadRequestError("Geçersiz tesis türü.");
 
-        if (facilityType == AccommodationType.Yurt)
-        {
-            var entity = await db.Dormitories.FindAsync([id], cancellationToken);
-            if (entity is null) return NotFoundError("Yurt bulunamadı.");
-            if (await db.Buildings.AnyAsync(x => x.DormitoryId == id, cancellationToken)) return ConflictError("Bu yurda bağlı bloklar bulunduğu için önce bloklar silinmelidir.");
-            db.Dormitories.Remove(entity);
-        }
-        else
-        {
-            var entity = await db.HousingUnits.FindAsync([id], cancellationToken);
-            if (entity is null) return NotFoundError("Lojman bulunamadı.");
-            if (await db.Buildings.AnyAsync(x => x.HousingUnitId == id, cancellationToken)) return ConflictError("Bu lojmana bağlı bloklar bulunduğu için önce bloklar silinmelidir.");
-            db.HousingUnits.Remove(entity);
-        }
-
-        await db.SaveChangesAsync(cancellationToken);
-        return Ok(new { success = true, message = "Tesis silindi." });
+        return await DeleteFacilityHierarchyAsync(facilityType, id, cancellationToken);
     }
 
     [HttpGet("buildings")]
@@ -462,6 +432,56 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
 
     private static bool IsSupportedFacilityType(AccommodationType type)
         => type is AccommodationType.Yurt or AccommodationType.Lojman;
+
+    private async Task<IActionResult> DeleteFacilityHierarchyAsync(AccommodationType facilityType, int id, CancellationToken cancellationToken)
+    {
+        var blockers = await GetFacilityDeleteBlockersAsync(facilityType, id, cancellationToken);
+        if (blockers.Count > 0)
+        {
+            var names = string.Join(", ", blockers);
+            return ConflictError($"Bu tesise bağlı oda içeren bloklar bulundu: {names}. Önce bu bloklardaki odaları ve ilişkili kayıtları temizleyin; boş bloklar tesis silme sırasında otomatik kaldırılır.");
+        }
+
+        await RemoveEmptyFacilityBuildingsAsync(facilityType, id, cancellationToken);
+
+        if (facilityType == AccommodationType.Yurt)
+        {
+            var entity = await db.Dormitories.FindAsync([id], cancellationToken);
+            if (entity is null) return NotFoundError("Yurt bulunamadı.");
+            db.Dormitories.Remove(entity);
+        }
+        else
+        {
+            var entity = await db.HousingUnits.FindAsync([id], cancellationToken);
+            if (entity is null) return NotFoundError("Lojman bulunamadı.");
+            db.HousingUnits.Remove(entity);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { success = true, message = "Tesis ve bağlı boş bloklar silindi." });
+    }
+
+    private async Task<List<string>> GetFacilityDeleteBlockersAsync(AccommodationType facilityType, int id, CancellationToken cancellationToken)
+    {
+        return await db.Buildings.AsNoTracking()
+            .Where(x => facilityType == AccommodationType.Yurt ? x.DormitoryId == id : x.HousingUnitId == id)
+            .Where(x => x.Floors.SelectMany(floor => floor.Rooms).Any())
+            .OrderBy(x => x.BlockName)
+            .Select(x => x.BlockName)
+            .ToListAsync(cancellationToken);
+    }
+
+    private async Task RemoveEmptyFacilityBuildingsAsync(AccommodationType facilityType, int id, CancellationToken cancellationToken)
+    {
+        var buildings = await db.Buildings
+            .Include(x => x.Floors)
+            .Where(x => facilityType == AccommodationType.Yurt ? x.DormitoryId == id : x.HousingUnitId == id)
+            .Where(x => !x.Floors.SelectMany(floor => floor.Rooms).Any())
+            .ToListAsync(cancellationToken);
+
+        db.Floors.RemoveRange(buildings.SelectMany(x => x.Floors));
+        db.Buildings.RemoveRange(buildings);
+    }
 
     private ObjectResult BadRequestError(string message) => StatusCode(StatusCodes.Status400BadRequest, new { success = false, message });
 
