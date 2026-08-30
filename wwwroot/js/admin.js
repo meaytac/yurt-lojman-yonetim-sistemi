@@ -589,17 +589,171 @@ function isApplicantRole(role) {
   return APPLICANT_ROLES.includes(String(role || ''));
 }
 
+function facilitiesForAccommodationType(accommodationType) {
+  return (state.facilities || []).filter(facility => facility.type === accommodationType && facility.isActive !== false);
+}
+
+function parseFacilityKey(value) {
+  const [type, rawId] = String(value || '').split(':');
+  const id = Number(rawId);
+  if (!type || !id) return null;
+  return {
+    type,
+    id,
+    dormitoryId: type === 'Yurt' ? id : null,
+    housingUnitId: type === 'Lojman' ? id : null
+  };
+}
+
+function roomHierarchy(room) {
+  const floor = state.floors.find(item => item.id === room.blockFloorId);
+  const building = floor ? state.buildings.find(item => item.id === floor.buildingId) : null;
+  if (!building) return { floor: null, building: null, type: null, facilityId: null };
+  return {
+    floor,
+    building,
+    type: building.dormitoryId ? 'Yurt' : 'Lojman',
+    facilityId: building.dormitoryId || building.housingUnitId || null
+  };
+}
+
+function roomMatchesAssignment(room, accommodationType, facilityKey = null) {
+  const hierarchy = roomHierarchy(room);
+  if (hierarchy.type !== accommodationType) return false;
+  if (facilityKey && (hierarchy.type !== facilityKey.type || hierarchy.facilityId !== facilityKey.id)) return false;
+  return room.status !== 'Maintenance' && Number(room.currentOccupancy || 0) < Number(room.capacity || 0);
+}
+
+function availableRoomsForAssignment(accommodationType, facilityKey = null) {
+  return (state.rooms || [])
+    .filter(room => roomMatchesAssignment(room, accommodationType, facilityKey))
+    .sort((a, b) => {
+      const hierarchyA = roomHierarchy(a);
+      const hierarchyB = roomHierarchy(b);
+      return String(a.facilityName || '').localeCompare(String(b.facilityName || ''), 'tr')
+        || String(hierarchyA.building?.blockName || a.blockName || '').localeCompare(String(hierarchyB.building?.blockName || b.blockName || ''), 'tr')
+        || Number(hierarchyA.floor?.floorNumber ?? a.floorNumber ?? 0) - Number(hierarchyB.floor?.floorNumber ?? b.floorNumber ?? 0)
+        || String(a.roomNumber || '').localeCompare(String(b.roomNumber || ''), 'tr');
+    });
+}
+
+function assignmentRoomLabel(room) {
+  const hierarchy = roomHierarchy(room);
+  const freeBeds = Math.max(0, Number(room.capacity || 0) - Number(room.currentOccupancy || 0));
+  const block = hierarchy.building?.blockName || room.blockName || 'Blok';
+  const floor = hierarchy.floor?.floorNumber ?? room.floorNumber ?? '-';
+  return `${room.facilityName} / ${block} / Kat ${floor} / Oda ${room.roomNumber} - ${room.capacity} yatak, ${room.currentOccupancy} dolu / ${freeBeds} boş`;
+}
+
+function assignmentRoomCard(room) {
+  const hierarchy = roomHierarchy(room);
+  const freeBeds = Math.max(0, Number(room.capacity || 0) - Number(room.currentOccupancy || 0));
+  return `
+    <div class="assignment-room-card">
+      <div>
+        <strong>${escapeHtml(room.facilityName)} / ${escapeHtml(hierarchy.building?.blockName || room.blockName || 'Blok')}</strong>
+        <small>Kat ${escapeHtml(hierarchy.floor?.floorNumber ?? room.floorNumber ?? '-')} - Oda ${escapeHtml(room.roomNumber)}</small>
+      </div>
+      <div class="assignment-room-meta">
+        <span>${room.capacity} yatak</span>
+        <span>${room.currentOccupancy} dolu</span>
+        <span>${freeBeds} boş</span>
+        ${getStatusBadge(room.status)}
+      </div>
+    </div>
+  `;
+}
+
+function bindAssignmentControls(form, initialAccommodationType) {
+  const modeSelect = form.querySelector('#allocationMode');
+  const facilitySelect = form.querySelector('#assignmentFacility');
+  const roomSelect = form.querySelector('#assignmentRoom');
+  const roomField = form.querySelector('#manualRoomField');
+  const preview = form.querySelector('#assignmentRoomPreview');
+  const typeInput = form.querySelector('[name="accommodationType"]');
+
+  const currentType = () => typeInput?.value || initialAccommodationType || 'Yurt';
+  const refreshRooms = () => {
+    const facilityKey = parseFacilityKey(facilitySelect.value);
+    const isAuto = modeSelect.value === 'auto';
+    const rooms = availableRoomsForAssignment(currentType(), facilityKey);
+
+    roomField.style.display = isAuto ? 'none' : '';
+    roomSelect.required = !isAuto;
+    roomSelect.disabled = isAuto || rooms.length === 0;
+
+    if (isAuto) {
+      preview.innerHTML = facilityKey
+        ? `<div class="assignment-room-card"><strong>${rooms.length} uygun oda bulundu</strong><small>Sistem seçilen tesiste boş yatağı olan uygun bir odayı otomatik seçecek.</small></div>`
+        : '<p class="muted">Otomatik atama için tesis seçin.</p>';
+      return;
+    }
+
+    roomSelect.innerHTML = rooms.length
+      ? rooms.map(room => `<option value="${room.id}">${escapeHtml(assignmentRoomLabel(room))}</option>`).join('')
+      : '<option value="">Bu tesiste uygun oda yok</option>';
+    refreshPreview();
+  };
+
+  const refreshPreview = () => {
+    const selectedRoom = state.rooms.find(room => room.id === Number(roomSelect.value));
+    preview.innerHTML = selectedRoom ? assignmentRoomCard(selectedRoom) : '<p class="muted">Uygun oda seçin.</p>';
+  };
+
+  modeSelect.addEventListener('change', refreshRooms);
+  facilitySelect.addEventListener('change', refreshRooms);
+  roomSelect.addEventListener('change', refreshPreview);
+  refreshRooms();
+}
+
+function buildAssignmentPayload(data) {
+  const isAuto = data.allocationMode === 'auto';
+  const facilityKey = parseFacilityKey(data.facilityKey);
+
+  if (isAuto && !facilityKey) {
+    toast('Otomatik atama için tesis seçin.', true);
+    return null;
+  }
+
+  if (!isAuto && !data.roomId) {
+    toast('Manuel atama için uygun bir oda seçin.', true);
+    return null;
+  }
+
+  return {
+    roomId: isAuto ? null : Number(data.roomId),
+    autoPlace: isAuto,
+    dormitoryId: isAuto && facilityKey?.type === 'Yurt' ? facilityKey.id : null,
+    housingUnitId: isAuto && facilityKey?.type === 'Lojman' ? facilityKey.id : null
+  };
+}
+
 function assignForm(applicationId = '', userId = '', accommodationType = 'Yurt') {
   const users = (state.users.items || []).filter(user => isApplicantRole(user.role));
   const userField = applicationId
     ? `<input type="hidden" name="userId" value="${escapeAttr(userId)}">`
     : `<label class="full">Kullanıcı<select name="userId" required>${users.length ? users.map(user => `<option value="${user.id}">${escapeHtml(user.fullName)} - ${escapeHtml(user.studentStaffNo || user.role)}</option>`).join('') : '<option value="">Yükleniyor...</option>'}</select></label>`;
+  const facilities = facilitiesForAccommodationType(accommodationType);
+  const facilityOptions = facilities.map(facility => `<option value="${facility.type}:${facility.id}">${escapeHtml(facility.name)} (${escapeHtml(facility.type)})</option>`).join('');
   return {
     title: 'Odaya Ata',
-    html: `<form id="assignForm" class="form-grid"><input type="hidden" name="applicationId" value="${escapeAttr(applicationId)}">${userField}<label>Oda ID<input name="roomId" type="number" min="1" required></label><input type="hidden" name="accommodationType" value="${escapeAttr(accommodationType)}"><button class="primary-btn full" type="submit">Ata</button></form>`,
+    html: `<form id="assignForm" class="form-grid">
+      <input type="hidden" name="applicationId" value="${escapeAttr(applicationId)}">
+      ${userField}
+      <input type="hidden" name="accommodationType" value="${escapeAttr(accommodationType)}">
+      <label class="full">Atama Tipi<select name="allocationMode" id="allocationMode">
+        <option value="manual">Manuel oda seçimi</option>
+        <option value="auto">Otomatik uygun oda ata</option>
+      </select></label>
+      <label class="full">Tesis<select name="facilityKey" id="assignmentFacility" required>${facilityOptions || '<option value="">Uygun tesis bulunamadı</option>'}</select></label>
+      <label class="full" id="manualRoomField">Oda<select name="roomId" id="assignmentRoom"></select></label>
+      <div id="assignmentRoomPreview" class="assignment-preview full"></div>
+      <button class="primary-btn full" type="submit">Atamayı Tamamla</button>
+    </form>`,
     bind: () => {
       const form = document.getElementById('assignForm');
       form.addEventListener('submit', event => applicationId ? submitApplicationAssign(event) : submitAssign(event));
+      bindAssignmentControls(form, accommodationType);
       if (!applicationId) loadPlacementCandidateOptions(form);
     }
   };
@@ -617,11 +771,15 @@ async function submitAssign(event) {
     toast('Yerleştirilecek öğrenci veya personel seçin.', true);
     return;
   }
-  await saveAndRefresh('/api/admin/placements/assign', 'POST', {
+  const assignment = buildAssignmentPayload(data);
+  if (!assignment) return;
+  const result = await saveEntity('/api/admin/placements/assign', 'POST', {
     userId: data.userId,
-    roomId: Number(data.roomId),
-    accommodationType: data.accommodationType
-  }, async () => Promise.all([loadPlacements(), loadRooms(), loadDashboard(), loadApplications()]));
+    accommodationType: data.accommodationType,
+    ...assignment
+  });
+  if (!result) return;
+  await Promise.allSettled([loadPlacements(), loadRooms(), loadDashboard(), loadApplications()]);
 }
 
 async function loadPlacementCandidateOptions(form) {
@@ -639,8 +797,12 @@ async function submitApplicationAssign(event) {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(event.currentTarget).entries());
   const applicationId = Number(data.applicationId);
+  const assignment = buildAssignmentPayload(data);
+  if (!assignment) return;
   const result = await saveEntity(`/api/admin/applications/${applicationId}/assign`, 'POST', {
-    roomId: Number(data.roomId)
+    approved: true,
+    reason: null,
+    ...assignment
   });
   if (!result) return;
   removeApplicationFromState(applicationId);

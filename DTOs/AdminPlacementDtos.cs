@@ -14,8 +14,11 @@ public record MyPlacementResponse(
 
 public record AdminPlacementAssignRequest(
     [Required] Guid UserId,
-    [Required] int RoomId,
-    AccommodationType AccommodationType);
+    int? RoomId,
+    AccommodationType AccommodationType,
+    bool AutoPlace,
+    int? DormitoryId,
+    int? HousingUnitId);
 
 public record AdminPlacementListItemDto(
     int Id,

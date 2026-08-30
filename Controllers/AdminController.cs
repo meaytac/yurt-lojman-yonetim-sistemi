@@ -170,7 +170,19 @@ public class AdminController(
         IReadOnlyList<int>? dormIds = scope?.DormitoryIds;
         IReadOnlyList<int>? unitIds = scope?.HousingUnitIds;
 
-        if (request.RoomId.HasValue)
+        if (request.AutoPlace)
+        {
+            var scopedResult = await ResolveAssignmentScopeAsync(application.AccommodationType, request, dormIds, unitIds, cancellationToken);
+            if (scopedResult.Result != null) return scopedResult.Result;
+            dormIds = scopedResult.DormitoryIds;
+            unitIds = scopedResult.HousingUnitIds;
+        }
+        else if (!request.RoomId.HasValue)
+        {
+            return BadRequest(new { success = false, message = "Manuel atama için oda seçilmelidir." });
+        }
+
+        if (!request.AutoPlace && request.RoomId.HasValue)
         {
             var roomInScope = await db.Rooms.AsNoTracking()
                 .Where(x => x.Id == request.RoomId.Value)
@@ -183,8 +195,12 @@ public class AdminController(
         {
             application.Status = ApplicationStatus.Approved;
             application.UpdatedAt = DateTime.UtcNow;
-            await accommodationService.PlaceUserAsync(application.UserId, application.AccommodationType, request.RoomId, cancellationToken, dormIds, unitIds);
-            return Ok(new { success = true, message = "Başvuru başarıyla onaylandı ve aday yerleşim kaydına aktarıldı." });
+            var placement = await accommodationService.PlaceUserAsync(application.UserId, application.AccommodationType, request.AutoPlace ? null : request.RoomId, cancellationToken, dormIds, unitIds);
+            var roomNumber = await db.Rooms.AsNoTracking()
+                .Where(x => x.Id == placement.RoomId)
+                .Select(x => x.RoomNumber)
+                .FirstAsync(cancellationToken);
+            return Ok(new { success = true, message = $"Başvuru başarıyla onaylandı ve {roomNumber} numaralı odaya yerleştirildi." });
         }
         catch (InvalidOperationException ex)
         {
@@ -204,6 +220,29 @@ public class AdminController(
         application.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
         return Ok(new { success = true, message = "Başvuru reddedildi ve bekleyen başvurular listesinden kaldırıldı." });
+    }
+
+    private async Task<(IReadOnlyList<int>? DormitoryIds, IReadOnlyList<int>? HousingUnitIds, IActionResult? Result)> ResolveAssignmentScopeAsync(
+        AccommodationType type,
+        ApplicationDecisionRequest request,
+        IReadOnlyList<int>? scopeDormitoryIds,
+        IReadOnlyList<int>? scopeHousingUnitIds,
+        CancellationToken cancellationToken)
+    {
+        if (type == AccommodationType.Yurt)
+        {
+            if (!request.DormitoryId.HasValue) return (scopeDormitoryIds, scopeHousingUnitIds, BadRequest(new { success = false, message = "Otomatik atama için yurt seçilmelidir." }));
+            if (scopeDormitoryIds != null && !scopeDormitoryIds.Contains(request.DormitoryId.Value)) return (scopeDormitoryIds, scopeHousingUnitIds, BadRequest(new { success = false, message = "Seçilen yurt yetkili olduğunuz tesisler arasında bulunmuyor." }));
+            var exists = await db.Dormitories.AnyAsync(x => x.Id == request.DormitoryId.Value && x.IsActive, cancellationToken);
+            if (!exists) return (scopeDormitoryIds, scopeHousingUnitIds, BadRequest(new { success = false, message = "Seçilen yurt bulunamadı veya aktif değil." }));
+            return ([request.DormitoryId.Value], null, null);
+        }
+
+        if (!request.HousingUnitId.HasValue) return (scopeDormitoryIds, scopeHousingUnitIds, BadRequest(new { success = false, message = "Otomatik atama için lojman seçilmelidir." }));
+        if (scopeHousingUnitIds != null && !scopeHousingUnitIds.Contains(request.HousingUnitId.Value)) return (scopeDormitoryIds, scopeHousingUnitIds, BadRequest(new { success = false, message = "Seçilen lojman yetkili olduğunuz tesisler arasında bulunmuyor." }));
+        var unitExists = await db.HousingUnits.AnyAsync(x => x.Id == request.HousingUnitId.Value && x.IsActive, cancellationToken);
+        if (!unitExists) return (scopeDormitoryIds, scopeHousingUnitIds, BadRequest(new { success = false, message = "Seçilen lojman bulunamadı veya aktif değil." }));
+        return (null, [request.HousingUnitId.Value], null);
     }
 
     [HttpGet("requests")]
@@ -305,7 +344,7 @@ public class AdminController(
     }
 
     [HttpPost("placements/assign")]
-    public async Task<ActionResult<AdminPlacementListItemDto>> Assign(AdminPlacementAssignRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Assign(AdminPlacementAssignRequest request, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
@@ -320,21 +359,39 @@ public class AdminController(
             .Where(x => x.Id == request.UserId)
             .Select(x => x.Role)
             .FirstOrDefaultAsync(cancellationToken);
-        if (userRole is null) return NotFound("Kullanici bulunamadi.");
-        if (!ApplicantRoles.Contains(userRole)) return BadRequest("Yonetici ve yetkili profilleri yerlestirme akışına dahil edilemez.");
+        if (userRole is null) return NotFound(new { success = false, message = "Kullanıcı bulunamadı." });
+        if (!ApplicantRoles.Contains(userRole)) return BadRequest(new { success = false, message = "Yönetici ve yetkili profilleri yerleştirme akışına dahil edilemez." });
 
-        if (request.RoomId != 0)
+        if (request.AutoPlace)
+        {
+            var scopedResult = await ResolveAssignmentScopeAsync(request.AccommodationType, new ApplicationDecisionRequest(
+                true,
+                null,
+                null,
+                true,
+                request.DormitoryId,
+                request.HousingUnitId), dormIds, unitIds, cancellationToken);
+            if (scopedResult.Result != null) return scopedResult.Result;
+            dormIds = scopedResult.DormitoryIds;
+            unitIds = scopedResult.HousingUnitIds;
+        }
+        else if (!request.RoomId.HasValue)
+        {
+            return BadRequest(new { success = false, message = "Manuel atama için oda seçilmelidir." });
+        }
+
+        if (!request.AutoPlace && request.RoomId.HasValue)
         {
             var roomInScope = await db.Rooms.AsNoTracking()
-                .Where(x => x.Id == request.RoomId)
+                .Where(x => x.Id == request.RoomId.Value)
                 .AnyAsync(x => (x.BlockFloor.Building.DormitoryId != null && (dormIds == null || dormIds.Contains(x.BlockFloor.Building.DormitoryId.Value))) ||
                                (x.BlockFloor.Building.HousingUnitId != null && (unitIds == null || unitIds.Contains(x.BlockFloor.Building.HousingUnitId.Value))), cancellationToken);
-            if (!roomInScope) return BadRequest("Secilen oda yetkili oldugunuz tesiste bulunmuyor.");
+            if (!roomInScope) return BadRequest(new { success = false, message = "Seçilen oda yetkili olduğunuz tesiste bulunmuyor." });
         }
 
         try
         {
-            var placement = await accommodationService.PlaceUserAsync(request.UserId, request.AccommodationType, request.RoomId, cancellationToken, dormIds, unitIds);
+            var placement = await accommodationService.PlaceUserAsync(request.UserId, request.AccommodationType, request.AutoPlace ? null : request.RoomId, cancellationToken, dormIds, unitIds);
             var result = await db.Placements.AsNoTracking()
                 .Include(x => x.User)
                 .Include(x => x.Room)
@@ -346,11 +403,11 @@ public class AdminController(
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(ex.Message);
+            return BadRequest(new { success = false, message = ex.Message });
         }
         catch (Exception ex)
         {
-            return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            return StatusCode(StatusCodes.Status500InternalServerError, new { success = false, message = ex.Message });
         }
     }
 

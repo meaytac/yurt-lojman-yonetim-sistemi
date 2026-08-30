@@ -516,6 +516,47 @@ tr:hover td { background: rgba(56, 189, 248, 0.02); }
   padding: 10px 12px;
 }
 
+.assignment-preview {
+  min-height: 76px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-light);
+  overflow: hidden;
+}
+.assignment-room-card {
+  display: grid;
+  gap: 8px;
+}
+.assignment-room-card strong {
+  display: block;
+  color: var(--primary-navy);
+  line-height: 1.35;
+}
+.assignment-room-card small {
+  display: block;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.assignment-room-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.assignment-room-meta span:not(.badge) {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: white;
+}
+
 .toast-host {
   position: fixed;
   right: 20px;

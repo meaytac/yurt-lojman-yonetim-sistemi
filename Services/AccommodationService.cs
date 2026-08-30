@@ -37,6 +37,8 @@ public class AccommodationService(AppDbContext db) : IAccommodationService
             throw new InvalidOperationException("Kullanicinin aktif bir yerlestirmesi zaten var.");
         }
 
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
         Room? room;
         if (roomId.HasValue)
         {
@@ -54,6 +56,11 @@ public class AccommodationService(AppDbContext db) : IAccommodationService
         if (room is null)
         {
             throw new InvalidOperationException("Uygun oda bulunamadi.");
+        }
+
+        if (!IsRoomCompatibleWithType(room, type))
+        {
+            throw new InvalidOperationException("Secilen oda basvuru turuyle uyumlu degil.");
         }
 
         if (room.Status == RoomStatus.Maintenance || room.CurrentOccupancy >= room.Capacity)
@@ -74,6 +81,7 @@ public class AccommodationService(AppDbContext db) : IAccommodationService
 
         db.Placements.Add(placement);
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return placement;
     }
 
@@ -123,6 +131,14 @@ public class AccommodationService(AppDbContext db) : IAccommodationService
         var building = room.BlockFloor.Building;
         return (building.DormitoryId != null && dormitoryIds != null && dormitoryIds.Contains(building.DormitoryId.Value))
             || (building.HousingUnitId != null && housingUnitIds != null && housingUnitIds.Contains(building.HousingUnitId.Value));
+    }
+
+    private static bool IsRoomCompatibleWithType(Room room, AccommodationType type)
+    {
+        var building = room.BlockFloor.Building;
+        return type == AccommodationType.Yurt
+            ? building.DormitoryId != null
+            : building.HousingUnitId != null;
     }
 
     private Task<Room?> FindAvailableRoomAsync(AccommodationType type, CancellationToken cancellationToken, IReadOnlyList<int>? dormitoryIds = null, IReadOnlyList<int>? housingUnitIds = null)

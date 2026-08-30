@@ -14,7 +14,13 @@ public class ApplicationCreateRequest
     public IFormFile? Document { get; set; }
 }
 
-public record ApplicationDecisionRequest(bool Approved, string? Reason, int? RoomId, bool AutoPlace);
+public record ApplicationDecisionRequest(
+    bool Approved,
+    string? Reason,
+    int? RoomId,
+    bool AutoPlace,
+    int? DormitoryId,
+    int? HousingUnitId);
 
 public record ApplicationResponse(
     int Id,
