@@ -343,6 +343,162 @@ function renderApplications() {
   `);
 }
 
+function openModal(title, html, bind) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = html;
+  const backdrop = document.getElementById('modalBackdrop');
+  backdrop.style.display = 'grid';
+  setTimeout(() => backdrop.classList.add('show'), 20);
+  bind?.();
+}
+
+function closeModal() {
+  const backdrop = document.getElementById('modalBackdrop');
+  backdrop.classList.remove('show');
+  setTimeout(() => {
+    backdrop.style.display = 'none';
+    document.getElementById('modalBody').innerHTML = '';
+  }, 180);
+}
+
+function facilityForm(item = null, type = 'Yurt') {
+  return {
+    title: item ? 'Tesis Düzenle' : 'Yeni Tesis',
+    html: `<form id="facilityForm" class="form-grid">
+      <label>Tür<select name="type" ${item ? 'disabled' : ''}><option value="Yurt" ${type === 'Yurt' ? 'selected' : ''}>Yurt</option><option value="Lojman" ${type === 'Lojman' ? 'selected' : ''}>Lojman</option></select></label>
+      <label>Durum<select name="isActive"><option value="true" ${item?.isActive !== false ? 'selected' : ''}>Aktif</option><option value="false" ${item?.isActive === false ? 'selected' : ''}>Pasif</option></select></label>
+      <label class="full">Ad<input name="name" value="${escapeAttr(item?.name)}" required maxlength="120"></label>
+      <label class="full">Kampüs<input name="campusLocation" value="${escapeAttr(item?.campusLocation)}" required maxlength="180"></label>
+      <label>Kapasite<input name="totalCapacity" type="number" min="0" value="${item?.totalCapacity ?? 0}" required></label>
+      <button class="primary-btn full" type="submit">Kaydet</button>
+    </form>`,
+    bind: () => document.getElementById('facilityForm').addEventListener('submit', event => submitFacility(event, item))
+  };
+}
+
+async function submitFacility(event, item) {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  const type = item ? item.type : data.type;
+  const base = type === 'Yurt' ? '/api/admin/dormitories' : '/api/admin/housing-units';
+  await saveAndRefresh(item ? `${base}/${item.id}` : base, item ? 'PUT' : 'POST', {
+    name: data.name,
+    campusLocation: data.campusLocation,
+    totalCapacity: Number(data.totalCapacity),
+    isActive: data.isActive === 'true'
+  }, loadFacilities);
+}
+
+function buildingForm() {
+  const facilities = state.facilities || [];
+  return {
+    title: 'Blok / Bina Ekle',
+    html: `<form id="buildingForm" class="form-grid"><label class="full">Bağlı Tesis<select name="facility" required>${facilities.map(x => `<option value="${x.type === 'Yurt' ? 'd' : 'h'}-${x.id}">${escapeHtml(x.name)}</option>`).join('')}</select></label><label class="full">Blok Adı<input name="blockName" required maxlength="50"></label><button class="primary-btn full" type="submit">Kaydet</button></form>`,
+    bind: () => document.getElementById('buildingForm').addEventListener('submit', submitBuilding)
+  };
+}
+
+async function submitBuilding(event) {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  const [kind, id] = data.facility.split('-');
+  await saveAndRefresh('/api/admin/buildings', 'POST', { dormitoryId: kind === 'd' ? Number(id) : null, housingUnitId: kind === 'h' ? Number(id) : null, blockName: data.blockName }, loadFacilities);
+}
+
+function floorForm() {
+  return { title: 'Kat Ekle', html: `<form id="floorForm" class="form-grid"><label>Bina ID<input name="buildingId" type="number" min="1" required></label><label>Kat No<input name="floorNumber" type="number" min="0" max="100" required></label><button class="primary-btn full" type="submit">Kaydet</button></form>`, bind: () => document.getElementById('floorForm').addEventListener('submit', submitFloor) };
+}
+
+async function submitFloor(event) {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  await saveAndRefresh('/api/admin/floors', 'POST', { buildingId: Number(data.buildingId), floorNumber: Number(data.floorNumber) }, loadRooms);
+}
+
+function roomForm(item = null) {
+  return {
+    title: item ? 'Oda Düzenle' : 'Yeni Oda',
+    html: `<form id="roomForm" class="form-grid"><label>Kat ID<input name="blockFloorId" type="number" min="1" value="${item?.blockFloorId ?? ''}" required></label><label>Oda No<input name="roomNumber" value="${escapeAttr(item?.roomNumber)}" required maxlength="30"></label><label>Kapasite<input name="capacity" type="number" min="1" max="50" value="${item?.capacity ?? 1}" required></label><label>Durum<select name="status">${['Empty', 'PartiallyFull', 'Full', 'Maintenance'].map(status => `<option value="${status}" ${status === (item?.status || 'Empty') ? 'selected' : ''}>${roomDisplayStatus(status)}</option>`).join('')}</select></label><label>Fiyat<input name="price" type="number" min="0" max="999999" step="0.01" value="${item?.price ?? 0}" required></label><button class="primary-btn full" type="submit">Kaydet</button></form>`,
+    bind: () => document.getElementById('roomForm').addEventListener('submit', event => submitRoom(event, item))
+  };
+}
+
+async function submitRoom(event, item) {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  await saveAndRefresh(item ? `/api/admin/rooms/${item.id}` : '/api/admin/rooms', item ? 'PUT' : 'POST', { blockFloorId: Number(data.blockFloorId), roomNumber: data.roomNumber, capacity: Number(data.capacity), status: data.status, price: Number(data.price) }, loadRooms);
+}
+
+function assignForm(applicationId = '', userId = '', accommodationType = 'Yurt') {
+  const users = (state.users.items || []).filter(user => user.id === userId || user.role === 'Ogrenci' || user.role === 'Personel');
+  return {
+    title: 'Odaya Ata',
+    html: `<form id="assignForm" class="form-grid"><input type="hidden" name="applicationId" value="${escapeAttr(applicationId)}"><label class="full">Kullanıcı<select name="userId" required>${users.map(user => `<option value="${user.id}" ${user.id === userId ? 'selected' : ''}>${escapeHtml(user.fullName)}</option>`).join('')}</select></label><label>Oda ID<input name="roomId" type="number" min="1" required></label><input type="hidden" name="accommodationType" value="${escapeAttr(accommodationType)}"><button class="primary-btn full" type="submit">Ata</button></form>`,
+    bind: () => document.getElementById('assignForm').addEventListener('submit', event => applicationId ? submitApplicationAssign(event) : submitAssign(event))
+  };
+}
+
+function openAssignModal(applicationId, userId, fullName, accommodationType) {
+  const form = assignForm(applicationId, userId, accommodationType);
+  openModal(`Odaya Ata: ${escapeHtml(fullName)}`, form.html, form.bind);
+}
+
+async function submitAssign(event) {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  await saveAndRefresh('/api/admin/placements/assign', 'POST', {
+    userId: data.userId,
+    roomId: Number(data.roomId),
+    accommodationType: data.accommodationType
+  }, async () => Promise.all([loadPlacements(), loadRooms(), loadDashboard(), loadApplications()]));
+}
+
+async function submitApplicationAssign(event) {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  await saveAndRefresh(`/api/admin/applications/${data.applicationId}/assign`, 'POST', {
+    roomId: Number(data.roomId)
+  }, async () => Promise.all([loadApplications(), loadPlacements(), loadRooms(), loadDashboard()]));
+}
+
+function staffAssignmentForm() {
+  return {
+    title: 'Personele Görev Ata',
+    html: `<form id="staffAssignmentForm" class="form-grid">
+      <label>Rol<select name="assignedRole" required>
+        <option value="TeknikPersonel">Teknik Personel</option>
+        <option value="TemizlikPersoneli">Temizlik Personeli</option>
+      </select></label>
+      <label>Öncelik<select name="priority" required>
+        <option value="Normal">Normal</option>
+        <option value="Yüksek">Yüksek</option>
+        <option value="Acil">Acil</option>
+      </select></label>
+      <label class="full">Görev Başlığı<input name="title" required maxlength="120" placeholder="Görev başlığı"></label>
+      <label class="full">Konum<input name="location" required maxlength="160" placeholder="Blok / kat / oda"></label>
+      <label class="full">Detay<textarea name="details" maxlength="1000" placeholder="Görev detayı"></textarea></label>
+      <label>Termin<input name="dueDate" type="date"></label>
+      <label class="inline-check full"><input name="isMaintenanceRequest" type="checkbox"> Arıza iş emri olarak işaretle</label>
+      <button class="primary-btn full" type="submit">Görevi Kaydet</button>
+    </form>`,
+    bind: () => document.getElementById('staffAssignmentForm').addEventListener('submit', submitStaffAssignment)
+  };
+}
+
+async function submitStaffAssignment(event) {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  await saveAndRefresh('/api/admin/staff-assignments', 'POST', {
+    assignedRole: data.assignedRole,
+    title: data.title,
+    location: data.location,
+    details: data.details || null,
+    priority: data.priority,
+    isMaintenanceRequest: data.isMaintenanceRequest === 'on',
+    dueDate: data.dueDate || null
+  }, loadStaffAssignments);
+}
+
 function openNamedModal(name) {
   const forms = {
     facilityModal: facilityForm(),
