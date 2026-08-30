@@ -14,7 +14,18 @@ const state = {
   userFacilityAssignments: [],
   announcements: [],
   roomPage: 1,
-  roomPageSize: 10
+  roomPageSize: 10,
+  listPageSize: 10,
+  pages: {
+    facilities: 1,
+    applications: 1,
+    placements: 1,
+    requests: 1,
+    staffAssignments: 1,
+    faultReports: 1,
+    userFacilityAssignments: 1,
+    announcements: 1
+  }
 };
 
 const REFRESH_INTERVAL = 15000;
@@ -77,14 +88,14 @@ function bindShell() {
     button.addEventListener('click', () => openNamedModal(button.dataset.modal));
   });
 
-  document.getElementById('facilitySearch').addEventListener('input', renderFacilities);
+  document.getElementById('facilitySearch').addEventListener('input', () => { state.pages.facilities = 1; renderFacilities(); });
   document.getElementById('roomSearch').addEventListener('input', () => { state.roomPage = 1; renderRooms(); });
   document.getElementById('roomStatusFilter').addEventListener('change', () => { state.roomPage = 1; renderRooms(); });
-  document.getElementById('applicationStatusFilter').addEventListener('change', loadApplications);
+  document.getElementById('applicationStatusFilter').addEventListener('change', () => { state.pages.applications = 1; loadApplications(); });
   document.getElementById('userSearch').addEventListener('input', debounce(() => loadUsers(1), 350));
   document.getElementById('roleFilter').addEventListener('change', () => loadUsers(1));
-  document.getElementById('activePlacementsOnly').addEventListener('change', loadPlacements);
-  document.getElementById('requestOpenOnlyFilter').addEventListener('change', loadRequests);
+  document.getElementById('activePlacementsOnly').addEventListener('change', () => { state.pages.placements = 1; loadPlacements(); });
+  document.getElementById('requestOpenOnlyFilter').addEventListener('change', () => { state.pages.requests = 1; loadRequests(); });
 
   setInterval(() => {
     if (document.hidden) return;
@@ -198,8 +209,9 @@ function renderFacilities() {
     const type = String(x.type || '').toLowerCase();
     return !term || name.includes(term) || campus.includes(term) || type.includes(term);
   });
+  const page = paginateItems(rows, 'facilities');
 
-  document.getElementById('facilityRows').innerHTML = emptyTable(rows, item => `
+  document.getElementById('facilityRows').innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.name)}</strong></td>
       <td>${escapeHtml(item.type)}</td>
@@ -212,6 +224,7 @@ function renderFacilities() {
       </td>
     </tr>
   `);
+  renderPager('facilityPager', page.page, page.totalPages, next => { state.pages.facilities = next; renderFacilities(); });
 }
 
 async function loadRooms() {
@@ -262,10 +275,10 @@ async function loadUsers(page = state.users.page) {
   try {
     const search = encodeURIComponent(document.getElementById('userSearch').value);
     const role = encodeURIComponent(document.getElementById('roleFilter').value);
-    state.users = await api(`/api/admin/users?page=${page}&pageSize=10&search=${search}&role=${role}`);
+    state.users = await api(`/api/admin/users?page=${page}&pageSize=${state.listPageSize}&search=${search}&role=${role}`);
   } catch (error) {
     console.error('[Admin API] Kullanıcılar yüklenemedi:', error);
-    state.users = { items: [], page, pageSize: 10, totalCount: 0 };
+    state.users = { items: [], page, pageSize: state.listPageSize, totalCount: 0 };
   }
   renderUsers();
 }
@@ -303,7 +316,8 @@ async function loadPlacements() {
 }
 
 function renderPlacements() {
-  document.getElementById('placementRows').innerHTML = emptyTable(state.placements || [], item => `
+  const page = paginateItems(state.placements || [], 'placements');
+  document.getElementById('placementRows').innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.fullName)}</strong></td>
       <td>${escapeHtml(item.roomNumber)}</td>
@@ -313,6 +327,7 @@ function renderPlacements() {
       <td>${item.isActive ? `<button class="row-btn warn" onclick="checkout(${item.id})">Çıkış Yap</button>` : '-'}</td>
     </tr>
   `);
+  renderPager('placementPager', page.page, page.totalPages, next => { state.pages.placements = next; renderPlacements(); });
 }
 
 async function loadApplications() {
@@ -328,7 +343,8 @@ async function loadApplications() {
 }
 
 function renderApplications() {
-  document.getElementById('applicationRows').innerHTML = emptyTable(state.applications || [], item => `
+  const page = paginateItems(state.applications || [], 'applications');
+  document.getElementById('applicationRows').innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.fullName)}</strong></td>
       <td>${escapeHtml(item.tcNo)}</td>
@@ -341,6 +357,7 @@ function renderApplications() {
       </td>
     </tr>
   `);
+  renderPager('applicationPager', page.page, page.totalPages, next => { state.pages.applications = next; renderApplications(); });
 }
 
 function openModal(title, html, bind) {
@@ -429,12 +446,25 @@ async function submitRoom(event, item) {
   await saveAndRefresh(item ? `/api/admin/rooms/${item.id}` : '/api/admin/rooms', item ? 'PUT' : 'POST', { blockFloorId: Number(data.blockFloorId), roomNumber: data.roomNumber, capacity: Number(data.capacity), status: data.status, price: Number(data.price) }, loadRooms);
 }
 
+const APPLICANT_ROLES = ['Ogrenci', 'Personel'];
+
+function isApplicantRole(role) {
+  return APPLICANT_ROLES.includes(String(role || ''));
+}
+
 function assignForm(applicationId = '', userId = '', accommodationType = 'Yurt') {
-  const users = (state.users.items || []).filter(user => user.id === userId || user.role === 'Ogrenci' || user.role === 'Personel');
+  const users = (state.users.items || []).filter(user => isApplicantRole(user.role));
+  const userField = applicationId
+    ? `<input type="hidden" name="userId" value="${escapeAttr(userId)}">`
+    : `<label class="full">Kullanıcı<select name="userId" required>${users.length ? users.map(user => `<option value="${user.id}">${escapeHtml(user.fullName)} - ${escapeHtml(user.studentStaffNo || user.role)}</option>`).join('') : '<option value="">Yükleniyor...</option>'}</select></label>`;
   return {
     title: 'Odaya Ata',
-    html: `<form id="assignForm" class="form-grid"><input type="hidden" name="applicationId" value="${escapeAttr(applicationId)}"><label class="full">Kullanıcı<select name="userId" required>${users.map(user => `<option value="${user.id}" ${user.id === userId ? 'selected' : ''}>${escapeHtml(user.fullName)}</option>`).join('')}</select></label><label>Oda ID<input name="roomId" type="number" min="1" required></label><input type="hidden" name="accommodationType" value="${escapeAttr(accommodationType)}"><button class="primary-btn full" type="submit">Ata</button></form>`,
-    bind: () => document.getElementById('assignForm').addEventListener('submit', event => applicationId ? submitApplicationAssign(event) : submitAssign(event))
+    html: `<form id="assignForm" class="form-grid"><input type="hidden" name="applicationId" value="${escapeAttr(applicationId)}">${userField}<label>Oda ID<input name="roomId" type="number" min="1" required></label><input type="hidden" name="accommodationType" value="${escapeAttr(accommodationType)}"><button class="primary-btn full" type="submit">Ata</button></form>`,
+    bind: () => {
+      const form = document.getElementById('assignForm');
+      form.addEventListener('submit', event => applicationId ? submitApplicationAssign(event) : submitAssign(event));
+      if (!applicationId) loadPlacementCandidateOptions(form);
+    }
   };
 }
 
@@ -446,11 +476,26 @@ function openAssignModal(applicationId, userId, fullName, accommodationType) {
 async function submitAssign(event) {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  if (!data.userId) {
+    toast('Yerleştirilecek öğrenci veya personel seçin.', true);
+    return;
+  }
   await saveAndRefresh('/api/admin/placements/assign', 'POST', {
     userId: data.userId,
     roomId: Number(data.roomId),
     accommodationType: data.accommodationType
   }, async () => Promise.all([loadPlacements(), loadRooms(), loadDashboard(), loadApplications()]));
+}
+
+async function loadPlacementCandidateOptions(form) {
+  const select = form.querySelector('[name="userId"]');
+  if (!select) return;
+  select.innerHTML = '<option value="">Yükleniyor...</option>';
+  const candidateGroups = await Promise.all(APPLICANT_ROLES.map(role => fetchUsersByRole(role)));
+  const candidates = candidateGroups.flat().filter(user => isApplicantRole(user.role));
+  select.innerHTML = candidates.length
+    ? candidates.map(user => `<option value="${user.id}">${escapeHtml(user.fullName)} - ${escapeHtml(user.studentStaffNo || user.role)}</option>`).join('')
+    : '<option value="">Yerleştirilebilir kullanıcı bulunamadı</option>';
 }
 
 async function submitApplicationAssign(event) {
@@ -530,7 +575,8 @@ async function loadRequests() {
 }
 
 function renderRequests() {
-  document.getElementById('requestRows').innerHTML = emptyTable(state.requests, item => `
+  const page = paginateItems(state.requests, 'requests');
+  document.getElementById('requestRows').innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.fullName)}</strong></td>
       <td>${escapeHtml(item.roomNumber)}</td>
@@ -545,6 +591,7 @@ function renderRequests() {
       </td>
     </tr>
   `);
+  renderPager('requestPager', page.page, page.totalPages, next => { state.pages.requests = next; renderRequests(); });
 }
 
 async function updateRequestStatus(id, status) {
@@ -562,7 +609,8 @@ async function loadStaffAssignments() {
 }
 
 function renderStaffAssignments() {
-  document.getElementById('assignmentRows').innerHTML = emptyTable(state.staffAssignments, item => `
+  const page = paginateItems(state.staffAssignments, 'staffAssignments');
+  document.getElementById('assignmentRows').innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.title)}</strong><br><small>${escapeHtml(item.details || '-')}</small></td>
       <td>${staffRoleDisplay(item.assignedRole)}${item.isMaintenanceRequest ? '<br><small>⚒ Arıza iş emri</small>' : ''}</td>
@@ -572,6 +620,7 @@ function renderStaffAssignments() {
       <td>${item.isCompleted ? getStatusBadge('Completed') : `<span class="badge badge-warning">Bekliyor</span>`}</td>
     </tr>
   `);
+  renderPager('assignmentPager', page.page, page.totalPages, next => { state.pages.staffAssignments = next; renderStaffAssignments(); });
 }
 
 async function loadFaultReports() {
@@ -585,7 +634,8 @@ async function loadFaultReports() {
 }
 
 function renderFaultReports() {
-  document.getElementById('faultReportList').innerHTML = emptyOr(state.faultReports, item => `
+  const page = paginateItems(state.faultReports, 'faultReports');
+  document.getElementById('faultReportList').innerHTML = emptyOr(page.items, item => `
     <div class="activity-item">
       <div>
         <strong>${escapeHtml(item.category)} / ${escapeHtml(item.location)}</strong>
@@ -594,6 +644,7 @@ function renderFaultReports() {
       <small>${date(item.createdAt)}</small>
     </div>
   `);
+  renderPager('faultReportPager', page.page, page.totalPages, next => { state.pages.faultReports = next; renderFaultReports(); });
 }
 
 async function loadUserFacilityAssignments() {
@@ -607,7 +658,8 @@ async function loadUserFacilityAssignments() {
 }
 
 function renderUserFacilityAssignments() {
-  document.getElementById('facilityAssignmentRows').innerHTML = emptyTable(state.userFacilityAssignments, item => `
+  const page = paginateItems(state.userFacilityAssignments, 'userFacilityAssignments');
+  document.getElementById('facilityAssignmentRows').innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.userFullName)}</strong><br><small>${escapeHtml(item.userRole)}</small></td>
       <td>${item.dormitoryName ? `<strong>${escapeHtml(item.dormitoryName)}</strong>` : `<strong>${escapeHtml(item.housingUnitName)}</strong>`}</td>
@@ -621,6 +673,7 @@ function renderUserFacilityAssignments() {
       </td>
     </tr>
   `);
+  renderPager('facilityAssignmentPager', page.page, page.totalPages, next => { state.pages.userFacilityAssignments = next; renderUserFacilityAssignments(); });
 }
 
 const ASSIGNABLE_ROLES = ['Yetkili', 'Personel', 'TeknikPersonel', 'TemizlikPersoneli'];
@@ -820,7 +873,8 @@ function announcementTargetDisplay(role) {
 }
 
 function renderAnnouncements() {
-  document.getElementById('announcementRowsAdmin').innerHTML = emptyTable(state.announcements, item => `
+  const page = paginateItems(state.announcements, 'announcements');
+  document.getElementById('announcementRowsAdmin').innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.title)}</strong></td>
       <td class="desc-cell">${escapeHtml(item.content)}</td>
@@ -832,6 +886,7 @@ function renderAnnouncements() {
       </td>
     </tr>
   `);
+  renderPager('announcementPager', page.page, page.totalPages, next => { state.pages.announcements = next; renderAnnouncements(); });
 }
 
 function announcementFormAdmin() {
@@ -1018,6 +1073,7 @@ async function api(path, options = {}, attachToken = true) {
 
 function renderPager(id, page, totalPages, onChange) {
   const host = document.getElementById(id);
+  if (!host) return;
   host.innerHTML = `
     <button class="ghost-btn" ${page <= 1 ? 'disabled' : ''}>Önceki</button>
     <span class="badge badge-muted">${page} / ${totalPages}</span>
@@ -1026,6 +1082,20 @@ function renderPager(id, page, totalPages, onChange) {
   const [prev, next] = host.querySelectorAll('button');
   prev.addEventListener('click', () => onChange(page - 1));
   next.addEventListener('click', () => onChange(page + 1));
+}
+
+function paginateItems(items, key, pageSize = state.listPageSize) {
+  const source = items || [];
+  const totalPages = Math.max(1, Math.ceil(source.length / pageSize));
+  const requestedPage = Number(state.pages[key] || 1);
+  const page = Math.min(Math.max(1, requestedPage), totalPages);
+  state.pages[key] = page;
+  const start = (page - 1) * pageSize;
+  return {
+    items: source.slice(start, start + pageSize),
+    page,
+    totalPages
+  };
 }
 
 function toast(message, isError = false) {

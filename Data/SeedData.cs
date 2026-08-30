@@ -275,28 +275,36 @@ public static class SeedData
         return rooms;
     }
 
-    private static List<AccommodationApplication> CreateApplications(List<AppUser> users, DateTime now) =>
-        Enumerable.Range(0, 200).Select(index => new AccommodationApplication
+    private static List<AccommodationApplication> CreateApplications(List<AppUser> users, DateTime now)
+    {
+        var applicants = users.Where(x => x.Role is AppRoles.Ogrenci or AppRoles.Personel).ToList();
+        return Enumerable.Range(0, 200).Select(index => new AccommodationApplication
         {
-            UserId = users[index % users.Count].Id,
+            UserId = applicants[index % applicants.Count].Id,
             AccommodationType = index % 5 == 0 ? AccommodationType.Lojman : AccommodationType.Yurt,
             DocumentUrl = $"/uploads/demo/belge-{index + 1:000}.pdf",
             Status = (ApplicationStatus)(index % 3 + 1),
             CreatedAt = now.AddDays(-index % 90),
             UpdatedAt = index % 3 == 0 ? null : now.AddDays(-index % 30)
         }).ToList();
+    }
 
-    private static List<Placement> CreatePlacements(List<AppUser> users, List<Room> rooms, DateTime now) =>
-        users.Select((user, index) => new Placement
+    private static List<Placement> CreatePlacements(List<AppUser> users, List<Room> rooms, DateTime now)
+    {
+        var applicants = users.Where(x => x.Role is AppRoles.Ogrenci or AppRoles.Personel).ToList();
+        return applicants.Select((user, index) => new Placement
         {
             UserId = user.Id,
             RoomId = rooms[index].Id,
             CheckInDate = now.AddDays(-index - 1),
             IsActive = true
         }).ToList();
+    }
 
-    private static List<Payment> CreatePayments(List<AppUser> users, DateTime now) =>
-        users.Select((user, index) => new Payment
+    private static List<Payment> CreatePayments(List<AppUser> users, DateTime now)
+    {
+        var applicants = users.Where(x => x.Role is AppRoles.Ogrenci or AppRoles.Personel).ToList();
+        return applicants.Select((user, index) => new Payment
         {
             UserId = user.Id,
             Amount = index % 4 == 0 ? 5500 : 2500,
@@ -305,13 +313,15 @@ public static class SeedData
             Status = index % 3 == 0 ? PaymentStatus.Overdue : PaymentStatus.Paid,
             Description = $"Demo {now:MMMM} donemi konaklama ucreti"
         }).ToList();
+    }
 
     private static List<MaintenanceRequest> CreateRequests(List<AppUser> users, List<Room> rooms, DateTime now)
     {
         var categories = new[] { "Elektrik", "Isitma", "Su Tesisati", "Mobilya" };
+        var applicants = users.Where(x => x.Role is AppRoles.Ogrenci or AppRoles.Personel).ToList();
         return Enumerable.Range(0, 80).Select(index => new MaintenanceRequest
         {
-            UserId = users[index % users.Count].Id,
+            UserId = applicants[index % applicants.Count].Id,
             RoomId = rooms[index].Id,
             Category = categories[index % categories.Length],
             Description = $"Demo odasinda {categories[index % categories.Length].ToLowerInvariant()} kontrolu gerekiyor.",

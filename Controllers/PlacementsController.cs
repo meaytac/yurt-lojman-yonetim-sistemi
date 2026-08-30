@@ -13,6 +13,8 @@ namespace yurt_lojman_yonetim_sistemi.Controllers;
 [Authorize]
 public class PlacementsController(AppDbContext db, IAccommodationService accommodationService) : ControllerBase
 {
+    private static readonly string[] ApplicantRoles = [AppRoles.Ogrenci, AppRoles.Personel];
+
     [HttpGet("mine")]
     [Authorize]
     public async Task<ActionResult<MyPlacementResponse>> Mine(CancellationToken cancellationToken)
@@ -43,6 +45,7 @@ public class PlacementsController(AppDbContext db, IAccommodationService accommo
         return db.Placements.AsNoTracking()
             .Include(x => x.User)
             .Include(x => x.Room)
+            .Where(x => ApplicantRoles.Contains(x.User.Role))
             .OrderByDescending(x => x.CheckInDate)
             .ToListAsync();
     }

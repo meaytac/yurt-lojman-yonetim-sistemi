@@ -13,8 +13,24 @@ public interface IAccommodationService
 
 public class AccommodationService(AppDbContext db) : IAccommodationService
 {
+    private static readonly string[] ApplicantRoles = [AppRoles.Ogrenci, AppRoles.Personel];
+
     public async Task<Placement> PlaceUserAsync(Guid userId, AccommodationType type, int? roomId, CancellationToken cancellationToken, IReadOnlyList<int>? dormitoryIds = null, IReadOnlyList<int>? housingUnitIds = null)
     {
+        var userRole = await db.Users.AsNoTracking()
+            .Where(x => x.Id == userId)
+            .Select(x => x.Role)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (userRole is null)
+        {
+            throw new InvalidOperationException("Kullanici bulunamadi.");
+        }
+
+        if (!ApplicantRoles.Contains(userRole))
+        {
+            throw new InvalidOperationException("Yonetici ve yetkili profilleri yerlestirme akışına dahil edilemez.");
+        }
+
         var hasActivePlacement = await db.Placements.AnyAsync(x => x.UserId == userId && x.IsActive, cancellationToken);
         if (hasActivePlacement)
         {

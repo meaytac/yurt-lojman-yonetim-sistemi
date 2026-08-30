@@ -14,12 +14,15 @@ namespace yurt_lojman_yonetim_sistemi.Controllers;
 [Authorize]
 public class ApplicationsController(AppDbContext db, IFileStorageService fileStorage, IAccommodationService accommodationService) : ControllerBase
 {
+    private static readonly string[] ApplicantRoles = [AppRoles.Ogrenci, AppRoles.Personel];
+
     [HttpGet]
     [Authorize(Roles = $"{AppRoles.Admin},{AppRoles.Yetkili}")]
     public Task<List<ApplicationResponse>> GetAll()
     {
         return db.Applications.AsNoTracking()
             .Include(x => x.User)
+            .Where(x => ApplicantRoles.Contains(x.User.Role))
             .OrderByDescending(x => x.CreatedAt)
             .Select(x => new ApplicationResponse(x.Id, x.UserId, x.User.FullName, x.AccommodationType, x.DocumentUrl, x.Status, x.CreatedAt, x.UpdatedAt))
             .ToListAsync();
@@ -40,10 +43,15 @@ public class ApplicationsController(AppDbContext db, IFileStorageService fileSto
     [HttpPost]
     public async Task<ActionResult<ApplicationResponse>> Create([FromForm] ApplicationCreateRequest request, CancellationToken cancellationToken)
     {
+        var userId = CurrentUserId();
+        var user = await db.Users.FindAsync([userId], cancellationToken);
+        if (user is null) return Unauthorized();
+        if (!ApplicantRoles.Contains(user.Role)) return BadRequest("Yonetici ve yetkili profilleri basvuru olusturamaz.");
+
         var documentUrl = await fileStorage.SaveAsync(request.Document, "documents", cancellationToken) ?? request.DocumentUrl;
         var application = new AccommodationApplication
         {
-            UserId = CurrentUserId(),
+            UserId = userId,
             AccommodationType = request.AccommodationType,
             DocumentUrl = documentUrl,
             Status = ApplicationStatus.Pending
@@ -51,7 +59,6 @@ public class ApplicationsController(AppDbContext db, IFileStorageService fileSto
 
         db.Applications.Add(application);
         await db.SaveChangesAsync(cancellationToken);
-        var user = await db.Users.FindAsync([application.UserId], cancellationToken);
         return Ok(new ApplicationResponse(application.Id, application.UserId, user!.FullName, application.AccommodationType, application.DocumentUrl, application.Status, application.CreatedAt, application.UpdatedAt));
     }
 
@@ -59,8 +66,9 @@ public class ApplicationsController(AppDbContext db, IFileStorageService fileSto
     [Authorize(Roles = $"{AppRoles.Admin},{AppRoles.Yetkili}")]
     public async Task<IActionResult> Decide(int id, ApplicationDecisionRequest request, CancellationToken cancellationToken)
     {
-        var application = await db.Applications.FindAsync([id], cancellationToken);
+        var application = await db.Applications.Include(x => x.User).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (application is null) return NotFound();
+        if (!ApplicantRoles.Contains(application.User.Role)) return BadRequest("Yonetici ve yetkili profilleri basvuru akışına dahil edilemez.");
 
         application.Status = request.Approved ? ApplicationStatus.Approved : ApplicationStatus.Rejected;
         application.UpdatedAt = DateTime.UtcNow;

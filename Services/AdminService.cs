@@ -29,6 +29,8 @@ public interface IAdminService
 
     public class AdminService(AppDbContext db, UserManager<AppUser> userManager) : IAdminService
     {
+        private static readonly string[] ApplicantRoles = [AppRoles.Ogrenci, AppRoles.Personel];
+
         private IQueryable<Room> ScopedRooms(FacilityScope? scope)
         {
             var query = db.Rooms.AsNoTracking()
@@ -49,6 +51,7 @@ public interface IAdminService
 
             var recentApplications = await db.Applications.AsNoTracking()
                 .Include(x => x.User)
+                .Where(x => ApplicantRoles.Contains(x.User.Role))
                 .Where(x => scope == null
                     || (scope.DormitoryIds.Count > 0 && x.AccommodationType == AccommodationType.Yurt)
                     || (scope.HousingUnitIds.Count > 0 && x.AccommodationType == AccommodationType.Lojman))
@@ -60,6 +63,7 @@ public interface IAdminService
             var recentRequests = await db.Requests.AsNoTracking()
                 .Include(x => x.User)
                 .Include(x => x.Room)
+                .Where(x => ApplicantRoles.Contains(x.User.Role))
                 .Where(x => scope == null
                     || (x.Room.BlockFloor.Building.DormitoryId != null && scope.DormitoryIds.Contains(x.Room.BlockFloor.Building.DormitoryId.Value))
                     || (x.Room.BlockFloor.Building.HousingUnitId != null && scope.HousingUnitIds.Contains(x.Room.BlockFloor.Building.HousingUnitId.Value)))
@@ -69,6 +73,7 @@ public interface IAdminService
                 .ToListAsync(cancellationToken);
 
             var scopedUserIds = db.Placements.AsNoTracking()
+                .Where(x => ApplicantRoles.Contains(x.User.Role))
                 .Where(x => x.IsActive && (scope == null
                     || (x.Room.BlockFloor.Building.DormitoryId != null && scope.DormitoryIds.Contains(x.Room.BlockFloor.Building.DormitoryId.Value))
                     || (x.Room.BlockFloor.Building.HousingUnitId != null && scope.HousingUnitIds.Contains(x.Room.BlockFloor.Building.HousingUnitId.Value))))
@@ -90,11 +95,13 @@ public interface IAdminService
                 MaintenanceRoomCount: await rooms.CountAsync(x => x.Status == RoomStatus.Maintenance, cancellationToken),
                 OccupancyRate: totalCapacity == 0 ? 0 : Math.Round((decimal)currentOccupancy / totalCapacity * 100, 2),
                 PendingApplicationCount: await db.Applications.AsNoTracking()
+                    .Where(x => ApplicantRoles.Contains(x.User.Role))
                     .Where(x => scope == null
                         || (scope.DormitoryIds.Count > 0 && x.AccommodationType == AccommodationType.Yurt)
                         || (scope.HousingUnitIds.Count > 0 && x.AccommodationType == AccommodationType.Lojman))
                     .CountAsync(x => x.Status == ApplicationStatus.Pending, cancellationToken),
                 OpenRequestCount: await db.Requests.AsNoTracking()
+                    .Where(x => ApplicantRoles.Contains(x.User.Role))
                     .Where(x => scope == null
                         || (x.Room.BlockFloor.Building.DormitoryId != null && scope.DormitoryIds.Contains(x.Room.BlockFloor.Building.DormitoryId.Value))
                         || (x.Room.BlockFloor.Building.HousingUnitId != null && scope.HousingUnitIds.Contains(x.Room.BlockFloor.Building.HousingUnitId.Value)))
@@ -262,6 +269,7 @@ public interface IAdminService
             var query = db.Placements.AsNoTracking()
                 .Include(x => x.User)
                 .Include(x => x.Room)
+                .Where(x => ApplicantRoles.Contains(x.User.Role))
                 .AsQueryable();
 
             if (scope != null)

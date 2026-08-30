@@ -16,6 +16,8 @@ public class AdminController(
     IAdminService adminService,
     IAccommodationService accommodationService) : ControllerBase
 {
+    private static readonly string[] ApplicantRoles = [AppRoles.Ogrenci, AppRoles.Personel];
+
     // Admin -> null (tum tesisler); Yetkili -> yalnizca atandigi tesisler
     private async Task<FacilityScope?> GetFacilityScopeAsync(CancellationToken cancellationToken)
     {
@@ -128,7 +130,10 @@ public class AdminController(
     public async Task<List<AdminApplicationListItemDto>> Applications([FromQuery] ApplicationStatus? status, CancellationToken cancellationToken)
     {
         var scope = await GetFacilityScopeAsync(cancellationToken);
-        var query = db.Applications.AsNoTracking().Include(x => x.User).AsQueryable();
+        var query = db.Applications.AsNoTracking()
+            .Include(x => x.User)
+            .Where(x => ApplicantRoles.Contains(x.User.Role))
+            .AsQueryable();
         if (status.HasValue)
         {
             query = query.Where(x => x.Status == status.Value);
@@ -159,8 +164,9 @@ public class AdminController(
     [HttpPost("applications/{id:int}/assign")]
     public async Task<IActionResult> AssignApplication(int id, ApplicationDecisionRequest request, CancellationToken cancellationToken)
     {
-        var application = await db.Applications.FindAsync([id], cancellationToken);
+        var application = await db.Applications.Include(x => x.User).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (application is null) return NotFound("Basvuru bulunamadi.");
+        if (!ApplicantRoles.Contains(application.User.Role)) return BadRequest("Yonetici ve yetkili profilleri basvuru akışına dahil edilemez.");
 
         var scope = await GetFacilityScopeAsync(cancellationToken);
         IReadOnlyList<int>? dormIds = scope?.DormitoryIds;
@@ -195,6 +201,7 @@ public class AdminController(
         var query = db.Requests.AsNoTracking()
             .Include(x => x.User)
             .Include(x => x.Room)
+            .Where(x => ApplicantRoles.Contains(x.User.Role))
             .AsQueryable();
 
         if (scope != null)
@@ -254,6 +261,7 @@ public class AdminController(
     {
         var now = DateTime.UtcNow;
         var query = db.Payments.AsNoTracking().Include(x => x.User).AsQueryable();
+        query = query.Where(x => ApplicantRoles.Contains(x.User.Role));
         if (unpaidOnly)
         {
             query = query.Where(x => x.Status == PaymentStatus.Unpaid || x.Status == PaymentStatus.Overdue);
@@ -295,6 +303,13 @@ public class AdminController(
         var scope = await GetFacilityScopeAsync(cancellationToken);
         IReadOnlyList<int>? dormIds = scope?.DormitoryIds;
         IReadOnlyList<int>? unitIds = scope?.HousingUnitIds;
+
+        var userRole = await db.Users.AsNoTracking()
+            .Where(x => x.Id == request.UserId)
+            .Select(x => x.Role)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (userRole is null) return NotFound("Kullanici bulunamadi.");
+        if (!ApplicantRoles.Contains(userRole)) return BadRequest("Yonetici ve yetkili profilleri yerlestirme akışına dahil edilemez.");
 
         if (request.RoomId != 0)
         {
