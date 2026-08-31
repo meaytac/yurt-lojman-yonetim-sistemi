@@ -245,7 +245,7 @@ main {
 }
 #manage.active {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 16px;
 }
 #manage > .toolbar {

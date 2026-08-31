@@ -5,7 +5,6 @@ const state = {
   assignedFacilities: [],
   students: { items: [], page: 1, pageSize: 10, totalCount: 0 },
   applications: [],
-  availableRooms: [],
   studentsWithRooms: [],
   manageRooms: [],
   requests: [],
@@ -17,7 +16,6 @@ const state = {
   listPageSize: 10,
   pages: {
     applications: 1,
-    availableRooms: 1,
     studentsWithRooms: 1,
     manageRooms: 1,
     requests: 1,
@@ -35,10 +33,10 @@ const sectionTitles = {
   dashboard: 'Kontrol Paneli',
   applications: 'Başvuru Yönetimi',
   students: 'Öğrenci Yönetimi',
-  manage: 'Yerleşim & Oda Düzenleme',
+  manage: 'Yerleşim Düzenleme',
+  rooms: 'Odalar',
   operations: 'Operasyon & Görevlendirme',
-  announcements: 'Duyuru Yönetimi',
-  rooms: 'Boş Odalar'
+  announcements: 'Duyuru Yönetimi'
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -87,7 +85,8 @@ function bindShell() {
   });
 
   document.getElementById('studentSearch').addEventListener('input', debounce(() => loadStudents(1), 350));
-  document.getElementById('roomTypeFilter').addEventListener('change', () => { state.pages.availableRooms = 1; loadAvailableRooms(); });
+  document.getElementById('manageRoomSearch').addEventListener('input', () => { state.pages.manageRooms = 1; renderManageRooms(); });
+  document.getElementById('manageRoomStatusFilter').addEventListener('change', () => { state.pages.manageRooms = 1; renderManageRooms(); });
   document.getElementById('requestOpenOnlyFilter').addEventListener('change', () => { state.pages.requests = 1; loadRequests(); });
 
   setInterval(() => {
@@ -103,7 +102,7 @@ async function openApp(token) {
   document.getElementById('yetkiliRole').textContent = 'Yetkili';
   switchSection('dashboard');
   await loadAssignedFacilities();
-  await Promise.allSettled([loadStudents(1), loadApplications(), loadAvailableRooms(), loadManage(), loadOperations(), loadAnnouncements()]);
+  await Promise.allSettled([loadStudents(1), loadApplications(), loadManage(), loadManageRooms(), loadOperations(), loadAnnouncements()]);
   await loadDashboard();
 }
 
@@ -125,9 +124,9 @@ function refreshActiveSection() {
     applications: loadApplications,
     students: () => loadStudents(state.students.page || 1),
     manage: loadManage,
+    rooms: loadManageRooms,
     operations: loadOperations,
-    announcements: loadAnnouncements,
-    rooms: loadAvailableRooms
+    announcements: loadAnnouncements
   };
   refreshers[activeSection]?.();
 }
@@ -193,20 +192,6 @@ async function loadAssignedFacilities() {
     state.assignedFacilities = state.fallbackMode ? [] : await api('/api/yetkili/facilities');
   } catch {
     state.assignedFacilities = [];
-  }
-  syncRoomTypeFilter();
-}
-
-function syncRoomTypeFilter() {
-  const select = document.getElementById('roomTypeFilter');
-  if (!select) return;
-  const current = select.value;
-  const types = [...new Set((state.assignedFacilities || []).map(facility => facility.type))];
-  select.innerHTML = types.length
-    ? types.map(type => `<option value="${type}" ${type === current ? 'selected' : ''}>${type}</option>`).join('')
-    : '<option value="Yurt">Yurt</option>';
-  if (types.length && !types.includes(select.value)) {
-    select.value = types[0];
   }
 }
 
@@ -429,7 +414,7 @@ async function submitApplicationAssign(event) {
     state.applications = state.applications.filter(item => item.id !== Number(data.applicationId));
     renderApplications();
     showApplicationFeedback(result?.message || 'Başvuru başarıyla onaylandı ve yerleştirildi.');
-    await Promise.allSettled([loadManage(), loadAvailableRooms(), loadDashboard()]);
+    await Promise.allSettled([loadManage(), loadManageRooms(), loadDashboard()]);
   } catch (error) {
     toast(error.message || 'Başvuru onaylanamadı.', true);
   }
@@ -457,32 +442,6 @@ function showApplicationFeedback(message) {
   if (!host) return;
   host.textContent = message;
   host.classList.add('success');
-}
-
-async function loadAvailableRooms() {
-  try {
-    const type = document.getElementById('roomTypeFilter').value;
-    state.availableRooms = state.fallbackMode ? [] : await api(`/api/yetkili/rooms/available?type=${type}`);
-  } catch {
-    state.availableRooms = [];
-  }
-  renderAvailableRooms();
-}
-
-function renderAvailableRooms() {
-  const page = paginateItems(state.availableRooms, 'availableRooms');
-  document.getElementById('availableRoomRows').innerHTML = emptyTable(page.items, item => `
-    <tr>
-      <td><strong>${escapeHtml(item.roomNumber)}</strong></td>
-      <td>${escapeHtml(item.facilityName)}</td>
-      <td>${escapeHtml(item.blockName)} / ${item.floorNumber}</td>
-      <td>${item.capacity}</td>
-      <td>${item.currentOccupancy} / ${item.capacity}</td>
-      <td>${money(item.price)}</td>
-      <td>${getStatusBadge(item.status)}</td>
-    </tr>
-  `);
-  renderPager('availableRoomPager', page.page, page.totalPages, next => { state.pages.availableRooms = next; renderAvailableRooms(); });
 }
 
 function studentForm(item = null) {
@@ -599,7 +558,7 @@ function openNamedModal(name) {
 
 // ============ YERLESIM DUZENLEME ============
 function loadManage() {
-  return Promise.allSettled([loadStudentsWithRooms(), loadManageRooms()]);
+  return loadStudentsWithRooms();
 }
 
 async function loadStudentsWithRooms() {
@@ -643,7 +602,20 @@ async function loadManageRooms() {
 }
 
 function renderManageRooms() {
-  const page = paginateItems(state.manageRooms, 'manageRooms');
+  const search = document.getElementById('manageRoomSearch')?.value.trim().toLocaleLowerCase('tr-TR') || '';
+  const status = document.getElementById('manageRoomStatusFilter')?.value || '';
+  const rooms = (state.manageRooms || []).filter(item => {
+    const haystack = [
+      item.roomNumber,
+      item.facilityName,
+      item.blockName,
+      item.floorNumber,
+      roomDisplayStatus(item.status)
+    ].join(' ').toLocaleLowerCase('tr-TR');
+
+    return (!search || haystack.includes(search)) && (!status || item.status === status);
+  });
+  const page = paginateItems(rooms, 'manageRooms');
   document.getElementById('manageRoomRows').innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.roomNumber)}</strong></td>
@@ -701,7 +673,7 @@ async function submitChangeRoom(event) {
     });
     closeModalIfOpen();
     toast(result?.message || 'Oda değişikliği tamamlandı.');
-    await Promise.allSettled([loadManage(), loadAvailableRooms(), loadDashboard()]);
+    await Promise.allSettled([loadManage(), loadManageRooms(), loadDashboard()]);
   } catch (error) {
     toast(error.message || 'Oda değiştirilemedi.', true);
   }
@@ -714,7 +686,7 @@ async function checkoutPlacement(placementId) {
     state.studentsWithRooms = state.studentsWithRooms.filter(item => item.placementId !== placementId);
     renderStudentsWithRooms();
     toast(result?.message || 'Yerleşim sonlandırıldı.');
-  await Promise.allSettled([loadStudents(state.students.page || 1), loadManageRooms(), loadAvailableRooms(), loadDashboard()]);
+    await Promise.allSettled([loadStudents(state.students.page || 1), loadManageRooms(), loadDashboard()]);
   } catch (error) {
     toast(error.message || 'Çıkış işlemi tamamlanamadı.', true);
   }

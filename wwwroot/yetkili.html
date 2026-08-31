@@ -21,9 +21,9 @@
         <button class="nav-item" data-section="applications"><span>📝</span>Başvurular</button>
         <button class="nav-item" data-section="students"><span>👨‍🎓</span>Öğrenciler</button>
         <button class="nav-item" data-section="manage"><span>🛏️</span>Yerleşim Düzenleme</button>
+        <button class="nav-item" data-section="rooms"><span>🚪</span>Odalar</button>
         <button class="nav-item" data-section="operations"><span>🛠️</span>Operasyon &amp; Görevlendirme</button>
         <button class="nav-item" data-section="announcements"><span>📢</span>Duyurular</button>
-        <button class="nav-item" data-section="rooms"><span>🚪</span>Boş Odalar</button>
         <button class="nav-item danger" id="logoutBtn"><span>🚪</span>Çıkış Yap</button>
       </nav>
     </aside>
@@ -119,43 +119,11 @@
           <div id="studentPager" class="pager"></div>
         </section>
 
-        <section id="rooms" class="page-section">
-          <div class="toolbar">
-            <div>
-              <h2>Boş Odalar</h2>
-              <p>Öğrenci yerleştirmek için müsait odalar.</p>
-            </div>
-            <div class="toolbar-actions">
-              <select id="roomTypeFilter">
-                <option value="Yurt">Yurt</option>
-                <option value="Lojman">Lojman</option>
-              </select>
-            </div>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Oda</th>
-                  <th>Yurt</th>
-                  <th>Blok/Kat</th>
-                  <th>Kapasite</th>
-                  <th>Doluluk</th>
-                  <th>Fiyat</th>
-                  <th>Durum</th>
-                </tr>
-              </thead>
-              <tbody id="availableRoomRows"></tbody>
-            </table>
-          </div>
-          <div id="availableRoomPager" class="pager"></div>
-        </section>
-
         <section id="manage" class="page-section">
           <div class="toolbar">
             <div>
-              <h2>Yerleşim &amp; Oda Düzenleme</h2>
-              <p>Size atanan yurtlardaki tüm öğrencileri, kayıtlı oldukları odalarla birlikte görün ve odaları düzenleyin.</p>
+              <h2>Yerleşim Düzenleme</h2>
+              <p>Size atanan tesislerde konaklayan öğrencileri görün, oda değişikliği veya çıkış işlemlerini yönetin.</p>
             </div>
           </div>
 
@@ -185,31 +153,43 @@
             </div>
             <div id="studentRoomPager" class="pager"></div>
           </article>
+        </section>
 
-          <article class="panel">
-            <div class="panel-head">
+        <section id="rooms" class="page-section">
+          <div class="toolbar">
+            <div>
               <h2>Odalar</h2>
-              <small class="muted">Atanmış yurtlardaki tüm odalar; oda numarası, kapasite, fiyat ve durum düzenlenebilir.</small>
+              <p>Size atanmış tesislerdeki oda numarası, blok/kat, kapasite, doluluk, fiyat ve durum bilgilerini yönetin.</p>
             </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Oda</th>
-                    <th>Yurt</th>
-                    <th>Blok/Kat</th>
-                    <th>Kapasite</th>
-                    <th>Doluluk</th>
-                    <th>Fiyat</th>
-                    <th>Durum</th>
-                    <th>Aksiyon</th>
-                  </tr>
-                </thead>
+            <div class="toolbar-actions">
+              <input id="manageRoomSearch" type="search" placeholder="Oda, tesis veya blok ara">
+              <select id="manageRoomStatusFilter">
+                <option value="">Tüm durumlar</option>
+                <option value="Empty">Boş</option>
+                <option value="PartiallyFull">Kısmen Dolu</option>
+                <option value="Full">Dolu</option>
+                <option value="Maintenance">Bakımda</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Oda</th>
+                  <th>Tesis</th>
+                  <th>Blok/Kat</th>
+                  <th>Kapasite</th>
+                  <th>Doluluk</th>
+                  <th>Fiyat</th>
+                  <th>Durum</th>
+                  <th>Aksiyon</th>
+                </tr>
+              </thead>
               <tbody id="manageRoomRows"></tbody>
             </table>
-            </div>
-            <div id="manageRoomPager" class="pager"></div>
-          </article>
+          </div>
+          <div id="manageRoomPager" class="pager"></div>
         </section>
 
         <section id="operations" class="page-section">
