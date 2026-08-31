@@ -188,4 +188,52 @@ public class YetkiliController(IYetkiliService yetkiliService) : ControllerBase
             return BadRequest(new { success = false, message = ex.Message });
         }
     }
+
+    [HttpGet("requests")]
+    public Task<IReadOnlyList<AdminRequestListItemDto>> GetRequests([FromQuery] bool openOnly = false, CancellationToken cancellationToken = default)
+        => yetkiliService.GetRequestsAsync(CurrentYetkiliId(), openOnly, cancellationToken);
+
+    [HttpPatch("requests/{id:int}/status")]
+    public async Task<IActionResult> SetRequestStatus(int id, MaintenanceStatusUpdateRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await yetkiliService.SetRequestStatusAsync(CurrentYetkiliId(), id, request, cancellationToken);
+            return Ok(new { success = true, message = "Talep durumu güncellendi." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpGet("staff-assignments")]
+    public Task<IReadOnlyList<StaffAssignmentResponse>> GetStaffAssignments(CancellationToken cancellationToken)
+        => yetkiliService.GetStaffAssignmentsAsync(CurrentYetkiliId(), cancellationToken);
+
+    [HttpPost("staff-assignments")]
+    public async Task<IActionResult> CreateStaffAssignment(StaffAssignmentCreateRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var assignment = await yetkiliService.CreateStaffAssignmentAsync(CurrentYetkiliId(), request, cancellationToken);
+            return Ok(new { success = true, message = "Görev personele atandı.", assignment });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpGet("fault-reports")]
+    public Task<IReadOnlyList<AdminFaultReportListItemDto>> GetFaultReports(CancellationToken cancellationToken)
+        => yetkiliService.GetFaultReportsAsync(CurrentYetkiliId(), cancellationToken);
+
+    [HttpGet("facility-assignments")]
+    public Task<IReadOnlyList<UserFacilityAssignmentDto>> GetScopedFacilityAssignments(CancellationToken cancellationToken)
+        => yetkiliService.GetScopedFacilityAssignmentsAsync(CurrentYetkiliId(), cancellationToken);
 }

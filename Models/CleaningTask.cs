@@ -28,6 +28,10 @@ public class StaffAssignment
 {
     public int Id { get; set; }
     [Required, MaxLength(30)] public string AssignedRole { get; set; } = string.Empty;
+    public int? DormitoryId { get; set; }
+    public Dormitory? Dormitory { get; set; }
+    public int? HousingUnitId { get; set; }
+    public HousingUnit? HousingUnit { get; set; }
     [Required, MaxLength(120)] public string Title { get; set; } = string.Empty;
     [Required, MaxLength(160)] public string Location { get; set; } = string.Empty;
     [MaxLength(1000)] public string? Details { get; set; }
@@ -42,6 +46,10 @@ public class StaffAssignment
 public class FaultReport
 {
     public int Id { get; set; }
+    public int? DormitoryId { get; set; }
+    public Dormitory? Dormitory { get; set; }
+    public int? HousingUnitId { get; set; }
+    public HousingUnit? HousingUnit { get; set; }
     [Required, MaxLength(100)] public string Category { get; set; } = string.Empty;
     [Required, MaxLength(160)] public string Location { get; set; } = string.Empty;
     [Required, MaxLength(1000)] public string Description { get; set; } = string.Empty;

@@ -5,7 +5,22 @@ namespace yurt_lojman_yonetim_sistemi.DTOs;
 public record StaffMaintenanceRequestResponse(int Id, string RoomNumber, string Category, string Description, string Status, DateTime CreatedAt, int? RepairPeriodDays, DateTime? TargetRepairDate, bool IsManagerAssignment = false, string? Priority = null);
 public record CleaningTaskResponse(int Id, string TaskType, string Location, string? Notes, bool IsCompleted, DateTime CreatedAt, DateTime? CompletedAt);
 public record PeriodicMaintenanceResponse(int Id, string SystemName, string Location, int IntervalDays, DateTime NextMaintenanceDate, DateTime? LastMaintenanceDate, string? Notes);
-public record StaffAssignmentResponse(int Id, string AssignedRole, string Title, string Location, string? Details, string Priority, bool IsMaintenanceRequest, bool IsCompleted, DateTime? DueDate, DateTime CreatedAt, DateTime? CompletedAt);
+public record StaffAssignmentResponse(
+    int Id,
+    string AssignedRole,
+    string Title,
+    string Location,
+    string? Details,
+    string Priority,
+    bool IsMaintenanceRequest,
+    bool IsCompleted,
+    DateTime? DueDate,
+    DateTime CreatedAt,
+    DateTime? CompletedAt,
+    int? DormitoryId = null,
+    string? DormitoryName = null,
+    int? HousingUnitId = null,
+    string? HousingUnitName = null);
 
 public class PeriodicMaintenanceCreateRequest
 {
@@ -19,6 +34,8 @@ public class PeriodicMaintenanceCreateRequest
 public class StaffAssignmentCreateRequest
 {
     [Required] public string AssignedRole { get; set; } = string.Empty;
+    public int? DormitoryId { get; set; }
+    public int? HousingUnitId { get; set; }
     [Required, MaxLength(120)] public string Title { get; set; } = string.Empty;
     [Required, MaxLength(160)] public string Location { get; set; } = string.Empty;
     [MaxLength(1000)] public string? Details { get; set; }
@@ -29,6 +46,8 @@ public class StaffAssignmentCreateRequest
 
 public class FaultReportCreateRequest
 {
+    public int? DormitoryId { get; set; }
+    public int? HousingUnitId { get; set; }
     [Required, MaxLength(100)] public string Category { get; set; } = string.Empty;
     [Required, MaxLength(160)] public string Location { get; set; } = string.Empty;
     [Required, MaxLength(1000)] public string Description { get; set; } = string.Empty;

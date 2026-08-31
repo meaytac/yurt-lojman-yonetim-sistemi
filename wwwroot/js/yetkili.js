@@ -8,6 +8,10 @@ const state = {
   availableRooms: [],
   studentsWithRooms: [],
   manageRooms: [],
+  requests: [],
+  staffAssignments: [],
+  faultReports: [],
+  userFacilityAssignments: [],
   announcements: [],
   fallbackMode: false,
   listPageSize: 10,
@@ -16,6 +20,10 @@ const state = {
     availableRooms: 1,
     studentsWithRooms: 1,
     manageRooms: 1,
+    requests: 1,
+    staffAssignments: 1,
+    faultReports: 1,
+    userFacilityAssignments: 1,
     announcements: 1
   }
 };
@@ -28,6 +36,7 @@ const sectionTitles = {
   applications: 'Başvuru Yönetimi',
   students: 'Öğrenci Yönetimi',
   manage: 'Yerleşim & Oda Düzenleme',
+  operations: 'Operasyon & Görevlendirme',
   announcements: 'Duyuru Yönetimi',
   rooms: 'Boş Odalar'
 };
@@ -79,6 +88,7 @@ function bindShell() {
 
   document.getElementById('studentSearch').addEventListener('input', debounce(() => loadStudents(1), 350));
   document.getElementById('roomTypeFilter').addEventListener('change', () => { state.pages.availableRooms = 1; loadAvailableRooms(); });
+  document.getElementById('requestOpenOnlyFilter').addEventListener('change', () => { state.pages.requests = 1; loadRequests(); });
 
   setInterval(() => {
     if (document.hidden) return;
@@ -92,7 +102,7 @@ async function openApp(token) {
   document.getElementById('yetkiliName').textContent = claims.fullName || claims.name || 'Yetkili';
   document.getElementById('yetkiliRole').textContent = 'Yetkili';
   switchSection('dashboard');
-  await Promise.allSettled([loadAssignedFacilities(), loadStudents(1), loadApplications(), loadAvailableRooms(), loadManage(), loadAnnouncements()]);
+  await Promise.allSettled([loadAssignedFacilities(), loadStudents(1), loadApplications(), loadAvailableRooms(), loadManage(), loadOperations(), loadAnnouncements()]);
   await loadDashboard();
 }
 
@@ -114,6 +124,7 @@ function refreshActiveSection() {
     applications: loadApplications,
     students: () => loadStudents(state.students.page || 1),
     manage: loadManage,
+    operations: loadOperations,
     announcements: loadAnnouncements,
     rooms: loadAvailableRooms
   };
@@ -578,6 +589,7 @@ function openNamedModal(name) {
   const forms = {
     studentModal: studentForm(),
     roomEditModal: roomEditForm(),
+    staffAssignmentModal: staffAssignmentForm(),
     announcementModal: announcementForm()
   };
   if (!forms[name]) return;
@@ -701,7 +713,7 @@ async function checkoutPlacement(placementId) {
     state.studentsWithRooms = state.studentsWithRooms.filter(item => item.placementId !== placementId);
     renderStudentsWithRooms();
     toast(result?.message || 'Yerleşim sonlandırıldı.');
-    await Promise.allSettled([loadStudents(state.students.page || 1), loadManageRooms(), loadAvailableRooms(), loadDashboard()]);
+  await Promise.allSettled([loadStudents(state.students.page || 1), loadManageRooms(), loadAvailableRooms(), loadDashboard()]);
   } catch (error) {
     toast(error.message || 'Çıkış işlemi tamamlanamadı.', true);
   }
@@ -746,6 +758,196 @@ async function submitRoomEdit(event) {
   } catch (error) {
     toast(error.message || 'Oda güncellenemedi.', true);
   }
+}
+
+// ============ OPERASYONLAR ============
+function loadOperations() {
+  return Promise.allSettled([loadRequests(), loadStaffAssignments(), loadFaultReports(), loadUserFacilityAssignments()]);
+}
+
+async function loadRequests() {
+  try {
+    const openOnly = document.getElementById('requestOpenOnlyFilter')?.value === 'open';
+    state.requests = await api(`/api/yetkili/requests?openOnly=${openOnly}`);
+  } catch {
+    state.requests = [];
+  }
+  renderRequests();
+}
+
+function renderRequests() {
+  const page = paginateItems(state.requests, 'requests');
+  document.getElementById('requestRows').innerHTML = emptyTable(page.items, item => `
+    <tr>
+      <td><strong>${escapeHtml(item.fullName)}</strong></td>
+      <td>${escapeHtml(item.roomNumber)}</td>
+      <td>${escapeHtml(item.category)}</td>
+      <td class="desc-cell">${escapeHtml(item.description)}</td>
+      <td>${date(item.createdAt)}</td>
+      <td>${getStatusBadge(item.status)}</td>
+      <td>
+        <select onchange="setRequestStatus(${item.id}, this.value)">
+          ${['Open', 'InProgress', 'Resolved', 'Rejected'].map(status => `<option value="${status}" ${status === item.status ? 'selected' : ''}>${requestStatusDisplay(status)}</option>`).join('')}
+        </select>
+      </td>
+    </tr>
+  `);
+  renderPager('requestPager', page.page, page.totalPages, next => { state.pages.requests = next; renderRequests(); });
+}
+
+async function setRequestStatus(id, status) {
+  try {
+    const result = await api(`/api/yetkili/requests/${id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    });
+    const item = state.requests.find(request => request.id === id);
+    if (item) item.status = status;
+    renderRequests();
+    toast(result?.message || 'Talep durumu güncellendi.');
+    await loadDashboard();
+  } catch (error) {
+    toast(error.message || 'Talep durumu güncellenemedi.', true);
+    await loadRequests();
+  }
+}
+
+function staffAssignmentForm() {
+  const facilities = state.assignedFacilities || [];
+  const facilityOptions = facilities.map(facility => `<option value="${facility.type}:${facility.id}">${escapeHtml(facility.name)} (${escapeHtml(facility.type)})</option>`).join('');
+  return {
+    title: 'Personele Görev Ata',
+    html: `<form id="staffAssignmentForm" class="form-grid">
+      <label class="full">Tesis<select name="facilityKey" required>${facilityOptions || '<option value="">Size atanmış tesis yok</option>'}</select></label>
+      <label>Rol<select name="assignedRole" required>
+        <option value="TeknikPersonel">Teknik Personel</option>
+        <option value="TemizlikPersoneli">Temizlik Personeli</option>
+      </select></label>
+      <label>Öncelik<select name="priority" required>
+        <option value="Normal">Normal</option>
+        <option value="Yüksek">Yüksek</option>
+        <option value="Acil">Acil</option>
+      </select></label>
+      <label class="full">Başlık<input name="title" required maxlength="120" placeholder="Görev başlığı"></label>
+      <label class="full">Konum<input name="location" required maxlength="160" placeholder="Blok, kat, oda veya ortak alan"></label>
+      <label class="full">Detay<textarea name="details" maxlength="1000" placeholder="Görev detayı"></textarea></label>
+      <label>Termin<input name="dueDate" type="date"></label>
+      <label class="inline-check full"><input name="isMaintenanceRequest" type="checkbox"> Arıza iş emri olarak işaretle</label>
+      <button class="primary-btn full" type="submit">Görevi Ata</button>
+    </form>`,
+    bind: () => document.getElementById('staffAssignmentForm').addEventListener('submit', submitStaffAssignment)
+  };
+}
+
+async function submitStaffAssignment(event) {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  const facility = parseFacilityKey(data.facilityKey);
+  if (!facility) {
+    toast('Görev için tesis seçin.', true);
+    return;
+  }
+
+  try {
+    const result = await api('/api/yetkili/staff-assignments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        assignedRole: data.assignedRole,
+        dormitoryId: facility.type === 'Yurt' ? facility.id : null,
+        housingUnitId: facility.type === 'Lojman' ? facility.id : null,
+        title: data.title,
+        location: data.location,
+        details: data.details || null,
+        priority: data.priority,
+        isMaintenanceRequest: data.isMaintenanceRequest === 'on',
+        dueDate: data.dueDate || null
+      })
+    });
+    closeModalIfOpen();
+    if (result?.assignment) {
+      state.staffAssignments.unshift(result.assignment);
+      renderStaffAssignments();
+    } else {
+      await loadStaffAssignments();
+    }
+    toast(result?.message || 'Görev personele atandı.');
+  } catch (error) {
+    toast(error.message || 'Görev atanamadı.', true);
+  }
+}
+
+async function loadStaffAssignments() {
+  try {
+    state.staffAssignments = await api('/api/yetkili/staff-assignments');
+  } catch {
+    state.staffAssignments = [];
+  }
+  renderStaffAssignments();
+}
+
+function renderStaffAssignments() {
+  const page = paginateItems(state.staffAssignments, 'staffAssignments');
+  document.getElementById('assignmentRows').innerHTML = emptyTable(page.items, item => `
+    <tr>
+      <td><strong>${escapeHtml(item.title)}</strong><br><small>${escapeHtml(item.details || '-')}</small></td>
+      <td>${roleDisplay(item.assignedRole)}${item.isMaintenanceRequest ? '<br><small>Arıza iş emri</small>' : ''}</td>
+      <td>${escapeHtml(item.dormitoryName || item.housingUnitName || '-')}</td>
+      <td>${escapeHtml(item.location)}</td>
+      <td>${escapeHtml(item.priority)}</td>
+      <td>${item.dueDate ? date(item.dueDate) : '-'}</td>
+      <td>${item.isCompleted ? '<span class="badge badge-success">Tamamlandı</span>' : '<span class="badge badge-warning">Bekliyor</span>'}</td>
+    </tr>
+  `);
+  renderPager('assignmentPager', page.page, page.totalPages, next => { state.pages.staffAssignments = next; renderStaffAssignments(); });
+}
+
+async function loadFaultReports() {
+  try {
+    state.faultReports = await api('/api/yetkili/fault-reports');
+  } catch {
+    state.faultReports = [];
+  }
+  renderFaultReports();
+}
+
+function renderFaultReports() {
+  const page = paginateItems(state.faultReports, 'faultReports');
+  document.getElementById('faultReportList').innerHTML = emptyOr(page.items, item => `
+    <div class="activity-item">
+      <div>
+        <strong>${escapeHtml(item.category)} · ${escapeHtml(item.dormitoryName || item.housingUnitName || '-')}</strong>
+        <small>${escapeHtml(item.location)} - ${escapeHtml(item.description)}</small>
+      </div>
+      <small>${date(item.createdAt)}</small>
+    </div>
+  `);
+  renderPager('faultReportPager', page.page, page.totalPages, next => { state.pages.faultReports = next; renderFaultReports(); });
+}
+
+async function loadUserFacilityAssignments() {
+  try {
+    state.userFacilityAssignments = await api('/api/yetkili/facility-assignments');
+  } catch {
+    state.userFacilityAssignments = [];
+  }
+  renderUserFacilityAssignments();
+}
+
+function renderUserFacilityAssignments() {
+  const page = paginateItems(state.userFacilityAssignments, 'userFacilityAssignments');
+  document.getElementById('facilityAssignmentRows').innerHTML = emptyTable(page.items, item => `
+    <tr>
+      <td><strong>${escapeHtml(item.userFullName)}</strong></td>
+      <td>${roleDisplay(item.userRole)}</td>
+      <td>${escapeHtml(item.dormitoryName || item.housingUnitName || '-')}</td>
+      <td>${escapeHtml(item.assignedByName)}</td>
+      <td>${date(item.assignedAt)}</td>
+      <td>${item.isActive ? '<span class="badge badge-success">Aktif</span>' : '<span class="badge badge-muted">Pasif</span>'}</td>
+    </tr>
+  `);
+  renderPager('facilityAssignmentPager', page.page, page.totalPages, next => { state.pages.userFacilityAssignments = next; renderUserFacilityAssignments(); });
 }
 
 // ============ DUYURULAR ============
@@ -922,6 +1124,16 @@ function getStatusBadge(status) {
 
 function roomDisplayStatus(status) {
   const map = { Empty: 'Boş', PartiallyFull: 'Kısmen Dolu', Full: 'Dolu', Maintenance: 'Bakımda' };
+  return map[status] || status;
+}
+
+function requestStatusDisplay(status) {
+  const map = {
+    Open: 'Açık',
+    InProgress: 'İşlemde',
+    Resolved: 'Çözüldü',
+    Rejected: 'Reddedildi'
+  };
   return map[status] || status;
 }
 

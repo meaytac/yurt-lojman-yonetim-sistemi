@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using yurt_lojman_yonetim_sistemi.Data;
 using yurt_lojman_yonetim_sistemi.DTOs;
 using yurt_lojman_yonetim_sistemi.Models;
+using yurt_lojman_yonetim_sistemi.Services;
 
 namespace yurt_lojman_yonetim_sistemi.Controllers;
 
@@ -12,11 +13,37 @@ namespace yurt_lojman_yonetim_sistemi.Controllers;
 [Authorize(Roles = $"{AppRoles.TeknikPersonel},{AppRoles.TemizlikPersoneli},{AppRoles.Yetkili}")]
 public class StaffController(AppDbContext db) : ControllerBase
 {
+    private Guid CurrentUserId()
+        => Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+
+    private async Task<FacilityScope> GetFacilityScopeAsync()
+    {
+        var userId = CurrentUserId();
+        var assignments = await db.UserFacilityAssignments.AsNoTracking()
+            .Where(x => x.UserId == userId && x.IsActive)
+            .ToListAsync();
+
+        return new FacilityScope(
+            assignments.Where(x => x.DormitoryId.HasValue).Select(x => x.DormitoryId!.Value).ToList(),
+            assignments.Where(x => x.HousingUnitId.HasValue).Select(x => x.HousingUnitId!.Value).ToList());
+    }
+
+    private static bool StaffAssignmentInScope(StaffAssignment assignment, FacilityScope scope)
+        => (assignment.DormitoryId.HasValue && scope.DormitoryIds.Contains(assignment.DormitoryId.Value))
+            || (assignment.HousingUnitId.HasValue && scope.HousingUnitIds.Contains(assignment.HousingUnitId.Value));
+
+    private IQueryable<StaffAssignment> ScopedStaffAssignments(FacilityScope scope)
+        => db.StaffAssignments.AsNoTracking()
+            .Include(x => x.Dormitory)
+            .Include(x => x.HousingUnit)
+            .Where(x => (x.DormitoryId.HasValue && scope.DormitoryIds.Contains(x.DormitoryId.Value)) ||
+                        (x.HousingUnitId.HasValue && scope.HousingUnitIds.Contains(x.HousingUnitId.Value)));
+
     [HttpGet("duty-location")]
     [Authorize(Roles = $"{AppRoles.TeknikPersonel},{AppRoles.TemizlikPersoneli},{AppRoles.Yetkili}")]
     public async Task<ActionResult<UserFacilityAssignmentDto>> GetDutyLocation()
     {
-        var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        var userId = CurrentUserId();
         var assignment = await db.UserFacilityAssignments.AsNoTracking()
             .Include(x => x.Dormitory)
             .Include(x => x.HousingUnit)
@@ -47,10 +74,13 @@ public class StaffController(AppDbContext db) : ControllerBase
     [Authorize(Roles = AppRoles.TeknikPersonel)]
     public async Task<List<StaffMaintenanceRequestResponse>> GetMaintenanceRequests()
     {
+        var scope = await GetFacilityScopeAsync();
         var residentRequests = await db.Requests.AsNoTracking().Include(x => x.Room)
+            .Where(x => (x.Room.BlockFloor.Building.DormitoryId.HasValue && scope.DormitoryIds.Contains(x.Room.BlockFloor.Building.DormitoryId.Value)) ||
+                        (x.Room.BlockFloor.Building.HousingUnitId.HasValue && scope.HousingUnitIds.Contains(x.Room.BlockFloor.Building.HousingUnitId.Value)))
             .Select(x => new StaffMaintenanceRequestResponse(x.Id, x.Room.RoomNumber, x.Category, x.Description, x.Status.ToString(), x.CreatedAt, x.RepairPeriodDays, x.TargetRepairDate))
             .ToListAsync();
-        var managerAssignments = await db.StaffAssignments.AsNoTracking()
+        var managerAssignments = await ScopedStaffAssignments(scope)
             .Where(x => x.AssignedRole == AppRoles.TeknikPersonel && x.IsMaintenanceRequest)
             .Select(x => new StaffMaintenanceRequestResponse(-x.Id, x.Location, x.Title, x.Details ?? string.Empty, x.IsCompleted ? "Resolved" : "Open", x.CreatedAt, null, x.DueDate, true, x.Priority))
             .ToListAsync();
@@ -61,8 +91,12 @@ public class StaffController(AppDbContext db) : ControllerBase
     [Authorize(Roles = AppRoles.TeknikPersonel)]
     public async Task<IActionResult> ScheduleRepair(int id, RepairScheduleUpdateRequest request)
     {
-        var item = await db.Requests.FindAsync(id);
+        var scope = await GetFacilityScopeAsync();
+        var item = await db.Requests.Include(x => x.Room).ThenInclude(x => x.BlockFloor).ThenInclude(x => x.Building).FirstOrDefaultAsync(x => x.Id == id);
         if (item is null) return NotFound();
+        var inScope = (item.Room.BlockFloor.Building.DormitoryId.HasValue && scope.DormitoryIds.Contains(item.Room.BlockFloor.Building.DormitoryId.Value)) ||
+            (item.Room.BlockFloor.Building.HousingUnitId.HasValue && scope.HousingUnitIds.Contains(item.Room.BlockFloor.Building.HousingUnitId.Value));
+        if (!inScope) return Forbid();
         if (item.Status == RequestStatus.Resolved) return BadRequest("Çözülmüş arıza için süre atanamaz.");
         item.RepairPeriodDays = request.RepairPeriodDays;
         item.TargetRepairDate = DateTime.UtcNow.Date.AddDays(request.RepairPeriodDays);
@@ -74,10 +108,12 @@ public class StaffController(AppDbContext db) : ControllerBase
     [HttpPatch("assignments/{id:int}/complete")]
     public async Task<IActionResult> CompleteAssignment(int id)
     {
+        var scope = await GetFacilityScopeAsync();
         var item = await db.StaffAssignments.FindAsync(id);
         if (item is null) return NotFound();
         var currentRole = User.IsInRole(AppRoles.TeknikPersonel) ? AppRoles.TeknikPersonel : AppRoles.TemizlikPersoneli;
         if (item.AssignedRole != currentRole) return Forbid();
+        if (!StaffAssignmentInScope(item, scope)) return Forbid();
         item.IsCompleted = true;
         item.CompletedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
@@ -85,19 +121,43 @@ public class StaffController(AppDbContext db) : ControllerBase
     }
 
     [HttpGet("assignments")]
-    public Task<List<StaffAssignmentResponse>> GetAssignments()
+    public async Task<List<StaffAssignmentResponse>> GetAssignments()
     {
+        var scope = await GetFacilityScopeAsync();
         var currentRole = User.IsInRole(AppRoles.TeknikPersonel) ? AppRoles.TeknikPersonel : AppRoles.TemizlikPersoneli;
-        return db.StaffAssignments.AsNoTracking().Where(x => x.AssignedRole == currentRole).OrderBy(x => x.IsCompleted).ThenBy(x => x.DueDate)
-            .Select(x => new StaffAssignmentResponse(x.Id, x.AssignedRole, x.Title, x.Location, x.Details, x.Priority, x.IsMaintenanceRequest, x.IsCompleted, x.DueDate, x.CreatedAt, x.CompletedAt)).ToListAsync();
+        return await ScopedStaffAssignments(scope)
+            .Where(x => x.AssignedRole == currentRole)
+            .OrderBy(x => x.IsCompleted)
+            .ThenBy(x => x.DueDate)
+            .Select(x => new StaffAssignmentResponse(
+                x.Id,
+                x.AssignedRole,
+                x.Title,
+                x.Location,
+                x.Details,
+                x.Priority,
+                x.IsMaintenanceRequest,
+                x.IsCompleted,
+                x.DueDate,
+                x.CreatedAt,
+                x.CompletedAt,
+                x.DormitoryId,
+                x.Dormitory != null ? x.Dormitory.Name : null,
+                x.HousingUnitId,
+                x.HousingUnit != null ? x.HousingUnit.Name : null))
+            .ToListAsync();
     }
 
     [HttpPatch("maintenance-requests/{id:int}/resolve")]
     [Authorize(Roles = AppRoles.TeknikPersonel)]
     public async Task<IActionResult> ResolveRepair(int id)
     {
-        var item = await db.Requests.FindAsync(id);
+        var scope = await GetFacilityScopeAsync();
+        var item = await db.Requests.Include(x => x.Room).ThenInclude(x => x.BlockFloor).ThenInclude(x => x.Building).FirstOrDefaultAsync(x => x.Id == id);
         if (item is null) return NotFound();
+        var inScope = (item.Room.BlockFloor.Building.DormitoryId.HasValue && scope.DormitoryIds.Contains(item.Room.BlockFloor.Building.DormitoryId.Value)) ||
+            (item.Room.BlockFloor.Building.HousingUnitId.HasValue && scope.HousingUnitIds.Contains(item.Room.BlockFloor.Building.HousingUnitId.Value));
+        if (!inScope) return Forbid();
         item.Status = RequestStatus.Resolved;
         item.ResolvedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
@@ -142,7 +202,14 @@ public class StaffController(AppDbContext db) : ControllerBase
     [Authorize(Roles = AppRoles.TemizlikPersoneli)]
     public async Task<IActionResult> CreateFaultReport(FaultReportCreateRequest request)
     {
-        db.FaultReports.Add(new FaultReport { Category = request.Category, Location = request.Location, Description = request.Description });
+        if (request.DormitoryId.HasValue && request.HousingUnitId.HasValue) return BadRequest("Yalnızca yurt veya lojmandan biri seçilebilir.");
+        var scope = await GetFacilityScopeAsync();
+        var dormitoryId = request.DormitoryId ?? scope.DormitoryIds.FirstOrDefault();
+        var housingUnitId = request.HousingUnitId ?? (dormitoryId == 0 ? scope.HousingUnitIds.FirstOrDefault() : 0);
+        if (dormitoryId == 0 && housingUnitId == 0) return BadRequest("Görev yeri atanmamış.");
+        if (request.DormitoryId.HasValue && !scope.DormitoryIds.Contains(request.DormitoryId.Value)) return Forbid();
+        if (request.HousingUnitId.HasValue && !scope.HousingUnitIds.Contains(request.HousingUnitId.Value)) return Forbid();
+        db.FaultReports.Add(new FaultReport { DormitoryId = dormitoryId == 0 ? null : dormitoryId, HousingUnitId = housingUnitId == 0 ? null : housingUnitId, Category = request.Category, Location = request.Location, Description = request.Description });
         await db.SaveChangesAsync();
         return NoContent();
     }

@@ -41,4 +41,8 @@ public record AdminFaultReportListItemDto(
     string Category,
     string Location,
     string Description,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    int? DormitoryId = null,
+    string? DormitoryName = null,
+    int? HousingUnitId = null,
+    string? HousingUnitName = null);

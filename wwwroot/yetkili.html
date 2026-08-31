@@ -21,6 +21,7 @@
         <button class="nav-item" data-section="applications"><span>📝</span>Başvurular</button>
         <button class="nav-item" data-section="students"><span>👨‍🎓</span>Öğrenciler</button>
         <button class="nav-item" data-section="manage"><span>🛏️</span>Yerleşim Düzenleme</button>
+        <button class="nav-item" data-section="operations"><span>🛠️</span>Operasyon &amp; Görevlendirme</button>
         <button class="nav-item" data-section="announcements"><span>📢</span>Duyurular</button>
         <button class="nav-item" data-section="rooms"><span>🚪</span>Boş Odalar</button>
         <button class="nav-item danger" id="logoutBtn"><span>🚪</span>Çıkış Yap</button>
@@ -208,6 +209,102 @@
             </table>
             </div>
             <div id="manageRoomPager" class="pager"></div>
+          </article>
+        </section>
+
+        <section id="operations" class="page-section">
+          <div class="toolbar">
+            <div>
+              <h2>Operasyon &amp; Görevlendirme</h2>
+              <p>Size atanmış tesislerdeki arıza taleplerini izleyin ve personele görev atayın.</p>
+            </div>
+            <div class="toolbar-actions">
+              <select id="requestOpenOnlyFilter">
+                <option value="">Tüm arıza talepleri</option>
+                <option value="open">Sadece açık / işlemde</option>
+              </select>
+              <button class="primary-btn" data-modal="staffAssignmentModal">+ Personele Görev Ata</button>
+            </div>
+          </div>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Arıza Talepleri</h2>
+              <small class="muted">Sakinlerin oluşturduğu talepler; durum güncellemesi sakin ve teknik personel ekranlarına yansır.</small>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Sakin</th>
+                    <th>Oda</th>
+                    <th>Kategori</th>
+                    <th>Açıklama</th>
+                    <th>Tarih</th>
+                    <th>Durum</th>
+                    <th>Durum Güncelle</th>
+                  </tr>
+                </thead>
+                <tbody id="requestRows"></tbody>
+              </table>
+            </div>
+            <div id="requestPager" class="pager"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Personel Görevlendirmeleri</h2>
+              <small class="muted">Görevler yalnızca seçilen tesis kapsamındaki personel panelinde görünür.</small>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Görev</th>
+                    <th>Rol</th>
+                    <th>Tesis</th>
+                    <th>Konum</th>
+                    <th>Öncelik</th>
+                    <th>Termin</th>
+                    <th>Durum</th>
+                  </tr>
+                </thead>
+                <tbody id="assignmentRows"></tbody>
+              </table>
+            </div>
+            <div id="assignmentPager" class="pager"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Personel Arıza Bildirimleri</h2>
+              <small class="muted">Personelin görev sırasında bildirdiği tesis bazlı arızalar.</small>
+            </div>
+            <div id="faultReportList" class="activity-list"></div>
+            <div id="faultReportPager" class="pager"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Görev Yeri İnceleme</h2>
+              <small class="muted">Size atanmış tesislerde görevli yetkili ve personeller.</small>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Kullanıcı</th>
+                    <th>Rol</th>
+                    <th>Görev Yeri</th>
+                    <th>Atayan</th>
+                    <th>Atama Tarihi</th>
+                    <th>Durum</th>
+                  </tr>
+                </thead>
+                <tbody id="facilityAssignmentRows"></tbody>
+              </table>
+            </div>
+            <div id="facilityAssignmentPager" class="pager"></div>
           </article>
         </section>
 

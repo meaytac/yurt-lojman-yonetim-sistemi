@@ -26,7 +26,6 @@
         <button class="nav-item" data-section="applications"><span>📝</span>Başvurular</button>
         <button class="nav-item" data-section="users"><span>👥</span>Kullanıcılar &amp; Roller</button>
         <button class="nav-item" data-section="placements"><span>🏠</span>Yerleşimler</button>
-        <button class="nav-item" data-section="operations"><span>🛠️</span>Operasyon &amp; Görevlendirme</button>
         <button class="nav-item" data-section="announcements"><span>📢</span>Duyurular</button>
         <button class="nav-item danger" id="logoutBtn"><span>🚪</span>Çıkış Yap</button>
       </nav>
@@ -60,10 +59,17 @@
             </article>
             <article class="panel">
               <div class="panel-head">
-                <h2>Son Arıza Talepleri</h2>
-                <button class="ghost-btn" data-section-jump="requests">Arıza Talepleri</button>
+                <h2>Saha Operasyonları</h2>
+                <button class="ghost-btn" data-section-jump="facilities">Tesisler</button>
               </div>
-              <div id="recentRequests" class="activity-list"></div>
+              <div class="activity-list">
+                <div class="activity-item">
+                  <div>
+                    <strong>Operasyon &amp; görevlendirme Yetkili panelinde yönetilir.</strong>
+                    <small>Admin paneli tesis, kullanıcı, rol ve global görev yeri atamalarına odaklanır.</small>
+                  </div>
+                </div>
+              </div>
             </article>
           </div>
         </section>
@@ -153,6 +159,7 @@
                 <option value="Yetkili">Yetkili</option>
                 <option value="Admin">Admin</option>
               </select>
+              <button class="primary-btn" data-modal="userFacilityAssignmentModal">+ Görev Yeri Ata</button>
             </div>
           </div>
           <div class="table-wrap">
@@ -258,102 +265,6 @@
           <div id="announcementPager" class="pager"></div>
         </section>
 
-        <section id="operations" class="page-section">
-          <div class="toolbar">
-            <div>
-              <h2>Operasyon & Görevlendirme</h2>
-              <p>Sakin arıza taleplerini yönetin, personele görev atayın, personel bildirimlerini ve yetkili/personel görev yerlerini yönetin.</p>
-            </div>
-            <div class="toolbar-actions">
-              <select id="requestOpenOnlyFilter">
-                <option value="">Tüm arıza talepleri</option>
-                <option value="open">Sadece açık / işlemde</option>
-              </select>
-              <button class="primary-btn" data-modal="staffAssignmentModal">+ Personele Görev Ata</button>
-              <button class="primary-btn" data-modal="userFacilityAssignmentModal">+ Yetkili / Personel Ata</button>
-            </div>
-          </div>
-
-          <article class="panel">
-            <div class="panel-head">
-              <h2>Arıza Talepleri · Yurt Sakinleri</h2>
-              <small class="muted">Sakinlerin oluşturduğu talepler; durum güncellemesi sakin ve teknik personel ekranlarına yansır.</small>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Sakin</th>
-                    <th>Oda</th>
-                    <th>Kategori</th>
-                    <th>Açıklama</th>
-                    <th>Tarih</th>
-                    <th>Durum</th>
-                    <th>Durum Güncelle</th>
-                  </tr>
-                </thead>
-                <tbody id="requestRows"></tbody>
-              </table>
-            </div>
-            <div id="requestPager" class="pager"></div>
-          </article>
-
-          <article class="panel">
-            <div class="panel-head">
-              <h2>Görevlendirmeler · Yurt Yönetimi Atamaları</h2>
-              <small class="muted">Bu listedeki görevler personel panellerindeki "Görevlendirmeler" sekmesinde görünür.</small>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Görev</th>
-                    <th>Rol</th>
-                    <th>Konum</th>
-                    <th>Öncelik</th>
-                    <th>Termin</th>
-                    <th>Durum</th>
-                  </tr>
-                </thead>
-                <tbody id="assignmentRows"></tbody>
-              </table>
-            </div>
-            <div id="assignmentPager" class="pager"></div>
-          </article>
-
-          <article class="panel">
-            <div class="panel-head">
-              <h2>Personel Arıza Bildirimleri</h2>
-              <small class="muted">Personelin görev sırasında bildirdiği arızalar.</small>
-            </div>
-            <div id="faultReportList" class="activity-list"></div>
-            <div id="faultReportPager" class="pager"></div>
-          </article>
-
-          <article class="panel">
-            <div class="panel-head">
-              <h2>Yetkili / Personel Görev Yeri Atamaları</h2>
-              <small class="muted">Yetkililerin ve personelin hangi yurt/lojmana atandığını yönetin. Bu bilgiler ilgili panellerde "Görev Yeri" olarak gösterilir.</small>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Kullanıcı</th>
-                    <th>Görev Yeri</th>
-                    <th>Atayan</th>
-                    <th>Atama Tarihi</th>
-                    <th>Bitiş Tarihi</th>
-                    <th>Durum</th>
-                    <th>Aksiyon</th>
-                  </tr>
-                </thead>
-                <tbody id="facilityAssignmentRows"></tbody>
-              </table>
-            </div>
-            <div id="facilityAssignmentPager" class="pager"></div>
-          </article>
-        </section>
       </main>
     </div>
   </div>

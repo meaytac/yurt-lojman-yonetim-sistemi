@@ -132,7 +132,34 @@ public DbSet<FaultReport> FaultReports => Set<FaultReport>();
 
         builder.Entity<CleaningTask>().Property(x => x.TaskType).HasMaxLength(80);
         builder.Entity<PeriodicMaintenance>().Property(x => x.SystemName).HasMaxLength(100);
-        builder.Entity<StaffAssignment>().Property(x => x.Priority).HasMaxLength(20);
+        builder.Entity<StaffAssignment>(entity =>
+        {
+            entity.Property(x => x.Priority).HasMaxLength(20);
+            entity.HasOne(x => x.Dormitory)
+                .WithMany()
+                .HasForeignKey(x => x.DormitoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.HousingUnit)
+                .WithMany()
+                .HasForeignKey(x => x.HousingUnitId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(t => t.HasCheckConstraint("CK_StaffAssignments_OneFacility",
+                "([DormitoryId] IS NULL AND [HousingUnitId] IS NULL) OR ([DormitoryId] IS NOT NULL AND [HousingUnitId] IS NULL) OR ([DormitoryId] IS NULL AND [HousingUnitId] IS NOT NULL)"));
+        });
+
+        builder.Entity<FaultReport>(entity =>
+        {
+            entity.HasOne(x => x.Dormitory)
+                .WithMany()
+                .HasForeignKey(x => x.DormitoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.HousingUnit)
+                .WithMany()
+                .HasForeignKey(x => x.HousingUnitId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(t => t.HasCheckConstraint("CK_FaultReports_OneFacility",
+                "([DormitoryId] IS NULL AND [HousingUnitId] IS NULL) OR ([DormitoryId] IS NOT NULL AND [HousingUnitId] IS NULL) OR ([DormitoryId] IS NULL AND [HousingUnitId] IS NOT NULL)"));
+        });
 
         builder.Entity<Announcement>()
             .Property(x => x.TargetRole)

@@ -25,6 +25,12 @@ public interface IYetkiliService
     Task<AdminRoomListItemDto> UpdateRoomAsync(Guid yetkiliId, int roomId, YetkiliRoomUpdateRequest request, CancellationToken cancellationToken);
     Task<YetkiliStudentListItemDto> ChangeRoomAsync(Guid yetkiliId, int placementId, YetkiliPlacementMoveRequest request, CancellationToken cancellationToken);
     Task CheckoutAsync(Guid yetkiliId, int placementId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<AdminRequestListItemDto>> GetRequestsAsync(Guid yetkiliId, bool openOnly, CancellationToken cancellationToken);
+    Task SetRequestStatusAsync(Guid yetkiliId, int requestId, MaintenanceStatusUpdateRequest request, CancellationToken cancellationToken);
+    Task<IReadOnlyList<StaffAssignmentResponse>> GetStaffAssignmentsAsync(Guid yetkiliId, CancellationToken cancellationToken);
+    Task<StaffAssignmentResponse> CreateStaffAssignmentAsync(Guid yetkiliId, StaffAssignmentCreateRequest request, CancellationToken cancellationToken);
+    Task<IReadOnlyList<AdminFaultReportListItemDto>> GetFaultReportsAsync(Guid yetkiliId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<UserFacilityAssignmentDto>> GetScopedFacilityAssignmentsAsync(Guid yetkiliId, CancellationToken cancellationToken);
 }
 
 public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, IAccommodationService accommodationService) : IYetkiliService
@@ -685,6 +691,202 @@ public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, I
         }
 
         await accommodationService.CheckoutAsync(placementId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AdminRequestListItemDto>> GetRequestsAsync(Guid yetkiliId, bool openOnly, CancellationToken cancellationToken)
+    {
+        var scope = await GetAssignedFacilityScopeAsync(yetkiliId, cancellationToken);
+        var query = db.Requests.AsNoTracking()
+            .Include(x => x.User)
+            .Include(x => x.Room)
+            .Where(x => ApplicantRoles.Contains(x.User.Role))
+            .Where(x => (x.Room.BlockFloor.Building.DormitoryId != null && scope.DormitoryIds.Contains(x.Room.BlockFloor.Building.DormitoryId.Value)) ||
+                        (x.Room.BlockFloor.Building.HousingUnitId != null && scope.HousingUnitIds.Contains(x.Room.BlockFloor.Building.HousingUnitId.Value)));
+
+        if (openOnly)
+        {
+            query = query.Where(x => x.Status == RequestStatus.Open || x.Status == RequestStatus.InProgress);
+        }
+
+        return await query.OrderByDescending(x => x.CreatedAt)
+            .Select(x => new AdminRequestListItemDto(
+                x.Id,
+                x.UserId,
+                x.User.FullName,
+                x.RoomId,
+                x.Room.RoomNumber,
+                x.Category,
+                x.Description,
+                x.PhotoUrl,
+                x.Status,
+                x.CreatedAt))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task SetRequestStatusAsync(Guid yetkiliId, int requestId, MaintenanceStatusUpdateRequest request, CancellationToken cancellationToken)
+    {
+        var scope = await GetAssignedFacilityScopeAsync(yetkiliId, cancellationToken);
+        var entity = await db.Requests
+            .Include(x => x.Room).ThenInclude(x => x.BlockFloor).ThenInclude(x => x.Building)
+            .FirstOrDefaultAsync(x => x.Id == requestId, cancellationToken)
+            ?? throw new KeyNotFoundException("Talep bulunamadı.");
+
+        var inScope = (entity.Room.BlockFloor.Building.DormitoryId != null && scope.DormitoryIds.Contains(entity.Room.BlockFloor.Building.DormitoryId.Value)) ||
+            (entity.Room.BlockFloor.Building.HousingUnitId != null && scope.HousingUnitIds.Contains(entity.Room.BlockFloor.Building.HousingUnitId.Value));
+        if (!inScope)
+        {
+            throw new InvalidOperationException("Bu talep size atanmış tesislerde bulunmuyor.");
+        }
+
+        entity.Status = request.Status;
+        if (request.Status == RequestStatus.Resolved)
+        {
+            entity.ResolvedAt = DateTime.UtcNow;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<StaffAssignmentResponse>> GetStaffAssignmentsAsync(Guid yetkiliId, CancellationToken cancellationToken)
+    {
+        var scope = await GetAssignedFacilityScopeAsync(yetkiliId, cancellationToken);
+        return await db.StaffAssignments.AsNoTracking()
+            .Include(x => x.Dormitory)
+            .Include(x => x.HousingUnit)
+            .Where(x => (x.DormitoryId != null && scope.DormitoryIds.Contains(x.DormitoryId.Value)) ||
+                        (x.HousingUnitId != null && scope.HousingUnitIds.Contains(x.HousingUnitId.Value)))
+            .OrderBy(x => x.IsCompleted)
+            .ThenByDescending(x => x.CreatedAt)
+            .Select(x => new StaffAssignmentResponse(
+                x.Id,
+                x.AssignedRole,
+                x.Title,
+                x.Location,
+                x.Details,
+                x.Priority,
+                x.IsMaintenanceRequest,
+                x.IsCompleted,
+                x.DueDate,
+                x.CreatedAt,
+                x.CompletedAt,
+                x.DormitoryId,
+                x.Dormitory != null ? x.Dormitory.Name : null,
+                x.HousingUnitId,
+                x.HousingUnit != null ? x.HousingUnit.Name : null))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<StaffAssignmentResponse> CreateStaffAssignmentAsync(Guid yetkiliId, StaffAssignmentCreateRequest request, CancellationToken cancellationToken)
+    {
+        if (request.AssignedRole is not (AppRoles.TeknikPersonel or AppRoles.TemizlikPersoneli))
+        {
+            throw new InvalidOperationException("Görev yalnızca teknik veya temizlik personeline atanabilir.");
+        }
+
+        if (request.DormitoryId.HasValue == request.HousingUnitId.HasValue)
+        {
+            throw new InvalidOperationException("Yalnızca yurt veya lojmandan biri seçilmelidir.");
+        }
+
+        var scope = await GetAssignedFacilityScopeAsync(yetkiliId, cancellationToken);
+        if (request.DormitoryId.HasValue && !scope.DormitoryIds.Contains(request.DormitoryId.Value))
+        {
+            throw new InvalidOperationException("Seçilen yurt size atanmış tesisler arasında bulunmuyor.");
+        }
+
+        if (request.HousingUnitId.HasValue && !scope.HousingUnitIds.Contains(request.HousingUnitId.Value))
+        {
+            throw new InvalidOperationException("Seçilen lojman size atanmış tesisler arasında bulunmuyor.");
+        }
+
+        var item = new StaffAssignment
+        {
+            AssignedRole = request.AssignedRole,
+            DormitoryId = request.DormitoryId,
+            HousingUnitId = request.HousingUnitId,
+            Title = request.Title,
+            Location = request.Location,
+            Details = request.Details,
+            Priority = request.Priority,
+            IsMaintenanceRequest = request.IsMaintenanceRequest,
+            DueDate = request.DueDate?.Date
+        };
+
+        db.StaffAssignments.Add(item);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var saved = await db.StaffAssignments.AsNoTracking()
+            .Include(x => x.Dormitory)
+            .Include(x => x.HousingUnit)
+            .FirstAsync(x => x.Id == item.Id, cancellationToken);
+
+        return new StaffAssignmentResponse(
+            saved.Id,
+            saved.AssignedRole,
+            saved.Title,
+            saved.Location,
+            saved.Details,
+            saved.Priority,
+            saved.IsMaintenanceRequest,
+            saved.IsCompleted,
+            saved.DueDate,
+            saved.CreatedAt,
+            saved.CompletedAt,
+            saved.DormitoryId,
+            saved.Dormitory?.Name,
+            saved.HousingUnitId,
+            saved.HousingUnit?.Name);
+    }
+
+    public async Task<IReadOnlyList<AdminFaultReportListItemDto>> GetFaultReportsAsync(Guid yetkiliId, CancellationToken cancellationToken)
+    {
+        var scope = await GetAssignedFacilityScopeAsync(yetkiliId, cancellationToken);
+        return await db.FaultReports.AsNoTracking()
+            .Include(x => x.Dormitory)
+            .Include(x => x.HousingUnit)
+            .Where(x => (x.DormitoryId != null && scope.DormitoryIds.Contains(x.DormitoryId.Value)) ||
+                        (x.HousingUnitId != null && scope.HousingUnitIds.Contains(x.HousingUnitId.Value)))
+            .OrderByDescending(x => x.CreatedAt)
+            .Select(x => new AdminFaultReportListItemDto(
+                x.Id,
+                x.Category,
+                x.Location,
+                x.Description,
+                x.CreatedAt,
+                x.DormitoryId,
+                x.Dormitory != null ? x.Dormitory.Name : null,
+                x.HousingUnitId,
+                x.HousingUnit != null ? x.HousingUnit.Name : null))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<UserFacilityAssignmentDto>> GetScopedFacilityAssignmentsAsync(Guid yetkiliId, CancellationToken cancellationToken)
+    {
+        var scope = await GetAssignedFacilityScopeAsync(yetkiliId, cancellationToken);
+        return await db.UserFacilityAssignments.AsNoTracking()
+            .Include(x => x.User)
+            .Include(x => x.Dormitory)
+            .Include(x => x.HousingUnit)
+            .Include(x => x.AssignedBy)
+            .Where(x => x.IsActive)
+            .Where(x => (x.DormitoryId != null && scope.DormitoryIds.Contains(x.DormitoryId.Value)) ||
+                        (x.HousingUnitId != null && scope.HousingUnitIds.Contains(x.HousingUnitId.Value)))
+            .OrderBy(x => x.User.FullName)
+            .Select(x => new UserFacilityAssignmentDto(
+                x.Id,
+                x.UserId,
+                x.User.FullName,
+                x.User.Role,
+                x.DormitoryId,
+                x.Dormitory != null ? x.Dormitory.Name : null,
+                x.HousingUnitId,
+                x.HousingUnit != null ? x.HousingUnit.Name : null,
+                x.AssignedById,
+                x.AssignedBy.FullName,
+                x.AssignedAt,
+                x.UnassignedAt,
+                x.IsActive))
+            .ToListAsync(cancellationToken);
     }
 
     private async Task<YetkiliStudentListItemDto> GetResidentByPlacementIdAsync(int placementId, CancellationToken cancellationToken)

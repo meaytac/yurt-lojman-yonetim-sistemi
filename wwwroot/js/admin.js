@@ -96,7 +96,7 @@ function bindShell() {
   document.getElementById('userSearch').addEventListener('input', debounce(() => loadUsers(1), 350));
   document.getElementById('roleFilter').addEventListener('change', () => loadUsers(1));
   document.getElementById('activePlacementsOnly').addEventListener('change', () => { state.pages.placements = 1; loadPlacements(); });
-  document.getElementById('requestOpenOnlyFilter').addEventListener('change', () => { state.pages.requests = 1; loadRequests(); });
+  document.getElementById('requestOpenOnlyFilter')?.addEventListener('change', () => { state.pages.requests = 1; loadRequests(); });
 
   setInterval(() => {
     if (document.hidden) return;
@@ -111,7 +111,7 @@ async function openApp(token) {
   document.getElementById('adminName').textContent = claims.fullName || claims.name || 'Sistem Yöneticisi';
   document.getElementById('adminRole').textContent = role;
   switchSection('dashboard');
-  await Promise.allSettled([loadDashboard(), loadFacilities(), loadBuildings(), loadFloors(), loadRooms(), loadApplications(), loadUsers(1), loadPlacements(), loadOperations(), loadAnnouncements()]);
+  await Promise.allSettled([loadDashboard(), loadFacilities(), loadBuildings(), loadFloors(), loadRooms(), loadApplications(), loadUsers(1), loadPlacements(), loadAnnouncements()]);
 }
 
 function logout() {
@@ -120,7 +120,7 @@ function logout() {
 }
 
 function switchSection(id) {
-  if (id === 'requests') id = 'operations';
+  if (id === 'requests' || id === 'operations') id = 'dashboard';
   activeSection = id;
   document.querySelectorAll('.page-section').forEach(section => section.classList.toggle('active', section.id === id));
   document.querySelectorAll('.nav-item[data-section]').forEach(button => button.classList.toggle('active', button.dataset.section === id));
@@ -135,7 +135,6 @@ function refreshActiveSection() {
     applications: loadApplications,
     users: () => loadUsers(state.users.page || 1),
     placements: loadPlacements,
-    operations: loadOperations,
     announcements: loadAnnouncements
   };
   refreshers[activeSection]?.();
@@ -181,15 +180,18 @@ function renderDashboard() {
     </div>
   `);
 
-  document.getElementById('recentRequests').innerHTML = emptyOr(s.recentRequests || [], item => `
-    <div class="activity-item">
-      <div>
-        <strong>${escapeHtml(item.category)} / Oda ${escapeHtml(item.roomNumber)}</strong>
-        <small>${escapeHtml(item.fullName)} - ${getStatusBadge(item.status)}</small>
+  const recentRequests = document.getElementById('recentRequests');
+  if (recentRequests) {
+    recentRequests.innerHTML = emptyOr(s.recentRequests || [], item => `
+      <div class="activity-item">
+        <div>
+          <strong>${escapeHtml(item.category)} / Oda ${escapeHtml(item.roomNumber)}</strong>
+          <small>${escapeHtml(item.fullName)} - ${getStatusBadge(item.status)}</small>
+        </div>
+        <small>${date(item.createdAt)}</small>
       </div>
-      <small>${date(item.createdAt)}</small>
-    </div>
-  `);
+    `);
+  }
 }
 
 async function loadFacilities() {
