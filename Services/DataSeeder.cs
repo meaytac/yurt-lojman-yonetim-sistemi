@@ -28,6 +28,7 @@ public static class DataSeeder
             await ResetStudentPasswordIfLegacyAsync(userManager, student);
         }
         await SeedFacilitiesAsync(db);
+        await SeedFacilityAssignmentsAsync(db, users);
         await SeedOperationalDataAsync(db, users);
         await PlaceDemoStudentsAsync(db, accommodationService, userManager, [users.Student1, users.Student2, users.Student3], env);
     }
@@ -328,6 +329,47 @@ public static class DataSeeder
         dormitory.TotalCapacity = await db.Rooms.Where(x => x.BlockFloor.Building.DormitoryId == dormitory.Id).SumAsync(x => x.Capacity);
         secondDormitory.TotalCapacity = await db.Rooms.Where(x => x.BlockFloor.Building.DormitoryId == secondDormitory.Id).SumAsync(x => x.Capacity);
         housing.TotalCapacity = await db.Rooms.Where(x => x.BlockFloor.Building.HousingUnitId == housing.Id).SumAsync(x => x.Capacity);
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedFacilityAssignmentsAsync(AppDbContext db, DemoUsers users)
+    {
+        var defaultDormitoryId = await db.Dormitories
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.Id)
+            .Select(x => (int?)x.Id)
+            .FirstOrDefaultAsync();
+        var defaultHousingUnitId = defaultDormitoryId.HasValue
+            ? null
+            : await db.HousingUnits
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.Id)
+                .Select(x => (int?)x.Id)
+                .FirstOrDefaultAsync();
+
+        if (!defaultDormitoryId.HasValue && !defaultHousingUnitId.HasValue)
+        {
+            return;
+        }
+
+        var unassignedYetkiliUsers = await db.Users
+            .Where(x => x.Role == AppRoles.Yetkili)
+            .Where(x => !db.UserFacilityAssignments.Any(a => a.UserId == x.Id && a.IsActive))
+            .ToListAsync();
+
+        foreach (var user in unassignedYetkiliUsers)
+        {
+            db.UserFacilityAssignments.Add(new UserFacilityAssignment
+            {
+                UserId = user.Id,
+                DormitoryId = defaultDormitoryId,
+                HousingUnitId = defaultHousingUnitId,
+                AssignedById = users.Admin.Id,
+                AssignedAt = DateTime.UtcNow,
+                IsActive = true
+            });
+        }
+
         await db.SaveChangesAsync();
     }
 

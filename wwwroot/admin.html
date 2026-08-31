@@ -23,9 +23,8 @@
         <button class="nav-item active" data-section="dashboard"><span>📊</span>Kontrol Paneli</button>
         <button class="nav-item" data-section="facilities"><span>🏢</span>Tesisler</button>
         <button class="nav-item" data-section="rooms"><span>🚪</span>Odalar</button>
-        <button class="nav-item" data-section="applications"><span>📝</span>Başvurular</button>
         <button class="nav-item" data-section="users"><span>👥</span>Kullanıcılar &amp; Roller</button>
-        <button class="nav-item" data-section="placements"><span>🏠</span>Yerleşimler</button>
+        <button class="nav-item" data-section="facilityAssignments"><span>📍</span>Görev Yeri Atamaları</button>
         <button class="nav-item" data-section="announcements"><span>📢</span>Duyurular</button>
         <button class="nav-item danger" id="logoutBtn"><span>🚪</span>Çıkış Yap</button>
       </nav>
@@ -35,7 +34,7 @@
       <header class="topbar">
         <div>
           <h1 id="sectionTitle">Kontrol Paneli</h1>
-          <p>Anlık tesis, başvuru, arıza ve borç durumu</p>
+          <p>Sistem geneli tesis, kullanıcı, rol ve duyuru konfigürasyonu</p>
         </div>
         <div class="top-actions">
           <button class="icon-btn" title="Bildirimler">🔔</button>
@@ -52,8 +51,8 @@
           <div class="content-grid">
             <article class="panel">
               <div class="panel-head">
-                <h2>Son Başvurular</h2>
-                <button class="ghost-btn" data-section-jump="applications">Başvurular</button>
+                <h2>Konfigürasyon Özeti</h2>
+                <button class="ghost-btn" data-section-jump="facilityAssignments">Atamalar</button>
               </div>
               <div id="recentApplications" class="activity-list"></div>
             </article>
@@ -159,7 +158,6 @@
                 <option value="Yetkili">Yetkili</option>
                 <option value="Admin">Admin</option>
               </select>
-              <button class="primary-btn" data-modal="userFacilityAssignmentModal">+ Görev Yeri Ata</button>
             </div>
           </div>
           <div class="table-wrap">
@@ -181,60 +179,33 @@
           <div id="userPager" class="pager"></div>
         </section>
 
-        <section id="applications" class="page-section">
+        <section id="facilityAssignments" class="page-section">
           <div class="toolbar">
             <div>
-              <h2>Başvuru Yönetimi</h2>
-              <p>Yalnızca işlem bekleyen başvuruları inceleyin, onaylayın veya reddedin.</p>
-            </div>
-          </div>
-          <div id="applicationFeedback" class="inline-feedback" aria-live="polite">Sadece Beklemede durumundaki başvurular listelenir.</div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Ad Soyad</th>
-                  <th>TC</th>
-                  <th>No</th>
-                  <th>Tür</th>
-                  <th>Durum</th>
-                  <th>Tarih</th>
-                  <th>Aksiyon</th>
-                </tr>
-              </thead>
-              <tbody id="applicationRows"></tbody>
-            </table>
-          </div>
-          <div id="applicationPager" class="pager"></div>
-        </section>
-
-        <section id="placements" class="page-section">
-          <div class="toolbar">
-            <div>
-              <h2>Konaklayanlar Listesi</h2>
-              <p>Manuel yerleşim ve çıkış işlemleri.</p>
+              <h2>Görev Yeri Atamaları</h2>
+              <p>Yetkili ve personel hesaplarını yurt veya lojman kapsamına bağlayın.</p>
             </div>
             <div class="toolbar-actions">
-              <label class="inline-check"><input id="activePlacementsOnly" type="checkbox" checked> Sadece aktif</label>
-              <button class="primary-btn" data-modal="assignModal">Odaya Ata</button>
+              <button class="primary-btn" data-modal="userFacilityAssignmentModal">+ Görev Yeri Ata</button>
             </div>
           </div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Kişi</th>
-                  <th>Oda</th>
-                  <th>Giriş</th>
-                  <th>Çıkış</th>
+                  <th>Kullanıcı</th>
+                  <th>Tesis</th>
+                  <th>Atayan</th>
+                  <th>Atama Tarihi</th>
+                  <th>Ayrılma Tarihi</th>
                   <th>Durum</th>
                   <th>Aksiyon</th>
                 </tr>
               </thead>
-              <tbody id="placementRows"></tbody>
+              <tbody id="facilityAssignmentRows"></tbody>
             </table>
           </div>
-          <div id="placementPager" class="pager"></div>
+          <div id="facilityAssignmentPager" class="pager"></div>
         </section>
 
         <section id="announcements" class="page-section">

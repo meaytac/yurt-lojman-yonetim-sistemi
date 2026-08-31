@@ -10,7 +10,7 @@ namespace yurt_lojman_yonetim_sistemi.Controllers;
 
 [ApiController]
 [Route("api/admin")]
-[Authorize(Roles = $"{AppRoles.Admin},{AppRoles.Yetkili}")]
+[Authorize(Roles = AppRoles.Admin)]
 public class AdminController(
     AppDbContext db,
     IAdminService adminService,

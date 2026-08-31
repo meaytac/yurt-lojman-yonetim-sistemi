@@ -102,7 +102,8 @@ async function openApp(token) {
   document.getElementById('yetkiliName').textContent = claims.fullName || claims.name || 'Yetkili';
   document.getElementById('yetkiliRole').textContent = 'Yetkili';
   switchSection('dashboard');
-  await Promise.allSettled([loadAssignedFacilities(), loadStudents(1), loadApplications(), loadAvailableRooms(), loadManage(), loadOperations(), loadAnnouncements()]);
+  await loadAssignedFacilities();
+  await Promise.allSettled([loadStudents(1), loadApplications(), loadAvailableRooms(), loadManage(), loadOperations(), loadAnnouncements()]);
   await loadDashboard();
 }
 
@@ -164,7 +165,7 @@ function renderDashboard() {
 
   document.getElementById('facilityInfo').textContent = facilities.length > 0
     ? facilities.map(f => f.name).join(', ')
-    : 'Henüz bir yurta atanmamışsınız.';
+    : 'Henüz bir yurda atanmamışsınız.';
 
   document.getElementById('assignedFacilities').innerHTML = emptyOr(facilities, f => `
     <div class="activity-item">

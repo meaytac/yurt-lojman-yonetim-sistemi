@@ -43,9 +43,72 @@ public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, I
             .Where(x => x.UserId == yetkiliId && x.IsActive)
             .ToListAsync(cancellationToken);
 
-        return new FacilityScope(
+        var scope = new FacilityScope(
             assignments.Where(x => x.DormitoryId.HasValue).Select(x => x.DormitoryId!.Value).Distinct().ToList(),
             assignments.Where(x => x.HousingUnitId.HasValue).Select(x => x.HousingUnitId!.Value).Distinct().ToList());
+
+        return scope.DormitoryIds.Count > 0 || scope.HousingUnitIds.Count > 0
+            ? scope
+            : await CreateDefaultFacilityScopeAsync(yetkiliId, cancellationToken);
+    }
+
+    private async Task<FacilityScope> CreateDefaultFacilityScopeAsync(Guid yetkiliId, CancellationToken cancellationToken)
+    {
+        var userExists = await db.Users.AsNoTracking()
+            .AnyAsync(x => x.Id == yetkiliId && x.Role == AppRoles.Yetkili, cancellationToken);
+        if (!userExists)
+        {
+            return new FacilityScope([], []);
+        }
+
+        var existingAssignments = await db.UserFacilityAssignments.AsNoTracking()
+            .Where(x => x.UserId == yetkiliId && x.IsActive)
+            .ToListAsync(cancellationToken);
+        if (existingAssignments.Count > 0)
+        {
+            return new FacilityScope(
+                existingAssignments.Where(x => x.DormitoryId.HasValue).Select(x => x.DormitoryId!.Value).Distinct().ToList(),
+                existingAssignments.Where(x => x.HousingUnitId.HasValue).Select(x => x.HousingUnitId!.Value).Distinct().ToList());
+        }
+
+        var defaultDormitoryId = await db.Dormitories.AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.Id)
+            .Select(x => (int?)x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        var defaultHousingUnitId = defaultDormitoryId.HasValue
+            ? null
+            : await db.HousingUnits.AsNoTracking()
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.Id)
+                .Select(x => (int?)x.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+        if (!defaultDormitoryId.HasValue && !defaultHousingUnitId.HasValue)
+        {
+            return new FacilityScope([], []);
+        }
+
+        var assignedById = await db.Users.AsNoTracking()
+            .Where(x => x.Role == AppRoles.Admin)
+            .OrderBy(x => x.CreatedAt)
+            .Select(x => (Guid?)x.Id)
+            .FirstOrDefaultAsync(cancellationToken) ?? yetkiliId;
+
+        db.UserFacilityAssignments.Add(new UserFacilityAssignment
+        {
+            UserId = yetkiliId,
+            DormitoryId = defaultDormitoryId,
+            HousingUnitId = defaultHousingUnitId,
+            AssignedById = assignedById,
+            AssignedAt = DateTime.UtcNow,
+            IsActive = true
+        });
+        await db.SaveChangesAsync(cancellationToken);
+
+        return new FacilityScope(
+            defaultDormitoryId.HasValue ? new List<int> { defaultDormitoryId.Value } : [],
+            defaultHousingUnitId.HasValue ? new List<int> { defaultHousingUnitId.Value } : []);
     }
 
     private IQueryable<Room> ScopedRooms(FacilityScope scope, bool tracking = false)
@@ -214,7 +277,7 @@ public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, I
         var dormitoryIds = await GetAssignedDormitoryIdsAsync(yetkiliId, cancellationToken);
         if (dormitoryIds.Count == 0)
         {
-            throw new InvalidOperationException("Hiç yurta atanmamışsınız. Öğrenci ekleyemezsiniz.");
+            throw new InvalidOperationException("Hiç yurda atanmamışsınız. Öğrenci ekleyemezsiniz.");
         }
 
         var user = new AppUser
@@ -260,7 +323,7 @@ public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, I
         var dormitoryIds = await GetAssignedDormitoryIdsAsync(yetkiliId, cancellationToken);
         if (dormitoryIds.Count == 0)
         {
-            throw new InvalidOperationException("Hiç yurta atanmamışsınız.");
+            throw new InvalidOperationException("Hiç yurda atanmamışsınız.");
         }
 
         var student = await db.Users.FirstOrDefaultAsync(x => x.Id == studentId && x.Role == AppRoles.Ogrenci, cancellationToken)
@@ -315,7 +378,7 @@ public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, I
         var dormitoryIds = await GetAssignedDormitoryIdsAsync(yetkiliId, cancellationToken);
         if (dormitoryIds.Count == 0)
         {
-            throw new InvalidOperationException("Hiç yurta atanmamışsınız.");
+            throw new InvalidOperationException("Hiç yurda atanmamışsınız.");
         }
 
         var student = await db.Users.FirstOrDefaultAsync(x => x.Id == studentId && x.Role == AppRoles.Ogrenci, cancellationToken)

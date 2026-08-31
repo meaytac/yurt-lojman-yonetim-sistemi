@@ -37,10 +37,8 @@ const sectionTitles = {
   dashboard: 'Kontrol Paneli',
   facilities: 'Tesisler',
   rooms: 'Oda & Kat Yönetimi',
-  applications: 'Başvuru Yönetimi',
   users: 'Kullanıcılar & Roller',
-  placements: 'Yerleşim Takibi',
-  operations: 'Operasyon & Görevlendirme',
+  facilityAssignments: 'Görev Yeri Atamaları',
   announcements: 'Duyuru Yönetimi'
 };
 
@@ -65,7 +63,7 @@ function isValidAdminToken(token) {
 
   const claims = parseJwt(token);
   const role = String(claims['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || claims.role || '').toLowerCase();
-  return Boolean(claims.sub) && (!claims.exp || claims.exp * 1000 > Date.now()) && (role === 'admin' || role === 'yetkili');
+  return Boolean(claims.sub) && (!claims.exp || claims.exp * 1000 > Date.now()) && role === 'admin';
 }
 
 function clearStoredTokens() {
@@ -95,7 +93,7 @@ function bindShell() {
   document.getElementById('roomStatusFilter').addEventListener('change', () => { state.roomPage = 1; renderRooms(); });
   document.getElementById('userSearch').addEventListener('input', debounce(() => loadUsers(1), 350));
   document.getElementById('roleFilter').addEventListener('change', () => loadUsers(1));
-  document.getElementById('activePlacementsOnly').addEventListener('change', () => { state.pages.placements = 1; loadPlacements(); });
+  document.getElementById('activePlacementsOnly')?.addEventListener('change', () => { state.pages.placements = 1; loadPlacements(); });
   document.getElementById('requestOpenOnlyFilter')?.addEventListener('change', () => { state.pages.requests = 1; loadRequests(); });
 
   setInterval(() => {
@@ -111,7 +109,7 @@ async function openApp(token) {
   document.getElementById('adminName').textContent = claims.fullName || claims.name || 'Sistem Yöneticisi';
   document.getElementById('adminRole').textContent = role;
   switchSection('dashboard');
-  await Promise.allSettled([loadDashboard(), loadFacilities(), loadBuildings(), loadFloors(), loadRooms(), loadApplications(), loadUsers(1), loadPlacements(), loadAnnouncements()]);
+  await Promise.allSettled([loadDashboard(), loadFacilities(), loadBuildings(), loadFloors(), loadRooms(), loadUsers(1), loadUserFacilityAssignments(), loadAnnouncements()]);
 }
 
 function logout() {
@@ -120,7 +118,7 @@ function logout() {
 }
 
 function switchSection(id) {
-  if (id === 'requests' || id === 'operations') id = 'dashboard';
+  if (['applications', 'placements', 'requests', 'operations'].includes(id)) id = 'dashboard';
   activeSection = id;
   document.querySelectorAll('.page-section').forEach(section => section.classList.toggle('active', section.id === id));
   document.querySelectorAll('.nav-item[data-section]').forEach(button => button.classList.toggle('active', button.dataset.section === id));
@@ -132,9 +130,8 @@ function refreshActiveSection() {
     dashboard: loadDashboard,
     facilities: loadFacilities,
     rooms: loadRooms,
-    applications: loadApplications,
     users: () => loadUsers(state.users.page || 1),
-    placements: loadPlacements,
+    facilityAssignments: loadUserFacilityAssignments,
     announcements: loadAnnouncements
   };
   refreshers[activeSection]?.();
@@ -154,10 +151,10 @@ async function loadDashboard() {
 function renderDashboard() {
   const s = state.stats || {};
   const cards = [
-    ['Doluluk Oranı', `${s.occupancyRate ?? 0}%`, '📊'],
-    ['Bekleyen Başvuru', s.pendingApplicationCount ?? 0, '📝'],
-    ['Açık Arıza', s.openRequestCount ?? 0, '🔧'],
-    ['Ödenmemiş Borç', money(s.totalUnpaidAndOverdueDebt ?? 0), '💰']
+    ['Tesis', (s.dormitoryCount ?? 0) + (s.housingUnitCount ?? 0), '🏢'],
+    ['Oda', s.totalRoomCount ?? 0, '🚪'],
+    ['Toplam Kapasite', s.totalCapacity ?? 0, '🧾'],
+    ['Bakımda Oda', s.maintenanceRoomCount ?? 0, '🔧']
   ];
 
   document.getElementById('kpiGrid').innerHTML = cards.map(([label, value, icon]) => `
@@ -170,15 +167,14 @@ function renderDashboard() {
     </article>
   `).join('');
 
-  document.getElementById('recentApplications').innerHTML = emptyOr(s.recentApplications || [], item => `
+  document.getElementById('recentApplications').innerHTML = `
     <div class="activity-item">
       <div>
-        <strong>${escapeHtml(item.fullName)}</strong>
-        <small>${escapeHtml(item.accommodationType)} - ${getStatusBadge(item.status)}</small>
+        <strong>Başvuru, yerleşim ve saha operasyonları Yetkili paneline ayrıldı.</strong>
+        <small>Admin burada tesis ağacı, oda tanımları, kullanıcı rolleri, global görev yeri atamaları ve duyuruları yönetir.</small>
       </div>
-      <small>${date(item.createdAt)}</small>
     </div>
-  `);
+  `;
 
   const recentRequests = document.getElementById('recentRequests');
   if (recentRequests) {
@@ -332,7 +328,7 @@ function renderUsers() {
 
 async function loadPlacements() {
   try {
-    const activeOnly = document.getElementById('activePlacementsOnly').checked;
+    const activeOnly = document.getElementById('activePlacementsOnly')?.checked ?? true;
     state.placements = await api(`/api/admin/placements?activeOnly=${activeOnly}`);
   } catch (error) {
     console.error('[Admin API] Yerleşimler yüklenemedi:', error);
@@ -342,8 +338,11 @@ async function loadPlacements() {
 }
 
 function renderPlacements() {
+  const rows = document.getElementById('placementRows');
+  if (!rows) return;
+
   const page = paginateItems(state.placements || [], 'placements');
-  document.getElementById('placementRows').innerHTML = emptyTable(page.items, item => `
+  rows.innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.fullName)}</strong></td>
       <td>${escapeHtml(item.roomNumber)}</td>
@@ -367,8 +366,11 @@ async function loadApplications() {
 }
 
 function renderApplications() {
+  const rows = document.getElementById('applicationRows');
+  if (!rows) return;
+
   const page = paginateItems(state.applications || [], 'applications');
-  document.getElementById('applicationRows').innerHTML = emptyTable(page.items, item => `
+  rows.innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.fullName)}</strong></td>
       <td>${escapeHtml(item.tcNo)}</td>
@@ -889,7 +891,7 @@ function loadOperations() {
 
 async function loadRequests() {
   try {
-    const openOnly = document.getElementById('requestOpenOnlyFilter').value === 'open';
+    const openOnly = document.getElementById('requestOpenOnlyFilter')?.value === 'open';
     state.requests = await api(`/api/admin/requests?openOnly=${openOnly}`);
   } catch (error) {
     console.error('[Admin API] Arıza talepleri yüklenemedi:', error);
@@ -899,8 +901,11 @@ async function loadRequests() {
 }
 
 function renderRequests() {
+  const rows = document.getElementById('requestRows');
+  if (!rows) return;
+
   const page = paginateItems(state.requests, 'requests');
-  document.getElementById('requestRows').innerHTML = emptyTable(page.items, item => `
+  rows.innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.fullName)}</strong></td>
       <td>${escapeHtml(item.roomNumber)}</td>
@@ -933,8 +938,11 @@ async function loadStaffAssignments() {
 }
 
 function renderStaffAssignments() {
+  const rows = document.getElementById('assignmentRows');
+  if (!rows) return;
+
   const page = paginateItems(state.staffAssignments, 'staffAssignments');
-  document.getElementById('assignmentRows').innerHTML = emptyTable(page.items, item => `
+  rows.innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.title)}</strong><br><small>${escapeHtml(item.details || '-')}</small></td>
       <td>${staffRoleDisplay(item.assignedRole)}${item.isMaintenanceRequest ? '<br><small>⚒ Arıza iş emri</small>' : ''}</td>
@@ -958,8 +966,11 @@ async function loadFaultReports() {
 }
 
 function renderFaultReports() {
+  const list = document.getElementById('faultReportList');
+  if (!list) return;
+
   const page = paginateItems(state.faultReports, 'faultReports');
-  document.getElementById('faultReportList').innerHTML = emptyOr(page.items, item => `
+  list.innerHTML = emptyOr(page.items, item => `
     <div class="activity-item">
       <div>
         <strong>${escapeHtml(item.category)} / ${escapeHtml(item.location)}</strong>
