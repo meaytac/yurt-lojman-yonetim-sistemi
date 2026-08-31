@@ -229,19 +229,66 @@ main {
   box-shadow: var(--shadow-sm);
 }
 #operations.active {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: auto repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 16px;
 }
 #operations > .toolbar {
-  grid-column: 1 / -1;
   margin-bottom: 0;
 }
-#operations > .panel {
+.sub-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow-x: auto;
+}
+.sub-tab {
+  flex: 0 0 auto;
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 9px 13px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.sub-tab.active,
+.sub-tab:hover {
+  background: rgba(5, 150, 105, 0.1);
+  border-color: rgba(5, 150, 105, 0.28);
+  color: var(--primary-emerald);
+}
+.operation-tab-panels {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+.operation-tab-panel {
+  display: none;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.operation-tab-panel.active {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+}
+.operation-tab-panel .panel-head {
+  flex: 0 0 auto;
+  margin-bottom: 14px;
+}
+.tab-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
 }
 #manage.active {
   display: grid;
@@ -591,7 +638,6 @@ tr:hover td { background: rgba(56, 189, 248, 0.02); }
 @media (max-width: 1024px) {
   .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .content-grid { grid-template-columns: 1fr; }
-  #operations.active { grid-template-columns: 1fr; grid-template-rows: auto repeat(4, minmax(0, 1fr)); }
 }
 
 @media (max-width: 768px) {

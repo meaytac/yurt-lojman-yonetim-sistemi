@@ -28,6 +28,7 @@ const state = {
 
 const REFRESH_INTERVAL = 15000;
 let activeSection = 'dashboard';
+let activeOperationTab = 'requests';
 
 const sectionTitles = {
   dashboard: 'Kontrol Paneli',
@@ -83,11 +84,18 @@ function bindShell() {
   document.querySelectorAll('[data-modal]').forEach(button => {
     button.addEventListener('click', () => openNamedModal(button.dataset.modal));
   });
+  document.querySelectorAll('[data-operation-tab]').forEach(button => {
+    button.addEventListener('click', () => switchOperationTab(button.dataset.operationTab));
+  });
 
   document.getElementById('studentSearch').addEventListener('input', debounce(() => loadStudents(1), 350));
   document.getElementById('manageRoomSearch').addEventListener('input', () => { state.pages.manageRooms = 1; renderManageRooms(); });
   document.getElementById('manageRoomStatusFilter').addEventListener('change', () => { state.pages.manageRooms = 1; renderManageRooms(); });
-  document.getElementById('requestOpenOnlyFilter').addEventListener('change', () => { state.pages.requests = 1; loadRequests(); });
+  document.getElementById('requestOpenOnlyFilter')?.addEventListener('change', () => { state.pages.requests = 1; loadRequests(); });
+  document.getElementById('requestSearch')?.addEventListener('input', () => { state.pages.requests = 1; renderRequests(); });
+  document.getElementById('assignmentSearch')?.addEventListener('input', () => { state.pages.staffAssignments = 1; renderStaffAssignments(); });
+  document.getElementById('faultReportSearch')?.addEventListener('input', () => { state.pages.faultReports = 1; renderFaultReports(); });
+  document.getElementById('facilityAssignmentSearch')?.addEventListener('input', () => { state.pages.userFacilityAssignments = 1; renderUserFacilityAssignments(); });
 
   setInterval(() => {
     if (document.hidden) return;
@@ -116,6 +124,19 @@ function switchSection(id) {
   document.querySelectorAll('.page-section').forEach(section => section.classList.toggle('active', section.id === id));
   document.querySelectorAll('.nav-item[data-section]').forEach(button => button.classList.toggle('active', button.dataset.section === id));
   document.getElementById('sectionTitle').textContent = sectionTitles[id] || 'Yetkili Paneli';
+  if (id === 'operations') switchOperationTab(activeOperationTab);
+}
+
+function switchOperationTab(tab) {
+  activeOperationTab = tab || 'requests';
+  document.querySelectorAll('[data-operation-tab]').forEach(button => {
+    const active = button.dataset.operationTab === activeOperationTab;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  document.querySelectorAll('[data-operation-panel]').forEach(panel => {
+    panel.classList.toggle('active', panel.dataset.operationPanel === activeOperationTab);
+  });
 }
 
 function refreshActiveSection() {
@@ -738,6 +759,16 @@ function loadOperations() {
   return Promise.allSettled([loadRequests(), loadStaffAssignments(), loadFaultReports(), loadUserFacilityAssignments()]);
 }
 
+function operationMatchesSearch(item, search, fields) {
+  if (!search) return true;
+  return fields
+    .map(field => item?.[field])
+    .filter(value => value !== null && value !== undefined)
+    .join(' ')
+    .toLocaleLowerCase('tr-TR')
+    .includes(search);
+}
+
 async function loadRequests() {
   try {
     const openOnly = document.getElementById('requestOpenOnlyFilter')?.value === 'open';
@@ -749,8 +780,19 @@ async function loadRequests() {
 }
 
 function renderRequests() {
-  const page = paginateItems(state.requests, 'requests');
-  document.getElementById('requestRows').innerHTML = emptyTable(page.items, item => `
+  const rowsHost = document.getElementById('requestRows');
+  if (!rowsHost) return;
+
+  const search = document.getElementById('requestSearch')?.value.trim().toLocaleLowerCase('tr-TR') || '';
+  const requests = (state.requests || []).filter(item => operationMatchesSearch(item, search, [
+    'fullName',
+    'roomNumber',
+    'category',
+    'description',
+    'status'
+  ]));
+  const page = paginateItems(requests, 'requests');
+  rowsHost.innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.fullName)}</strong></td>
       <td>${escapeHtml(item.roomNumber)}</td>
@@ -809,7 +851,7 @@ function staffAssignmentForm() {
       <label class="inline-check full"><input name="isMaintenanceRequest" type="checkbox"> Arıza iş emri olarak işaretle</label>
       <button class="primary-btn full" type="submit">Görevi Ata</button>
     </form>`,
-    bind: () => document.getElementById('staffAssignmentForm').addEventListener('submit', submitStaffAssignment)
+    bind: () => document.getElementById('staffAssignmentForm')?.addEventListener('submit', submitStaffAssignment)
   };
 }
 
@@ -861,8 +903,21 @@ async function loadStaffAssignments() {
 }
 
 function renderStaffAssignments() {
-  const page = paginateItems(state.staffAssignments, 'staffAssignments');
-  document.getElementById('assignmentRows').innerHTML = emptyTable(page.items, item => `
+  const rowsHost = document.getElementById('assignmentRows');
+  if (!rowsHost) return;
+
+  const search = document.getElementById('assignmentSearch')?.value.trim().toLocaleLowerCase('tr-TR') || '';
+  const assignments = (state.staffAssignments || []).filter(item => operationMatchesSearch(item, search, [
+    'title',
+    'details',
+    'assignedRole',
+    'dormitoryName',
+    'housingUnitName',
+    'location',
+    'priority'
+  ]));
+  const page = paginateItems(assignments, 'staffAssignments');
+  rowsHost.innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.title)}</strong><br><small>${escapeHtml(item.details || '-')}</small></td>
       <td>${roleDisplay(item.assignedRole)}${item.isMaintenanceRequest ? '<br><small>Arıza iş emri</small>' : ''}</td>
@@ -886,8 +941,19 @@ async function loadFaultReports() {
 }
 
 function renderFaultReports() {
-  const page = paginateItems(state.faultReports, 'faultReports');
-  document.getElementById('faultReportList').innerHTML = emptyOr(page.items, item => `
+  const listHost = document.getElementById('faultReportList');
+  if (!listHost) return;
+
+  const search = document.getElementById('faultReportSearch')?.value.trim().toLocaleLowerCase('tr-TR') || '';
+  const reports = (state.faultReports || []).filter(item => operationMatchesSearch(item, search, [
+    'category',
+    'dormitoryName',
+    'housingUnitName',
+    'location',
+    'description'
+  ]));
+  const page = paginateItems(reports, 'faultReports');
+  listHost.innerHTML = emptyOr(page.items, item => `
     <div class="activity-item">
       <div>
         <strong>${escapeHtml(item.category)} · ${escapeHtml(item.dormitoryName || item.housingUnitName || '-')}</strong>
@@ -909,8 +975,19 @@ async function loadUserFacilityAssignments() {
 }
 
 function renderUserFacilityAssignments() {
-  const page = paginateItems(state.userFacilityAssignments, 'userFacilityAssignments');
-  document.getElementById('facilityAssignmentRows').innerHTML = emptyTable(page.items, item => `
+  const rowsHost = document.getElementById('facilityAssignmentRows');
+  if (!rowsHost) return;
+
+  const search = document.getElementById('facilityAssignmentSearch')?.value.trim().toLocaleLowerCase('tr-TR') || '';
+  const assignments = (state.userFacilityAssignments || []).filter(item => operationMatchesSearch(item, search, [
+    'userFullName',
+    'userRole',
+    'dormitoryName',
+    'housingUnitName',
+    'assignedByName'
+  ]));
+  const page = paginateItems(assignments, 'userFacilityAssignments');
+  rowsHost.innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.userFullName)}</strong></td>
       <td>${roleDisplay(item.userRole)}</td>

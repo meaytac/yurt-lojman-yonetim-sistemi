@@ -196,96 +196,123 @@
           <div class="toolbar">
             <div>
               <h2>Operasyon &amp; Görevlendirme</h2>
-              <p>Size atanmış tesislerdeki arıza taleplerini izleyin ve personele görev atayın.</p>
-            </div>
-            <div class="toolbar-actions">
-              <select id="requestOpenOnlyFilter">
-                <option value="">Tüm arıza talepleri</option>
-                <option value="open">Sadece açık / işlemde</option>
-              </select>
-              <button class="primary-btn" data-modal="staffAssignmentModal">+ Personele Görev Ata</button>
+              <p>Size atanmış tesislerdeki operasyon kayıtlarını sekmeler halinde yönetin.</p>
             </div>
           </div>
 
-          <article class="panel">
-            <div class="panel-head">
-              <h2>Arıza Talepleri</h2>
-              <small class="muted">Sakinlerin oluşturduğu talepler; durum güncellemesi sakin ve teknik personel ekranlarına yansır.</small>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Sakin</th>
-                    <th>Oda</th>
-                    <th>Kategori</th>
-                    <th>Açıklama</th>
-                    <th>Tarih</th>
-                    <th>Durum</th>
-                    <th>Durum Güncelle</th>
-                  </tr>
-                </thead>
-                <tbody id="requestRows"></tbody>
-              </table>
-            </div>
-            <div id="requestPager" class="pager"></div>
-          </article>
+          <div class="sub-tabs" role="tablist" aria-label="Operasyon alt sekmeleri">
+            <button class="sub-tab active" type="button" data-operation-tab="requests" role="tab" aria-selected="true">Arıza Talepleri</button>
+            <button class="sub-tab" type="button" data-operation-tab="assignments" role="tab" aria-selected="false">Görevlendirmeler</button>
+            <button class="sub-tab" type="button" data-operation-tab="faultReports" role="tab" aria-selected="false">Personel Bildirimleri</button>
+            <button class="sub-tab" type="button" data-operation-tab="facilityAssignments" role="tab" aria-selected="false">Personel &amp; Görev Yerleri</button>
+          </div>
 
-          <article class="panel">
-            <div class="panel-head">
-              <h2>Personel Görevlendirmeleri</h2>
-              <small class="muted">Görevler yalnızca seçilen tesis kapsamındaki personel panelinde görünür.</small>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Görev</th>
-                    <th>Rol</th>
-                    <th>Tesis</th>
-                    <th>Konum</th>
-                    <th>Öncelik</th>
-                    <th>Termin</th>
-                    <th>Durum</th>
-                  </tr>
-                </thead>
-                <tbody id="assignmentRows"></tbody>
-              </table>
-            </div>
-            <div id="assignmentPager" class="pager"></div>
-          </article>
+          <div class="operation-tab-panels">
+            <article class="panel operation-tab-panel active" data-operation-panel="requests" role="tabpanel">
+              <div class="panel-head">
+                <div>
+                  <h2>Arıza Talepleri</h2>
+                  <small class="muted">Sakinlerin oluşturduğu talepler; durum güncellemesi sakin ve teknik personel ekranlarına yansır.</small>
+                </div>
+                <div class="toolbar-actions">
+                  <input id="requestSearch" type="search" placeholder="Sakin, oda veya kategori ara">
+                  <select id="requestOpenOnlyFilter">
+                    <option value="">Tüm arıza talepleri</option>
+                    <option value="open">Sadece açık / işlemde</option>
+                  </select>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Sakin</th>
+                      <th>Oda</th>
+                      <th>Kategori</th>
+                      <th>Açıklama</th>
+                      <th>Tarih</th>
+                      <th>Durum</th>
+                      <th>Durum Güncelle</th>
+                    </tr>
+                  </thead>
+                  <tbody id="requestRows"></tbody>
+                </table>
+              </div>
+              <div id="requestPager" class="pager"></div>
+            </article>
 
-          <article class="panel">
-            <div class="panel-head">
-              <h2>Personel Arıza Bildirimleri</h2>
-              <small class="muted">Personelin görev sırasında bildirdiği tesis bazlı arızalar.</small>
-            </div>
-            <div id="faultReportList" class="activity-list"></div>
-            <div id="faultReportPager" class="pager"></div>
-          </article>
+            <article class="panel operation-tab-panel" data-operation-panel="assignments" role="tabpanel">
+              <div class="panel-head">
+                <div>
+                  <h2>Görevlendirmeler</h2>
+                  <small class="muted">Görevler yalnızca seçilen tesis kapsamındaki personel panelinde görünür.</small>
+                </div>
+                <div class="toolbar-actions">
+                  <input id="assignmentSearch" type="search" placeholder="Görev, tesis veya konum ara">
+                  <button class="primary-btn" data-modal="staffAssignmentModal">+ Personele Görev Ata</button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Görev</th>
+                      <th>Rol</th>
+                      <th>Tesis</th>
+                      <th>Konum</th>
+                      <th>Öncelik</th>
+                      <th>Termin</th>
+                      <th>Durum</th>
+                    </tr>
+                  </thead>
+                  <tbody id="assignmentRows"></tbody>
+                </table>
+              </div>
+              <div id="assignmentPager" class="pager"></div>
+            </article>
 
-          <article class="panel">
-            <div class="panel-head">
-              <h2>Görev Yeri İnceleme</h2>
-              <small class="muted">Size atanmış tesislerde görevli yetkili ve personeller.</small>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Kullanıcı</th>
-                    <th>Rol</th>
-                    <th>Görev Yeri</th>
-                    <th>Atayan</th>
-                    <th>Atama Tarihi</th>
-                    <th>Durum</th>
-                  </tr>
-                </thead>
-                <tbody id="facilityAssignmentRows"></tbody>
-              </table>
-            </div>
-            <div id="facilityAssignmentPager" class="pager"></div>
-          </article>
+            <article class="panel operation-tab-panel" data-operation-panel="faultReports" role="tabpanel">
+              <div class="panel-head">
+                <div>
+                  <h2>Personel Bildirimleri</h2>
+                  <small class="muted">Personelin görev sırasında bildirdiği tesis bazlı arızalar.</small>
+                </div>
+                <div class="toolbar-actions">
+                  <input id="faultReportSearch" type="search" placeholder="Kategori, tesis veya konum ara">
+                </div>
+              </div>
+              <div id="faultReportList" class="activity-list tab-list"></div>
+              <div id="faultReportPager" class="pager"></div>
+            </article>
+
+            <article class="panel operation-tab-panel" data-operation-panel="facilityAssignments" role="tabpanel">
+              <div class="panel-head">
+                <div>
+                  <h2>Personel &amp; Görev Yerleri</h2>
+                  <small class="muted">Size atanmış tesislerde görevli yetkili ve personeller.</small>
+                </div>
+                <div class="toolbar-actions">
+                  <input id="facilityAssignmentSearch" type="search" placeholder="Kullanıcı, rol veya tesis ara">
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Kullanıcı</th>
+                      <th>Rol</th>
+                      <th>Görev Yeri</th>
+                      <th>Atayan</th>
+                      <th>Atama Tarihi</th>
+                      <th>Durum</th>
+                    </tr>
+                  </thead>
+                  <tbody id="facilityAssignmentRows"></tbody>
+                </table>
+              </div>
+              <div id="facilityAssignmentPager" class="pager"></div>
+            </article>
+          </div>
         </section>
 
         <section id="announcements" class="page-section">
