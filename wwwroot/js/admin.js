@@ -33,6 +33,28 @@ const state = {
 const REFRESH_INTERVAL = 15000;
 let activeSection = 'dashboard';
 
+function byId(id) {
+  return document.getElementById(id);
+}
+
+function bindById(id, eventName, handler) {
+  byId(id)?.addEventListener(eventName, handler);
+}
+
+function setText(id, value) {
+  const element = byId(id);
+  if (element) element.textContent = value;
+}
+
+function setHtml(id, value) {
+  const element = byId(id);
+  if (element) element.innerHTML = value;
+}
+
+function inputValue(id, fallback = '') {
+  return byId(id)?.value ?? fallback;
+}
+
 const sectionTitles = {
   dashboard: 'Kontrol Paneli',
   facilities: 'Tesisler',
@@ -72,9 +94,9 @@ function clearStoredTokens() {
 }
 
 function bindShell() {
-  document.getElementById('logoutBtn').addEventListener('click', logout);
-  document.getElementById('closeModal').addEventListener('click', closeModal);
-  document.getElementById('modalBackdrop').addEventListener('click', event => {
+  bindById('logoutBtn', 'click', logout);
+  bindById('closeModal', 'click', closeModal);
+  bindById('modalBackdrop', 'click', event => {
     if (event.target.id === 'modalBackdrop') closeModal();
   });
 
@@ -88,17 +110,18 @@ function bindShell() {
     button.addEventListener('click', () => openNamedModal(button.dataset.modal));
   });
 
-  document.getElementById('facilitySearch').addEventListener('input', () => { state.pages.facilities = 1; renderFacilities(); });
-  document.getElementById('roomSearch').addEventListener('input', () => { state.roomPage = 1; renderRooms(); });
-  document.getElementById('roomStatusFilter').addEventListener('change', () => { state.roomPage = 1; renderRooms(); });
-  document.getElementById('userSearch').addEventListener('input', debounce(() => loadUsers(1), 350));
-  document.getElementById('roleFilter').addEventListener('change', () => loadUsers(1));
-  document.getElementById('activePlacementsOnly')?.addEventListener('change', () => { state.pages.placements = 1; loadPlacements(); });
-  document.getElementById('requestOpenOnlyFilter')?.addEventListener('change', () => { state.pages.requests = 1; loadRequests(); });
+  bindById('facilitySearch', 'input', () => { state.pages.facilities = 1; renderFacilities(); });
+  bindById('roomSearch', 'input', () => { state.roomPage = 1; renderRooms(); });
+  bindById('roomStatusFilter', 'change', () => { state.roomPage = 1; renderRooms(); });
+  bindById('userSearch', 'input', debounce(() => loadUsers(1), 350));
+  bindById('roleFilter', 'change', () => loadUsers(1));
+  bindById('activePlacementsOnly', 'change', () => { state.pages.placements = 1; loadPlacements(); });
+  bindById('requestOpenOnlyFilter', 'change', () => { state.pages.requests = 1; loadRequests(); });
 
   setInterval(() => {
     if (document.hidden) return;
-    if (document.getElementById('modalBackdrop').style.display !== 'none') return;
+    const backdrop = byId('modalBackdrop');
+    if (backdrop && backdrop.style.display !== 'none') return;
     refreshActiveSection();
   }, REFRESH_INTERVAL);
 }
@@ -106,8 +129,8 @@ function bindShell() {
 async function openApp(token) {
   const claims = parseJwt(token);
   const role = claims['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || claims.role || 'Admin';
-  document.getElementById('adminName').textContent = claims.fullName || claims.name || 'Sistem Yöneticisi';
-  document.getElementById('adminRole').textContent = role;
+  setText('adminName', claims.fullName || claims.name || 'Sistem Yöneticisi');
+  setText('adminRole', role);
   switchSection('dashboard');
   await Promise.allSettled([loadDashboard(), loadFacilities(), loadBuildings(), loadFloors(), loadRooms(), loadUsers(1), loadUserFacilityAssignments(), loadAnnouncements()]);
 }
@@ -122,7 +145,7 @@ function switchSection(id) {
   activeSection = id;
   document.querySelectorAll('.page-section').forEach(section => section.classList.toggle('active', section.id === id));
   document.querySelectorAll('.nav-item[data-section]').forEach(button => button.classList.toggle('active', button.dataset.section === id));
-  document.getElementById('sectionTitle').textContent = sectionTitles[id] || 'Yönetim Paneli';
+  setText('sectionTitle', sectionTitles[id] || 'Yönetim Paneli');
 }
 
 function refreshActiveSection() {
@@ -157,7 +180,7 @@ function renderDashboard() {
     ['Bakımda Oda', s.maintenanceRoomCount ?? 0, '🔧']
   ];
 
-  document.getElementById('kpiGrid').innerHTML = cards.map(([label, value, icon]) => `
+  setHtml('kpiGrid', cards.map(([label, value, icon]) => `
     <article class="kpi-card">
       <div class="kpi-top">
         <span class="kpi-label">${label}</span>
@@ -165,18 +188,18 @@ function renderDashboard() {
       </div>
       <div class="kpi-value">${value}</div>
     </article>
-  `).join('');
+  `).join(''));
 
-  document.getElementById('recentApplications').innerHTML = `
+  setHtml('recentApplications', `
     <div class="activity-item">
       <div>
         <strong>Başvuru, yerleşim ve saha operasyonları Yetkili paneline ayrıldı.</strong>
         <small>Admin burada tesis ağacı, oda tanımları, kullanıcı rolleri, global görev yeri atamaları ve duyuruları yönetir.</small>
       </div>
     </div>
-  `;
+  `);
 
-  const recentRequests = document.getElementById('recentRequests');
+  const recentRequests = byId('recentRequests');
   if (recentRequests) {
     recentRequests.innerHTML = emptyOr(s.recentRequests || [], item => `
       <div class="activity-item">
@@ -219,7 +242,10 @@ async function loadFloors() {
 }
 
 function renderFacilities() {
-  const term = document.getElementById('facilitySearch').value.toLowerCase();
+  const rowsHost = byId('facilityRows');
+  if (!rowsHost) return;
+
+  const term = inputValue('facilitySearch').toLowerCase();
   const rows = state.facilities.filter(x => {
     const name = String(x.name || '').toLowerCase();
     const campus = String(x.campusLocation || '').toLowerCase();
@@ -228,7 +254,7 @@ function renderFacilities() {
   });
   const page = paginateItems(rows, 'facilities');
 
-  document.getElementById('facilityRows').innerHTML = emptyTable(page.items, item => `
+  rowsHost.innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.name)}</strong></td>
       <td>${escapeHtml(item.type)}</td>
@@ -256,8 +282,11 @@ async function loadRooms() {
 }
 
 function renderRooms() {
-  const term = document.getElementById('roomSearch').value.toLowerCase();
-  const status = document.getElementById('roomStatusFilter').value;
+  const rowsHost = byId('roomRows');
+  if (!rowsHost) return;
+
+  const term = inputValue('roomSearch').toLowerCase();
+  const status = inputValue('roomStatusFilter');
   const filtered = state.rooms.filter(x => {
     const roomText = String(x.roomNumber || '').toLowerCase();
     const facilityText = String(x.facilityName || '').toLowerCase();
@@ -270,7 +299,7 @@ function renderRooms() {
   const start = (state.roomPage - 1) * state.roomPageSize;
   const pageItems = filtered.slice(start, start + state.roomPageSize);
 
-  document.getElementById('roomRows').innerHTML = emptyTable(pageItems, item => `
+  rowsHost.innerHTML = emptyTable(pageItems, item => `
     <tr>
       <td><strong>${escapeHtml(item.roomNumber)}</strong></td>
       <td>${escapeHtml(item.facilityName)}</td>
@@ -291,8 +320,8 @@ function renderRooms() {
 
 async function loadUsers(page = state.users.page) {
   try {
-    const search = encodeURIComponent(document.getElementById('userSearch').value);
-    const role = encodeURIComponent(document.getElementById('roleFilter').value);
+    const search = encodeURIComponent(inputValue('userSearch'));
+    const role = encodeURIComponent(inputValue('roleFilter'));
     state.users = await api(`/api/admin/users?page=${page}&pageSize=${state.listPageSize}&search=${search}&role=${role}`);
   } catch (error) {
     console.error('[Admin API] Kullanıcılar yüklenemedi:', error);
@@ -306,7 +335,10 @@ async function refreshFacilityHierarchy() {
 }
 
 function renderUsers() {
-  document.getElementById('userRows').innerHTML = emptyTable(state.users.items || [], item => `
+  const rowsHost = byId('userRows');
+  if (!rowsHost) return;
+
+  rowsHost.innerHTML = emptyTable(state.users.items || [], item => `
     <tr>
       <td><strong>${escapeHtml(item.fullName)}</strong></td>
       <td>${escapeHtml(item.email)}</td>
@@ -328,7 +360,7 @@ function renderUsers() {
 
 async function loadPlacements() {
   try {
-    const activeOnly = document.getElementById('activePlacementsOnly')?.checked ?? true;
+    const activeOnly = byId('activePlacementsOnly')?.checked ?? true;
     state.placements = await api(`/api/admin/placements?activeOnly=${activeOnly}`);
   } catch (error) {
     console.error('[Admin API] Yerleşimler yüklenemedi:', error);
@@ -338,7 +370,7 @@ async function loadPlacements() {
 }
 
 function renderPlacements() {
-  const rows = document.getElementById('placementRows');
+  const rows = byId('placementRows');
   if (!rows) return;
 
   const page = paginateItems(state.placements || [], 'placements');
@@ -366,7 +398,7 @@ async function loadApplications() {
 }
 
 function renderApplications() {
-  const rows = document.getElementById('applicationRows');
+  const rows = byId('applicationRows');
   if (!rows) return;
 
   const page = paginateItems(state.applications || [], 'applications');
@@ -388,20 +420,25 @@ function renderApplications() {
 }
 
 function openModal(title, html, bind) {
-  document.getElementById('modalTitle').textContent = title;
-  document.getElementById('modalBody').innerHTML = html;
-  const backdrop = document.getElementById('modalBackdrop');
+  const titleHost = byId('modalTitle');
+  const bodyHost = byId('modalBody');
+  const backdrop = byId('modalBackdrop');
+  if (!titleHost || !bodyHost || !backdrop) return;
+
+  titleHost.textContent = title;
+  bodyHost.innerHTML = html;
   backdrop.style.display = 'grid';
   setTimeout(() => backdrop.classList.add('show'), 20);
   bind?.();
 }
 
 function closeModal() {
-  const backdrop = document.getElementById('modalBackdrop');
+  const backdrop = byId('modalBackdrop');
+  if (!backdrop) return;
   backdrop.classList.remove('show');
   setTimeout(() => {
     backdrop.style.display = 'none';
-    document.getElementById('modalBody').innerHTML = '';
+    setHtml('modalBody', '');
   }, 180);
 }
 
@@ -433,8 +470,8 @@ function facilityForm(item = null, type = 'Yurt') {
     </form>
     ${item ? `<div class="modal-list"><h3>Bağlı Bloklar</h3><div class="table-wrap compact"><table><thead><tr><th>Blok</th><th>Kat</th><th>Oda</th><th>Aksiyon</th></tr></thead><tbody>${relatedBlockRows || '<tr><td colspan="4">Bu tesise bağlı blok yok.</td></tr>'}</tbody></table></div></div>` : ''}`,
     bind: () => {
-      document.getElementById('facilityForm').addEventListener('submit', event => submitFacility(event, item));
-      document.getElementById('deleteFacilityFromModal')?.addEventListener('click', () => deleteFacility(type, item.id));
+      bindById('facilityForm', 'submit', event => submitFacility(event, item));
+      bindById('deleteFacilityFromModal', 'click', () => deleteFacility(type, item.id));
       document.querySelectorAll('[data-edit-building]').forEach(button => button.addEventListener('click', () => editBuilding(Number(button.dataset.editBuilding))));
       document.querySelectorAll('[data-delete-building]').forEach(button => button.addEventListener('click', () => deleteBuilding(Number(button.dataset.deleteBuilding))));
     }
@@ -488,8 +525,8 @@ function buildingForm(item = null) {
     </form>
     ${item ? '' : `<div class="modal-list"><h3>Kayıtlı Bloklar</h3><div class="table-wrap compact"><table><thead><tr><th>Blok</th><th>Tesis</th><th>Kat</th><th>Aksiyon</th></tr></thead><tbody>${buildingRows || '<tr><td colspan="4">Kayıt bulunamadı.</td></tr>'}</tbody></table></div></div>`}`,
     bind: () => {
-      document.getElementById('buildingForm').addEventListener('submit', event => submitBuilding(event, item));
-      document.getElementById('deleteBuildingFromModal')?.addEventListener('click', () => deleteBuilding(item.id));
+      bindById('buildingForm', 'submit', event => submitBuilding(event, item));
+      bindById('deleteBuildingFromModal', 'click', () => deleteBuilding(item.id));
       document.querySelectorAll('[data-edit-building]').forEach(button => button.addEventListener('click', () => editBuilding(Number(button.dataset.editBuilding))));
       document.querySelectorAll('[data-delete-building]').forEach(button => button.addEventListener('click', () => deleteBuilding(Number(button.dataset.deleteBuilding))));
     }
@@ -539,8 +576,8 @@ function floorForm(item = null) {
     </form>
     ${item ? '' : `<div class="modal-list"><h3>Kayıtlı Katlar</h3><div class="table-wrap compact"><table><thead><tr><th>Kat</th><th>Blok</th><th>Oda</th><th>Aksiyon</th></tr></thead><tbody>${floorRows || '<tr><td colspan="4">Kayıt bulunamadı.</td></tr>'}</tbody></table></div></div>`}`,
     bind: () => {
-      document.getElementById('floorForm').addEventListener('submit', event => submitFloor(event, item));
-      document.getElementById('deleteFloorFromModal')?.addEventListener('click', () => deleteFloor(item.id));
+      bindById('floorForm', 'submit', event => submitFloor(event, item));
+      bindById('deleteFloorFromModal', 'click', () => deleteFloor(item.id));
       document.querySelectorAll('[data-edit-floor]').forEach(button => button.addEventListener('click', () => editFloor(Number(button.dataset.editFloor))));
       document.querySelectorAll('[data-delete-floor]').forEach(button => button.addEventListener('click', () => deleteFloor(Number(button.dataset.deleteFloor))));
     }
@@ -567,8 +604,8 @@ function roomForm(item = null) {
     title: item ? 'Oda Düzenle' : 'Yeni Oda',
     html: `<form id="roomForm" class="form-grid"><label class="full">Kat<select name="blockFloorId" required>${floorOptions || '<option value="">Önce kat ekleyin</option>'}</select></label><label>Oda No<input name="roomNumber" value="${escapeAttr(item?.roomNumber)}" required maxlength="30"></label><label>Kapasite<input name="capacity" type="number" min="1" max="50" value="${item?.capacity ?? 1}" required></label><label>Durum<select name="status">${['Empty', 'PartiallyFull', 'Full', 'Maintenance'].map(status => `<option value="${status}" ${status === (item?.status || 'Empty') ? 'selected' : ''}>${roomDisplayStatus(status)}</option>`).join('')}</select></label><label>Fiyat<input name="price" type="number" min="0" max="999999" step="0.01" value="${item?.price ?? 0}" required></label><div class="form-actions full">${item ? '<button class="danger-btn" id="deleteRoomFromModal" type="button">Sil</button>' : ''}<button class="primary-btn" type="submit">Kaydet</button></div></form>`,
     bind: () => {
-      document.getElementById('roomForm').addEventListener('submit', event => submitRoom(event, item));
-      document.getElementById('deleteRoomFromModal')?.addEventListener('click', () => deleteRoom(item.id));
+      bindById('roomForm', 'submit', event => submitRoom(event, item));
+      bindById('deleteRoomFromModal', 'click', () => deleteRoom(item.id));
     }
   };
 }
@@ -675,6 +712,7 @@ function bindAssignmentControls(form, initialAccommodationType) {
   const roomField = form.querySelector('#manualRoomField');
   const preview = form.querySelector('#assignmentRoomPreview');
   const typeInput = form.querySelector('[name="accommodationType"]');
+  if (!modeSelect || !facilitySelect || !roomSelect || !roomField || !preview) return;
 
   const currentType = () => typeInput?.value || initialAccommodationType || 'Yurt';
   const refreshRooms = () => {
@@ -755,7 +793,9 @@ function assignForm(applicationId = '', userId = '', accommodationType = 'Yurt')
       <button class="primary-btn full" type="submit">Atamayı Tamamla</button>
     </form>`,
     bind: () => {
-      const form = document.getElementById('assignForm');
+      const form = byId('assignForm');
+      if (!form) return;
+
       form.addEventListener('submit', event => applicationId ? submitApplicationAssign(event) : submitAssign(event));
       bindAssignmentControls(form, accommodationType);
       if (!applicationId) loadPlacementCandidateOptions(form);
@@ -848,7 +888,7 @@ function staffAssignmentForm() {
       <label class="inline-check full"><input name="isMaintenanceRequest" type="checkbox"> Arıza iş emri olarak işaretle</label>
       <button class="primary-btn full" type="submit">Görevi Kaydet</button>
     </form>`,
-    bind: () => document.getElementById('staffAssignmentForm').addEventListener('submit', submitStaffAssignment)
+    bind: () => bindById('staffAssignmentForm', 'submit', submitStaffAssignment)
   };
 }
 
@@ -891,7 +931,7 @@ function loadOperations() {
 
 async function loadRequests() {
   try {
-    const openOnly = document.getElementById('requestOpenOnlyFilter')?.value === 'open';
+    const openOnly = byId('requestOpenOnlyFilter')?.value === 'open';
     state.requests = await api(`/api/admin/requests?openOnly=${openOnly}`);
   } catch (error) {
     console.error('[Admin API] Arıza talepleri yüklenemedi:', error);
@@ -901,7 +941,7 @@ async function loadRequests() {
 }
 
 function renderRequests() {
-  const rows = document.getElementById('requestRows');
+  const rows = byId('requestRows');
   if (!rows) return;
 
   const page = paginateItems(state.requests, 'requests');
@@ -938,7 +978,7 @@ async function loadStaffAssignments() {
 }
 
 function renderStaffAssignments() {
-  const rows = document.getElementById('assignmentRows');
+  const rows = byId('assignmentRows');
   if (!rows) return;
 
   const page = paginateItems(state.staffAssignments, 'staffAssignments');
@@ -966,7 +1006,7 @@ async function loadFaultReports() {
 }
 
 function renderFaultReports() {
-  const list = document.getElementById('faultReportList');
+  const list = byId('faultReportList');
   if (!list) return;
 
   const page = paginateItems(state.faultReports, 'faultReports');
@@ -993,8 +1033,11 @@ async function loadUserFacilityAssignments() {
 }
 
 function renderUserFacilityAssignments() {
+  const rowsHost = byId('facilityAssignmentRows');
+  if (!rowsHost) return;
+
   const page = paginateItems(state.userFacilityAssignments, 'userFacilityAssignments');
-  document.getElementById('facilityAssignmentRows').innerHTML = emptyTable(page.items, item => `
+  rowsHost.innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.userFullName)}</strong><br><small>${escapeHtml(item.userRole)}</small></td>
       <td>${item.dormitoryName ? `<strong>${escapeHtml(item.dormitoryName)}</strong>` : `<strong>${escapeHtml(item.housingUnitName)}</strong>`}</td>
@@ -1060,12 +1103,15 @@ function userFacilityAssignmentForm() {
       <button class="primary-btn full" type="submit">Atamayı Kaydet</button>
     </form>`,
     bind: () => {
-      const form = document.getElementById('userFacilityAssignmentForm');
+      const form = byId('userFacilityAssignmentForm');
+      if (!form) return;
+
       const modeSel = form.querySelector('#accountMode');
       const roleSel = form.querySelector('#assignRoleSelect');
       const userSel = form.querySelector('#assignUserSelect');
       const existingFields = form.querySelector('#existingAccountFields');
       const newFields = form.querySelector('#newAccountFields');
+      if (!modeSel || !roleSel || !userSel || !existingFields || !newFields) return;
 
       const toggleMode = () => {
         const isNew = modeSel.value === 'new';
@@ -1163,14 +1209,19 @@ async function editUserFacilityAssignment(id) {
   form.html = form.html.replace('<button class="primary-btn full" type="submit">Atamayı Kaydet</button>', '<button class="primary-btn full" type="submit">Atamayı Güncelle</button>');
   openModal(form.title, form.html, () => {
     form.bind();
-    const formEl = document.getElementById('userFacilityAssignmentForm');
+    const formEl = byId('userFacilityAssignmentForm');
+    if (!formEl) return;
+
     const modeSel = formEl.querySelector('#accountMode');
     const roleSel = formEl.querySelector('#assignRoleSelect');
     const userSel = formEl.querySelector('#assignUserSelect');
     const newFields = formEl.querySelector('#newAccountFields');
+    if (!modeSel || !roleSel || !userSel || !newFields) return;
+
     modeSel.value = 'existing';
     modeSel.disabled = true;
     newFields.style.display = 'none';
+    if (typeof formEl._toggleMode !== 'function' || typeof formEl._loadUsers !== 'function') return;
     formEl._toggleMode();
     (async () => {
       if (ASSIGNABLE_ROLES.includes(item.userRole)) {
@@ -1180,8 +1231,10 @@ async function editUserFacilityAssignment(id) {
       userSel.value = item.userId;
       userSel.disabled = true;
       roleSel.disabled = true;
-      if (item.dormitoryId) formEl.querySelector('[name="dormitoryId"]').value = String(item.dormitoryId);
-      if (item.housingUnitId) formEl.querySelector('[name="housingUnitId"]').value = String(item.housingUnitId);
+      const dormitorySelect = formEl.querySelector('[name="dormitoryId"]');
+      const housingSelect = formEl.querySelector('[name="housingUnitId"]');
+      if (item.dormitoryId && dormitorySelect) dormitorySelect.value = String(item.dormitoryId);
+      if (item.housingUnitId && housingSelect) housingSelect.value = String(item.housingUnitId);
     })();
   });
 }
@@ -1208,8 +1261,11 @@ function announcementTargetDisplay(role) {
 }
 
 function renderAnnouncements() {
+  const rowsHost = byId('announcementRowsAdmin');
+  if (!rowsHost) return;
+
   const page = paginateItems(state.announcements, 'announcements');
-  document.getElementById('announcementRowsAdmin').innerHTML = emptyTable(page.items, item => `
+  rowsHost.innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.title)}</strong></td>
       <td class="desc-cell">${escapeHtml(item.content)}</td>
@@ -1238,7 +1294,7 @@ function announcementFormAdmin() {
       <label>Durum<select name="isActive"><option value="true" selected>Yayında</option><option value="false">Yayın dışı</option></select></label>
       <button class="primary-btn full" type="submit">Duyuruyu Yayınla</button>
     </form>`,
-    bind: () => document.getElementById('announcementFormAdmin').addEventListener('submit', submitAnnouncementAdmin)
+    bind: () => bindById('announcementFormAdmin', 'submit', submitAnnouncementAdmin)
   };
 }
 
@@ -1317,8 +1373,8 @@ async function saveEntity(url, method, body) {
 }
 
 function closeModalIfOpen() {
-  const backdrop = document.getElementById('modalBackdrop');
-  if (backdrop.style.display !== 'none') {
+  const backdrop = byId('modalBackdrop');
+  if (backdrop && backdrop.style.display !== 'none') {
     closeModal();
   }
 }
@@ -1475,7 +1531,7 @@ async function api(path, options = {}, attachToken = true) {
 }
 
 function renderPager(id, page, totalPages, onChange) {
-  const host = document.getElementById(id);
+  const host = byId(id);
   if (!host) return;
   host.innerHTML = `
     <button class="ghost-btn" ${page <= 1 ? 'disabled' : ''}>Önceki</button>
@@ -1507,7 +1563,7 @@ function removeApplicationFromState(id) {
 }
 
 function showApplicationFeedback(message) {
-  const host = document.getElementById('applicationFeedback');
+  const host = byId('applicationFeedback');
   if (host) {
     host.textContent = message;
     host.classList.add('success');
@@ -1560,10 +1616,16 @@ function floorLabel(floor) {
 }
 
 function toast(message, isError = false) {
+  const host = byId('toastHost');
+  if (!host) {
+    console[isError ? 'error' : 'log'](message);
+    return;
+  }
+
   const el = document.createElement('div');
   el.className = `toast${isError ? ' error' : ''}`;
   el.textContent = message;
-  document.getElementById('toastHost').appendChild(el);
+  host.appendChild(el);
   setTimeout(() => el.remove(), 3600);
 }
 
