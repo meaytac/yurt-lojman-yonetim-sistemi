@@ -199,6 +199,14 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
 }
 
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+  background: #f1f5f9;
+  color: var(--text-muted);
+}
+
 .form-options {
   display: flex;
   align-items: center;
@@ -239,6 +247,13 @@ input:focus, select:focus, textarea:focus {
 
 .btn-primary:active {
   transform: translateY(0);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+  transform: none;
 }
 
 .btn-secondary {
@@ -321,7 +336,7 @@ input:focus, select:focus, textarea:focus {
 
 .application-modal-body {
   overflow: auto;
-  padding: 22px;
+  padding: 22px 22px 92px;
   display: grid;
   gap: 18px;
 }
@@ -405,15 +420,78 @@ input:focus, select:focus, textarea:focus {
   background: var(--bg-light);
 }
 
+.application-empty-state {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 14px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-light);
+  color: var(--text-secondary);
+}
+
+.application-empty-state p {
+  margin: 0;
+}
+
+.application-result-panel {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid rgba(5, 150, 105, 0.32);
+  border-radius: var(--radius-md);
+  background: #ecfdf5;
+}
+
+.application-result-panel[hidden] {
+  display: none;
+}
+
+.application-result-panel h3,
+.application-result-panel p {
+  margin: 0;
+}
+
+.application-result-panel strong {
+  font-size: 20px;
+  color: var(--primary-navy);
+  letter-spacing: 0;
+}
+
 .declaration {
   align-items: flex-start;
 }
 
-.modal-actions {
+.application-modal-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: 0 -22px -92px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-white);
+}
+
+.application-modal-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   justify-content: flex-end;
+  align-items: center;
+}
+
+.application-modal-actions > * {
+  min-width: 132px;
+}
+
+.application-modal-actions > [hidden] {
+  display: none !important;
+}
+
+.application-modal-actions .result-action {
+  min-width: 206px;
 }
 
 .login-message {
@@ -625,5 +703,27 @@ input:focus, select:focus, textarea:focus {
   .footer-links {
     flex-direction: column;
     gap: 12px;
+  }
+
+  .form-grid.two,
+  .application-facility-list {
+    grid-template-columns: 1fr;
+  }
+
+  .application-modal {
+    max-height: calc(100vh - 24px);
+  }
+
+  .application-modal-backdrop {
+    padding: 12px;
+  }
+
+  .application-modal-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .application-modal-actions > * {
+    width: 100%;
   }
 }

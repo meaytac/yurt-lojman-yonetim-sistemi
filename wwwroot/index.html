@@ -121,11 +121,15 @@
                 <option value="Lojman">Lojman</option>
               </select>
             </label>
-            <label>Kampüs filtresi<input id="campusFilter" type="search" placeholder="Kampüs adı"></label>
+            <label for="campusSelect">Kampüs
+              <select id="campusSelect" disabled>
+                <option value="">Tüm kampüsler</option>
+              </select>
+            </label>
           </div>
           <input type="hidden" name="dormitoryId" id="applicationDormitoryId">
           <input type="hidden" name="housingUnitId" id="applicationHousingUnitId">
-          <div id="applicationFacilityList" class="application-facility-list"></div>
+          <div id="applicationFacilityList" class="application-facility-list" aria-live="polite"></div>
           <div id="selectedFacilitySummary" class="selected-facility-summary">Tesis seçilmedi.</div>
         </fieldset>
 
@@ -142,11 +146,20 @@
           <div id="applicationSummary" class="selected-facility-summary"></div>
         </fieldset>
 
-        <div class="modal-actions">
-          <button class="btn-secondary" id="copyReferenceButton" type="button" hidden>Başvuru numarasını kopyala</button>
-          <a class="btn-secondary" id="goTrackButton" href="/track-application.html" hidden>Başvuru takibe git</a>
-          <button class="btn-secondary" id="closeApplicationResult" type="button" hidden>Kapat</button>
-          <button class="btn-primary" id="submitApplicationButton" type="submit">Başvuruyu Gönder</button>
+        <section class="application-result-panel" id="applicationResultPanel" tabindex="-1" hidden>
+          <h3>Başvurunuz oluşturuldu</h3>
+          <p>E-posta adresinize gönderilen doğrulama bağlantısını kullanarak başvurunuzu inceleme kuyruğuna alabilirsiniz.</p>
+          <strong id="applicationReferenceCode"></strong>
+        </section>
+
+        <div class="application-modal-footer">
+          <div class="application-modal-actions">
+            <button class="btn-secondary" id="cancelApplicationButton" type="button">Kapat</button>
+            <button class="btn-secondary result-action" id="copyReferenceButton" type="button" hidden>Başvuru Numarasını Kopyala</button>
+            <a class="btn-primary result-action" id="goTrackButton" href="/track-application.html" hidden>Başvuruyu Takip Et</a>
+            <button class="btn-primary" id="submitApplicationButton" type="submit">Başvuruyu Gönder</button>
+            <button class="btn-secondary result-action" id="closeApplicationResult" type="button" hidden>Kapat</button>
+          </div>
         </div>
         <p id="applicationModalState" class="login-message" aria-live="polite"></p>
       </form>
@@ -155,6 +168,7 @@
 
   <script src="/js/public-common.js?v=20260901"></script>
   <script src="/js/app.js?v=20260901"></script>
+  <script src="/js/application-form-state.js?v=20260902"></script>
   <script src="/js/application-form.js?v=20260901"></script>
 </body>
 

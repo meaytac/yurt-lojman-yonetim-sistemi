@@ -238,6 +238,11 @@ public static class DataSeeder
                 CampusLocation = "Battalgazi Yerleşkesi",
                 IsActive = true
             }).Entity;
+        dormitory.IsPublished = true;
+        dormitory.IsApplicationOpen = true;
+        dormitory.PublicDescription ??= "Erkek öğrenciler için kampüse yakın yurt konaklaması.";
+        dormitory.Amenities ??= "Etüt alanı, güvenlik, yemekhane";
+        dormitory.ApplicationConditions ??= "Öğrenci belgesi yüklenmelidir.";
 
         var secondDormitory = await db.Dormitories.FirstOrDefaultAsync(x => x.Name == "MTÜ Kız Öğrenci Yurdu")
             ?? db.Dormitories.Add(new Dormitory
@@ -247,6 +252,11 @@ public static class DataSeeder
                 CampusLocation = "Yeşilyurt Yerleşkesi",
                 IsActive = true
             }).Entity;
+        secondDormitory.IsPublished = true;
+        secondDormitory.IsApplicationOpen = true;
+        secondDormitory.PublicDescription ??= "Kız öğrenciler için güvenli yurt konaklaması.";
+        secondDormitory.Amenities ??= "Etüt alanı, güvenlik, sosyal alan";
+        secondDormitory.ApplicationConditions ??= "Öğrenci belgesi yüklenmelidir.";
 
         var housing = await db.HousingUnits.FirstOrDefaultAsync(x => x.Name == "MTÜ Akademik Personel Lojmanı")
             ?? db.HousingUnits.Add(new HousingUnit
@@ -256,6 +266,11 @@ public static class DataSeeder
                 CampusLocation = "Battalgazi Yerleşkesi",
                 IsActive = true
             }).Entity;
+        housing.IsPublished = true;
+        housing.IsApplicationOpen = true;
+        housing.PublicDescription ??= "Akademik ve idari personel için lojman konaklaması.";
+        housing.Amenities ??= "Aile kullanımına uygun daireler, otopark";
+        housing.ApplicationConditions ??= "Personel görev belgesi yüklenmelidir.";
 
         await db.SaveChangesAsync();
 

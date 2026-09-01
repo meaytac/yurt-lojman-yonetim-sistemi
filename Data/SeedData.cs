@@ -209,14 +209,24 @@ public static class SeedData
             Name = "MTÜ Erkek Öğrenci Yurdu",
             Type = AccommodationType.Yurt,
             CampusLocation = "Battalgazi Yerleşkesi",
-            IsActive = true
+            IsActive = true,
+            IsPublished = true,
+            IsApplicationOpen = true,
+            PublicDescription = "Erkek öğrenciler için kampüse yakın yurt konaklaması.",
+            Amenities = "Etüt alanı, güvenlik, yemekhane",
+            ApplicationConditions = "Öğrenci belgesi yüklenmelidir."
         },
         new Dormitory
         {
             Name = "MTÜ Kız Öğrenci Yurdu",
             Type = AccommodationType.Yurt,
             CampusLocation = "Yeşilyurt Yerleşkesi",
-            IsActive = true
+            IsActive = true,
+            IsPublished = true,
+            IsApplicationOpen = true,
+            PublicDescription = "Kız öğrenciler için güvenli yurt konaklaması.",
+            Amenities = "Etüt alanı, güvenlik, sosyal alan",
+            ApplicationConditions = "Öğrenci belgesi yüklenmelidir."
         }
     };
 
@@ -227,7 +237,12 @@ public static class SeedData
             Name = "MTÜ Akademik Personel Lojmanı",
             Type = AccommodationType.Lojman,
             CampusLocation = "Battalgazi Yerleşkesi",
-            IsActive = true
+            IsActive = true,
+            IsPublished = true,
+            IsApplicationOpen = true,
+            PublicDescription = "Akademik ve idari personel için lojman konaklaması.",
+            Amenities = "Aile kullanımına uygun daireler, otopark",
+            ApplicationConditions = "Personel görev belgesi yüklenmelidir."
         }
     };
 
