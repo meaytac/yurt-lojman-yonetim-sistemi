@@ -40,6 +40,11 @@ public class ApplicationsController(AppDbContext db, IFileStorageService fileSto
     [HttpPost]
     public async Task<ActionResult<ApplicationResponse>> Create([FromForm] ApplicationCreateRequest request, CancellationToken cancellationToken)
     {
+        if ((request.Document == null || request.Document.Length == 0) && string.IsNullOrWhiteSpace(request.DocumentUrl))
+        {
+            return BadRequest("Öğrenci belgesi zorunludur. Lütfen dosya yükleyin.");
+        }
+
         var documentUrl = await fileStorage.SaveAsync(request.Document, "documents", cancellationToken) ?? request.DocumentUrl;
         var application = new AccommodationApplication
         {

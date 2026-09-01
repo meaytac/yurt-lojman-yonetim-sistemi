@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace yurt_lojman_yonetim_sistemi.Models;
 
@@ -19,10 +20,36 @@ public class AppUser : IdentityUser<Guid>
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    public bool MustChangePassword { get; set; }
+
     public ICollection<AccommodationApplication> Applications { get; set; } = [];
     public ICollection<Placement> Placements { get; set; } = [];
     public ICollection<Payment> Payments { get; set; } = [];
     public ICollection<MaintenanceRequest> Requests { get; set; } = [];
+
+    public ICollection<UserFacilityAssignment> FacilityAssignments { get; set; } = [];
+}
+
+public class UserFacilityAssignment
+{
+    public int Id { get; set; }
+
+    public Guid UserId { get; set; }
+    public AppUser User { get; set; } = null!;
+
+    public int? DormitoryId { get; set; }
+    public Dormitory? Dormitory { get; set; }
+
+    public int? HousingUnitId { get; set; }
+    public HousingUnit? HousingUnit { get; set; }
+
+    public Guid AssignedById { get; set; }
+    public AppUser AssignedBy { get; set; } = null!;
+
+    public DateTime AssignedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UnassignedAt { get; set; }
+
+    public bool IsActive { get; set; } = true;
 }
 
 public class AppRole : IdentityRole<Guid>
@@ -35,6 +62,8 @@ public static class AppRoles
     public const string Yetkili = "Yetkili";
     public const string Ogrenci = "Ogrenci";
     public const string Personel = "Personel";
+    public const string TeknikPersonel = "TeknikPersonel";
+    public const string TemizlikPersoneli = "TemizlikPersoneli";
 
-    public static readonly string[] All = [Admin, Yetkili, Ogrenci, Personel];
+    public static readonly string[] All = [Admin, Yetkili, Ogrenci, Personel, TeknikPersonel, TemizlikPersoneli];
 }

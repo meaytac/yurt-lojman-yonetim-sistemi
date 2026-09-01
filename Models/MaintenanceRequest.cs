@@ -22,5 +22,8 @@ public class MaintenanceRequest
     public string? PhotoUrl { get; set; }
 
     public RequestStatus Status { get; set; } = RequestStatus.Open;
+    public int? RepairPeriodDays { get; set; }
+    public DateTime? TargetRepairDate { get; set; }
+    public DateTime? ResolvedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

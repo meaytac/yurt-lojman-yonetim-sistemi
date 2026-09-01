@@ -1,0 +1,134 @@
+2026-08-26 05:39;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 5 Ogrenci Yurdu;Demo 5 Blok;Kat 1;Oda 104
+2026-08-26 05:39;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 3 Personel Lojmani;Lojman 3 Blok;Kat 1;Oda 110
+2026-08-26 05:39;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 1 Personel Lojmani;Lojman 1 Blok;Kat 2;Oda 201
+2026-08-26 05:41;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 1 Ogrenci Yurdu;Demo 1 Blok;Kat 1;Oda 103
+2026-08-26 05:41;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 4 Personel Lojmani;Lojman 4 Blok;Kat 1;Oda 115
+2026-08-26 05:41;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 2 Personel Lojmani;Lojman 2 Blok;Kat 1;Oda 104
+2026-08-26 05:49;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 4 Ogrenci Yurdu;Demo 4 Blok;Kat 1;Oda 104
+2026-08-26 05:49;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 4 Personel Lojmani;Lojman 4 Blok;Kat 2;Oda 209
+2026-08-26 05:49;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 1 Ogrenci Yurdu;Demo 1 Blok;Kat 1;Oda 106
+2026-08-26 06:02;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 4 Ogrenci Yurdu;Demo 4 Blok;Kat 1;Oda 101
+2026-08-26 06:02;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 2 Personel Lojmani;Lojman 2 Blok;Kat 2;Oda 204
+2026-08-26 06:02;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 4 Ogrenci Yurdu;Demo 4 Blok;Kat 1;Oda 110
+2026-08-26 06:38;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 5 Ogrenci Yurdu;Demo 5 Blok;Kat 2;Oda 213
+2026-08-26 06:38;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 5 Ogrenci Yurdu;Demo 5 Blok;Kat 1;Oda 114
+2026-08-26 06:38;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 5 Ogrenci Yurdu;Demo 5 Blok;Kat 2;Oda 201
+2026-08-26 06:56;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 2 Ogrenci Yurdu;Demo 2 Blok;Kat 1;Oda 112
+2026-08-26 06:56;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 1 Ogrenci Yurdu;Demo 6 Blok;Kat 2;Oda 203
+2026-08-26 06:56;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 1 Ogrenci Yurdu;Demo 1 Blok;Kat 1;Oda 105
+2026-08-26 07:04;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 3 Personel Lojmani;Lojman 3 Blok;Kat 2;Oda 203
+2026-08-26 07:36;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 5 Ogrenci Yurdu;Demo 5 Blok;Kat 2;Oda 203
+2026-08-26 07:36;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 2 Personel Lojmani;Lojman 2 Blok;Kat 2;Oda 210
+2026-08-26 07:36;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 3 Personel Lojmani;Lojman 3 Blok;Kat 2;Oda 204
+2026-08-26 07:51;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 3 Personel Lojmani;Lojman 3 Blok;Kat 2;Oda 213
+2026-08-26 07:51;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 3 Personel Lojmani;Lojman 3 Blok;Kat 2;Oda 206
+2026-08-26 07:51;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 1 Ogrenci Yurdu;Demo 1 Blok;Kat 1;Oda 105
+2026-08-26 08:39;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 2 Ogrenci Yurdu;Demo 2 Blok;Kat 1;Oda 104
+2026-08-26 08:39;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 2 Ogrenci Yurdu;Demo 2 Blok;Kat 2;Oda 211
+2026-08-26 08:39;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 2 Personel Lojmani;Lojman 2 Blok;Kat 2;Oda 215
+2026-08-26 08:43;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 1 Personel Lojmani;Lojman 1 Blok;Kat 1;Oda 109
+2026-08-26 08:43;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 4 Personel Lojmani;Lojman 4 Blok;Kat 2;Oda 213
+2026-08-26 08:43;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 4 Ogrenci Yurdu;Demo 4 Blok;Kat 2;Oda 214
+2026-08-26 10:33;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 3 Personel Lojmani;Lojman 3 Blok;Kat 2;Oda 207
+2026-08-26 10:33;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 2 Ogrenci Yurdu;Demo 2 Blok;Kat 2;Oda 207
+2026-08-26 10:33;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 4 Ogrenci Yurdu;Demo 4 Blok;Kat 2;Oda 205
+2026-08-26 10:52;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 2 Ogrenci Yurdu;Demo 2 Blok;Kat 2;Oda 201
+2026-08-27 16:04;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 4 Ogrenci Yurdu;Demo 4 Blok;Kat 1;Oda 109
+2026-08-27 16:05;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 4 Personel Lojmani;Lojman 4 Blok;Kat 2;Oda 201
+2026-08-27 16:05;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 2 Ogrenci Yurdu;Demo 2 Blok;Kat 2;Oda 207
+2026-08-29 09:40;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 2 Personel Lojmani;Lojman 2 Blok;Kat 1;Oda 104
+2026-08-29 09:40;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 1 Ogrenci Yurdu;Demo 1 Blok;Kat 2;Oda 209
+2026-08-29 09:40;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 5 Ogrenci Yurdu;Demo 5 Blok;Kat 1;Oda 109
+2026-08-29 10:35;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 3 Personel Lojmani;Lojman 3 Blok;Kat 1;Oda 106
+2026-08-29 10:35;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 1 Personel Lojmani;Lojman 1 Blok;Kat 2;Oda 205
+2026-08-29 10:35;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 1 Personel Lojmani;Lojman 1 Blok;Kat 1;Oda 103
+2026-08-29 10:43;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 1 Personel Lojmani;Lojman 1 Blok;Kat 2;Oda 214
+2026-08-29 10:43;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 4 Ogrenci Yurdu;Demo 4 Blok;Kat 1;Oda 113
+2026-08-29 10:43;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 1 Ogrenci Yurdu;Demo 6 Blok;Kat 2;Oda 201
+2026-08-29 13:30;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 5 Ogrenci Yurdu;Demo 5 Blok;Kat 2;Oda 201
+2026-08-29 13:30;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 1 Personel Lojmani;Lojman 1 Blok;Kat 2;Oda 215
+2026-08-29 13:30;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 3 Personel Lojmani;Lojman 3 Blok;Kat 2;Oda 211
+2026-08-29 13:36;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 1 Personel Lojmani;Lojman 1 Blok;Kat 2;Oda 214
+2026-08-29 13:36;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 1 Ogrenci Yurdu;Demo 1 Blok;Kat 1;Oda 108
+2026-08-29 13:36;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 1 Personel Lojmani;Lojman 1 Blok;Kat 2;Oda 215
+2026-08-30 06:50;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 1 Ogrenci Yurdu;Demo 1 Blok;Kat 2;Oda 214
+2026-08-30 06:50;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 2 Personel Lojmani;Lojman 2 Blok;Kat 2;Oda 209
+2026-08-30 06:50;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 5 Ogrenci Yurdu;Demo 5 Blok;Kat 1;Oda 102
+2026-08-30 07:35;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 4 Personel Lojmani;Lojman 4 Blok;Kat 1;Oda 105
+2026-08-30 07:35;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 3 Personel Lojmani;Lojman 3 Blok;Kat 2;Oda 206
+2026-08-30 07:35;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 1 Ogrenci Yurdu;Demo 6 Blok;Kat 2;Oda 203
+2026-08-30 10:26;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 3 Personel Lojmani;Lojman 3 Blok;Kat 1;Oda 114
+2026-08-30 10:26;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 4 Ogrenci Yurdu;Demo 4 Blok;Kat 1;Oda 111
+2026-08-30 10:26;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 1 Ogrenci Yurdu;Demo 1 Blok;Kat 1;Oda 107
+2026-08-30 11:03;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 4 Personel Lojmani;Lojman 4 Blok;Kat 2;Oda 211
+2026-08-30 11:03;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 1 Personel Lojmani;Lojman 1 Blok;Kat 1;Oda 102
+2026-08-30 11:03;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 5 Ogrenci Yurdu;Demo 5 Blok;Kat 2;Oda 215
+2026-08-30 12:53;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 101
+2026-08-30 12:53;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 2 Ogrenci Yurdu;Demo 2 Blok;Kat 2;Oda 213
+2026-08-30 12:53;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 3 Personel Lojmani;Lojman 3 Blok;Kat 1;Oda 112
+2026-08-31 10:42;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 2 Ogrenci Yurdu;Demo 2 Blok;Kat 2;Oda 203
+2026-08-31 10:42;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 2 Personel Lojmani;Lojman 2 Blok;Kat 2;Oda 214
+2026-08-31 10:42;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 4 Personel Lojmani;Lojman 4 Blok;Kat 2;Oda 203
+2026-08-31 10:49;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 1 Personel Lojmani;Lojman 1 Blok;Kat 2;Oda 203
+2026-08-31 10:49;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 5 Ogrenci Yurdu;Demo 5 Blok;Kat 1;Oda 115
+2026-08-31 10:49;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 1 Personel Lojmani;Lojman 1 Blok;Kat 1;Oda 111
+2026-08-31 10:51;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Demo 1 Personel Lojmani;Lojman 1 Blok;Kat 2;Oda 208
+2026-08-31 10:51;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Demo 4 Ogrenci Yurdu;Demo 4 Blok;Kat 1;Oda 112
+2026-08-31 10:51;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Demo 3 Personel Lojmani;Lojman 3 Blok;Kat 1;Oda 104
+2026-08-31 10:57;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 101
+2026-08-31 10:57;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Yesilyurt Kiz Ogrenci Yurdu;B Blok;Kat 1;Oda B-103
+2026-08-31 10:57;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;MTU Personel Lojmanlari;L Blok;Kat 1;Oda L102
+2026-08-31 11:09;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Yesilyurt Kiz Ogrenci Yurdu;B Blok;Kat 1;Oda B-103
+2026-08-31 11:09;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Yesilyurt Kiz Ogrenci Yurdu;B Blok;Kat 1;Oda B-103
+2026-08-31 11:09;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;MTU Personel Lojmanlari;L Blok;Kat 1;Oda L102
+2026-08-31 11:14;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 102
+2026-08-31 11:14;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 101
+2026-08-31 11:14;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;MTU Merkez Ogrenci Yurdu;A Blok;Kat 2;Oda 201
+2026-08-31 11:18;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 101
+2026-08-31 11:18;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 101
+2026-08-31 11:18;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 101
+2026-08-31 14:51;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 102
+2026-08-31 14:51;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 101
+2026-08-31 14:51;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;MTU Personel Lojmanlari;L Blok;Kat 1;Oda L102
+2026-08-31 15:02;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Yesilyurt Kiz Ogrenci Yurdu;B Blok;Kat 1;Oda B-103
+2026-08-31 15:02;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Yesilyurt Kiz Ogrenci Yurdu;B Blok;Kat 1;Oda B-103
+2026-08-31 15:02;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;MTU Personel Lojmanlari;L Blok;Kat 1;Oda L102
+2026-08-31 15:26;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;MTU Merkez Ogrenci Yurdu;A Blok;Kat 2;Oda 201
+2026-08-31 15:26;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 101
+2026-08-31 15:26;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Yesilyurt Kiz Ogrenci Yurdu;B Blok;Kat 1;Oda B-103
+2026-08-31 15:45;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 102
+2026-08-31 15:45;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;MTU Merkez Ogrenci Yurdu;A Blok;Kat 2;Oda 201
+2026-08-31 15:45;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Yesilyurt Kiz Ogrenci Yurdu;B Blok;Kat 1;Oda B-103
+2026-08-31 15:47;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Yesilyurt Kiz Ogrenci Yurdu;B Blok;Kat 1;Oda B-103
+2026-08-31 15:47;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 102
+2026-08-31 15:47;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 101
+2026-08-31 16:00;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 102
+2026-08-31 16:00;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Yesilyurt Kiz Ogrenci Yurdu;B Blok;Kat 1;Oda B-103
+2026-08-31 16:00;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 101
+2026-08-31 16:26;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;MTU Merkez Ogrenci Yurdu;A Blok;Kat 2;Oda 201
+2026-08-31 16:26;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;MTU Merkez Ogrenci Yurdu;A Blok;Kat 2;Oda 201
+2026-08-31 16:26;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 101
+2026-08-31 19:14;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 102
+2026-08-31 19:14;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 102
+2026-08-31 19:14;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;MTU Merkez Ogrenci Yurdu;A Blok;Kat 2;Oda 201
+2026-08-31 19:33;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;MTU Personel Lojmanlari;L Blok;Kat 1;Oda L102
+2026-08-31 19:33;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Yesilyurt Kiz Ogrenci Yurdu;B Blok;Kat 1;Oda B-103
+2026-08-31 19:33;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 102
+2026-08-31 19:56;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Yesilyurt Kiz Ogrenci Yurdu;B Blok;Kat 1;Oda B-103
+2026-08-31 19:56;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;Yesilyurt Kiz Ogrenci Yurdu;B Blok;Kat 1;Oda B-103
+2026-08-31 19:56;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 101
+2026-08-31 20:03;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;Yesilyurt Kiz Ogrenci Yurdu;B Blok;Kat 1;Oda B-103
+2026-08-31 20:03;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;MTU Personel Lojmanlari;L Blok;Kat 1;Oda L102
+2026-08-31 20:03;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Yesilyurt Kiz Ogrenci Yurdu;B Blok;Kat 1;Oda B-103
+2026-09-01 05:24;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 101
+2026-09-01 05:24;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 101
+2026-09-01 05:24;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;MTU Personel Lojmanlari;L Blok;Kat 1;Oda L102
+2026-09-01 05:30;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;MTU Personel Lojmanlari;L Blok;Kat 1;Oda L102
+2026-09-01 05:30;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 102
+2026-09-01 05:30;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;MTU Merkez Ogrenci Yurdu;A Blok;Kat 2;Oda 201
+2026-09-01 05:53;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;MTU Merkez Ogrenci Yurdu;A Blok;Kat 2;Oda 201
+2026-09-01 05:53;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;MTU Merkez Ogrenci Yurdu;A Blok;Kat 2;Oda 201
+2026-09-01 05:53;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;MTU Merkez Ogrenci Yurdu;A Blok;Kat 2;Oda 201
+2026-09-01 08:12;ayse.yilmaz@ogr.ozal.edu.tr;Ayse Yilmaz;MTU Merkez Ogrenci Yurdu;A Blok;Kat 1;Oda 102
+2026-09-01 08:12;mehmet.kaya@ogr.ozal.edu.tr;Mehmet Kaya;MTU Merkez Ogrenci Yurdu;A Blok;Kat 2;Oda 201
+2026-09-01 08:12;zeynep.demir@ogr.ozal.edu.tr;Zeynep Demir;Yesilyurt Kiz Ogrenci Yurdu;B Blok;Kat 1;Oda B-103

@@ -7,10 +7,18 @@ const state = {
   users: { items: [], page: 1, pageSize: 10, totalCount: 0 },
   applications: [],
   placements: [],
+  requests: [],
+  staffAssignments: [],
+  faultReports: [],
+  userFacilityAssignments: [],
+  announcements: [],
   roomPage: 1,
   roomPageSize: 10,
   fallbackMode: false
 };
+
+const REFRESH_INTERVAL = 15000;
+let activeSection = 'dashboard';
 
 const sectionTitles = {
   dashboard: 'Kontrol Paneli',
@@ -18,21 +26,38 @@ const sectionTitles = {
   rooms: 'Oda & Kat Yönetimi',
   applications: 'Başvuru Yönetimi',
   users: 'Kullanıcılar & Roller',
-  placements: 'Yerleşim Takibi'
+  placements: 'Yerleşim Takibi',
+  requests: 'Arıza Talepleri',
+  operations: 'Operasyon & Görevlendirme',
+  announcements: 'Duyuru Yönetimi'
 };
 
 const mock = createMockStore();
 
 document.addEventListener('DOMContentLoaded', () => {
   const token = getStoredToken();
-  if (!isValidAdminToken(token)) {
-    clearStoredTokens();
-    window.location.href = '/index.html';
+  const claims = token ? parseJwt(token) : null;
+  const valid = isValidAdminToken(token);
+  if (!valid) {
+    const info = { token: token ? token.substring(0, 40) + '...' : null, claims };
+    console.error('[admin] token gecersiz, login sayfasina yonlendiriliyor', info);
+    try { localStorage.setItem('lastAdminTokenError', JSON.stringify(info)); } catch {}
+    // Kisa sure bekle ki log kopyalanabilsin, sonra yonlendir
+    setTimeout(() => {
+      clearStoredTokens();
+      window.location.href = '/index.html';
+    }, 3000);
+    document.body.innerHTML = '<div style="padding:2rem;font-family:sans-serif;max-width:800px;margin:auto"><h2 style="color:#b91c1c">Yetki dogrulanamadi — 3 saniye icinde giris sayfasina donuluyor</h2><p>Asagidaki bilgi gelistiriciye iletilmeli:</p><pre style="background:#fef2f2;border:1px solid #fecaca;padding:1rem;overflow:auto;white-space:pre-wrap;word-break:break-all">' + escapeHtml(JSON.stringify(info, null, 2)) + '</pre><p><a href="/index.html">Hemen don</a> — F12 Console da ayni bilgi var (Preserve log acik tutun).</p></div>';
     return;
   }
 
-  bindShell();
-  openApp(token);
+  try {
+    bindShell();
+    openApp(token);
+  } catch (e) {
+    console.error('[admin] sayfa yuklenirken hata', e);
+    document.body.innerHTML = '<div style="padding:2rem;font-family:sans-serif"><h2>Panel yuklenemedi</h2><p style="color:#b91c1c">' + String(e.message || e) + '</p><p>Konsolu (F12) kontrol edin ve sayfayi Ctrl+F5 ile yenileyin. Sorun surerse tokeni silip tekrar giris yapin.</p><a href="/index.html">Giris sayfasina don</a></div>';
+  }
 });
 
 function getStoredToken() {
@@ -42,9 +67,15 @@ function getStoredToken() {
 function isValidAdminToken(token) {
   if (!token) return false;
 
-  const claims = parseJwt(token);
-  const role = String(claims['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || claims.role || '').toLowerCase();
-  return Boolean(claims.sub) && (!claims.exp || claims.exp * 1000 > Date.now()) && (role === 'admin' || role === 'yetkili');
+  let claims;
+  try { claims = parseJwt(token); } catch { return false; }
+  const rawRole = claims['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ?? claims.role ?? '';
+  const roles = Array.isArray(rawRole) ? rawRole : [rawRole];
+  const lowerRoles = roles.map(r => String(r).toLowerCase());
+  const hasAllowedRole = lowerRoles.includes('admin') || lowerRoles.includes('yetkili');
+  const hasSub = Boolean(claims.sub || claims['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier']);
+  const notExpired = !claims.exp || claims.exp * 1000 > Date.now();
+  return hasSub && notExpired && hasAllowedRole;
 }
 
 function clearStoredTokens() {
@@ -71,20 +102,41 @@ function bindShell() {
 
   document.getElementById('facilitySearch').addEventListener('input', renderFacilities);
   document.getElementById('roomSearch').addEventListener('input', () => { state.roomPage = 1; renderRooms(); });
+  document.getElementById('roomFacilityFilter').addEventListener('change', () => { state.roomPage = 1; renderRooms(); });
   document.getElementById('roomStatusFilter').addEventListener('change', () => { state.roomPage = 1; renderRooms(); });
   document.getElementById('applicationStatusFilter').addEventListener('change', loadApplications);
   document.getElementById('userSearch').addEventListener('input', debounce(() => loadUsers(1), 350));
   document.getElementById('roleFilter').addEventListener('change', () => loadUsers(1));
   document.getElementById('activePlacementsOnly').addEventListener('change', loadPlacements);
+  document.getElementById('requestOpenOnlyFilter').addEventListener('change', loadRequests);
+
+  setInterval(() => {
+    if (document.hidden) return;
+    if (document.getElementById('modalBackdrop').style.display !== 'none') return;
+    refreshActiveSection();
+  }, REFRESH_INTERVAL);
 }
+
+let isYetkili = false;
 
 async function openApp(token) {
   const claims = parseJwt(token);
   const role = claims['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || claims.role || 'Admin';
+  isYetkili = String(role).toLowerCase() === 'yetkili';
   document.getElementById('adminName').textContent = claims.fullName || claims.name || 'Sistem Yöneticisi';
   document.getElementById('adminRole').textContent = role;
-  switchSection('dashboard');
-  await Promise.allSettled([loadDashboard(), loadFacilities(), loadRooms(), loadApplications(), loadUsers(1), loadPlacements()]);
+  if (isYetkili) applyYetkiliRestrictions();
+  switchSection(isYetkili && activeSection === 'facilities' ? 'dashboard' : 'dashboard');
+  await Promise.allSettled([loadDashboard(), loadFacilities(), loadRooms(), loadApplications(), loadUsers(1), loadPlacements(), loadRequests(), loadOperations(), loadAnnouncements()]);
+}
+
+function applyYetkiliRestrictions() {
+  document.querySelector('[data-section="facilities"]')?.classList.add('hidden-by-role');
+  document.getElementById('facilities')?.classList.add('hidden-by-role');
+  document.querySelector('[data-modal="userFacilityAssignmentModal"]')?.classList.add('hidden-by-role');
+  document.getElementById('facilityAssignmentPanel')?.classList.add('hidden-by-role');
+  document.querySelector('[data-modal="floorModal"]')?.classList.add('hidden-by-role');
+  document.querySelector('[data-modal="roomModal"]')?.classList.add('hidden-by-role');
 }
 
 function logout() {
@@ -93,9 +145,26 @@ function logout() {
 }
 
 function switchSection(id) {
+  if (isYetkili && id === 'facilities') id = 'dashboard';
+  activeSection = id;
   document.querySelectorAll('.page-section').forEach(section => section.classList.toggle('active', section.id === id));
   document.querySelectorAll('.nav-item[data-section]').forEach(button => button.classList.toggle('active', button.dataset.section === id));
   document.getElementById('sectionTitle').textContent = sectionTitles[id] || 'Yönetim Paneli';
+}
+
+function refreshActiveSection() {
+  const refreshers = {
+    dashboard: loadDashboard,
+    facilities: loadFacilities,
+    rooms: loadRooms,
+    applications: loadApplications,
+    users: () => loadUsers(state.users.page || 1),
+    placements: loadPlacements,
+    requests: loadRequests,
+    operations: loadOperations,
+    announcements: loadAnnouncements
+  };
+  refreshers[activeSection]?.();
 }
 
 async function loadDashboard() {
@@ -183,6 +252,14 @@ function renderFacilities() {
       </td>
     </tr>
   `);
+
+  // Oda sekmesindeki tesis filtresini guncelle
+  const facilityFilter = document.getElementById('roomFacilityFilter');
+  if (facilityFilter) {
+    const currentVal = facilityFilter.value;
+    const facilityNames = [...new Set(state.facilities.map(x => x.name))].sort((a, b) => a.localeCompare(b, 'tr'));
+    facilityFilter.innerHTML = '<option value="">Tüm tesisler</option>' + facilityNames.map(name => `<option value="${escapeAttr(name)}" ${name === currentVal ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('');
+  }
 }
 
 async function loadRooms() {
@@ -198,11 +275,12 @@ async function loadRooms() {
 function renderRooms() {
   const term = document.getElementById('roomSearch').value.toLowerCase();
   const status = document.getElementById('roomStatusFilter').value;
+  const facility = document.getElementById('roomFacilityFilter').value;
   const filtered = state.rooms.filter(x => {
     const roomText = String(x.roomNumber || '').toLowerCase();
     const facilityText = String(x.facilityName || '').toLowerCase();
     const blockText = String(x.blockName || '').toLowerCase();
-    return (!term || roomText.includes(term) || facilityText.includes(term) || blockText.includes(term)) && (!status || x.status === status);
+    return (!term || roomText.includes(term) || facilityText.includes(term) || blockText.includes(term)) && (!status || x.status === status) && (!facility || x.facilityName === facility);
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / state.roomPageSize));
@@ -222,7 +300,7 @@ function renderRooms() {
       <td>
         <button class="row-btn" onclick="editRoom(${item.id})">Düzenle</button>
         <button class="row-btn" onclick="showOccupants(${item.id})">Detay</button>
-        <button class="row-btn danger" onclick="deleteRoom(${item.id})">Sil</button>
+        ${isYetkili ? '' : `<button class="row-btn danger" onclick="deleteRoom(${item.id})">Sil</button>`}
       </td>
     </tr>
   `);
@@ -252,12 +330,14 @@ function renderUsers() {
       <td>${escapeHtml(item.tcNo)}</td>
       <td>${escapeHtml(item.studentStaffNo || '-')}</td>
       <td>
-        <select onchange="changeUserRole('${item.id}', this.value)">
-          ${['Ogrenci', 'Personel', 'Yetkili', 'Admin'].map(role => `<option value="${role}" ${role === item.role ? 'selected' : ''}>${role}</option>`).join('')}
-        </select>
+        ${isYetkili
+          ? `<span>${escapeHtml(item.role)}</span>`
+          : `<select onchange="changeUserRole('${item.id}', this.value)">
+          ${['Ogrenci', 'TeknikPersonel', 'TemizlikPersoneli', 'Personel', 'Yetkili', 'Admin'].map(role => `<option value="${role}" ${role === item.role ? 'selected' : ''}>${role}</option>`).join('')}
+        </select>`}
       </td>
       <td>${getStatusBadge(item.isActive ? 'Aktif' : 'Pasif')}</td>
-      <td><button class="row-btn warn" onclick="setUserStatus('${item.id}', ${!item.isActive})">${item.isActive ? 'Dondur' : 'Aktif Et'}</button></td>
+      <td>${isYetkili ? '<span class="muted">-</span>' : `<button class="row-btn warn" onclick="setUserStatus('${item.id}', ${!item.isActive})">${item.isActive ? 'Dondur' : 'Aktif Et'}</button>`}</td>
     </tr>
   `);
 
@@ -283,7 +363,9 @@ function renderPlacements() {
   document.getElementById('placementRows').innerHTML = emptyTable(state.placements || [], item => `
     <tr>
       <td><strong>${escapeHtml(item.fullName)}</strong></td>
-      <td>${escapeHtml(item.roomNumber)}</td>
+      <td>${escapeHtml(item.facilityName || '-')}</td>
+      <td>${escapeHtml(item.blockName || '-')}</td>
+      <td><strong>${escapeHtml(item.roomNumber)}</strong></td>
       <td>${date(item.checkInDate)}</td>
       <td>${item.checkOutDate ? date(item.checkOutDate) : '-'}</td>
       <td>${getStatusBadge(item.isActive ? 'Aktif' : 'Çıkış Yaptı')}</td>
@@ -307,16 +389,39 @@ async function loadApplications() {
   renderApplications();
 }
 
+function parseApplicationDoc(docUrl){
+  if(!docUrl) return { fileUrl: null, note: null };
+  const m = String(docUrl).match(/^(.*)\s*\[Not:\s*(.*)\]$/);
+  if(m) return { fileUrl: m[1].trim() || null, note: m[2].replace(/\]$/, '').trim() || null };
+  return { fileUrl: docUrl, note: null };
+}
+function openApplicationDetail(id){
+  const item = (state.applications || []).find(x => x.id === id);
+  if(!item) return;
+  const doc = parseApplicationDoc(item.documentUrl);
+  openModal(`Başvuru Detayı — ${escapeHtml(item.fullName)}`, `
+    <div class="form-grid" style="gap:0.8rem;">
+      <div class="list-row"><span class="info-label">Ad Soyad</span><span class="info-value"><strong>${escapeHtml(item.fullName)}</strong></span></div>
+      <div class="list-row"><span class="info-label">TC</span><span class="info-value">${escapeHtml(item.tcNo)}</span></div>
+      <div class="list-row"><span class="info-label">No</span><span class="info-value">${escapeHtml(item.studentStaffNo || '-')}</span></div>
+      <div class="list-row"><span class="info-label">Tür</span><span class="info-value">${escapeHtml(item.accommodationType)}</span></div>
+      <div class="list-row"><span class="info-label">Durum</span><span class="info-value">${getStatusBadge(item.status)}</span></div>
+      <div class="list-row"><span class="info-label">Tarih</span><span class="info-value">${date(item.createdAt)}</span></div>
+      ${doc.note ? `<div class="list-row"><span class="info-label">Ek Metin</span><span class="info-value">${escapeHtml(doc.note)}</span></div>` : ''}
+      <div class="list-row"><span class="info-label">Yüklenen Dosya</span><span class="info-value">${doc.fileUrl ? `<a href="${escapeAttr(doc.fileUrl)}" target="_blank" rel="noopener" class="row-btn">Dosyayı Görüntüle / İndir</a> <small class="muted" style="margin-left:0.5rem; word-break:break-all;">${escapeHtml(doc.fileUrl)}</small>` : '<span class="muted">Dosya eklenmemiş</span>'}</span></div>
+    </div>
+  `, () => {});
+}
 function renderApplications() {
   document.getElementById('applicationRows').innerHTML = emptyTable(state.applications || [], item => `
-    <tr>
+    <tr style="cursor:pointer;" onclick="openApplicationDetail(${item.id})">
       <td><strong>${escapeHtml(item.fullName)}</strong></td>
       <td>${escapeHtml(item.tcNo)}</td>
       <td>${escapeHtml(item.studentStaffNo || '-')}</td>
       <td>${escapeHtml(item.accommodationType)}</td>
       <td>${getStatusBadge(item.status)}</td>
       <td>${date(item.createdAt)}</td>
-      <td>
+      <td onclick="event.stopPropagation();">
         ${item.status === 'Pending' ? `<button class="row-btn" onclick="openAssignModal(${item.id}, '${item.userId}', '${escapeAttr(item.fullName)}', '${item.accommodationType}')">Odaya Yerleştir</button>` : '-'}
       </td>
     </tr>
@@ -329,10 +434,455 @@ function openNamedModal(name) {
     buildingModal: buildingForm(),
     floorModal: floorForm(),
     roomModal: roomForm(),
-    assignModal: assignForm()
+    assignModal: assignForm(),
+    staffAssignmentModal: staffAssignmentForm(),
+    userFacilityAssignmentModal: userFacilityAssignmentForm(),
+    announcementModal: announcementFormAdmin()
   };
   if (!forms[name]) return;
   openModal(forms[name].title, forms[name].html, forms[name].bind);
+}
+
+function loadOperations() {
+  return Promise.allSettled([loadStaffAssignments(), loadFaultReports(), loadUserFacilityAssignments()]);
+}
+
+async function loadRequests() {
+  try {
+    const openOnly = document.getElementById('requestOpenOnlyFilter').value === 'open';
+    state.requests = state.fallbackMode ? [] : await api(`/api/admin/requests?openOnly=${openOnly}`);
+  } catch {
+    state.requests = [];
+  }
+  renderRequests();
+}
+
+function renderRequests() {
+  const rows = state.requests || [];
+  if (!rows.length) {
+    document.getElementById('requestRows').innerHTML = '<tr><td colspan="9">Kayıt bulunamadı.</td></tr>';
+    return;
+  }
+  document.getElementById('requestRows').innerHTML = rows.map(item => `
+    <tr>
+      <td><strong>${escapeHtml(item.fullName)}</strong></td>
+      <td>${escapeHtml(item.facilityName || '-')}</td>
+      <td>${escapeHtml(item.blockName || '-')} / Kat ${item.floorNumber ?? '-'}</td>
+      <td><strong>${escapeHtml(item.roomNumber)}</strong></td>
+      <td>${escapeHtml(item.category)}</td>
+      <td class="desc-cell">${escapeHtml(item.description)}</td>
+      <td>${date(item.createdAt)}</td>
+      <td>${getStatusBadge(item.status)}</td>
+      <td>
+        <select onchange="updateRequestStatus(${item.id}, this.value)">
+          ${['Open', 'InProgress', 'Resolved', 'Rejected'].map(s => `<option value="${s}" ${s === item.status ? 'selected' : ''}>${requestStatusDisplay(s)}</option>`).join('')}
+        </select>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function updateRequestStatus(id, status) {
+  await saveAndRefresh(`/api/admin/requests/${id}/status`, 'PATCH', { status }, loadOperations);
+}
+
+async function loadStaffAssignments() {
+  try {
+    state.staffAssignments = state.fallbackMode ? [] : await api('/api/admin/staff-assignments');
+  } catch {
+    state.staffAssignments = [];
+  }
+  renderStaffAssignments();
+}
+
+function renderStaffAssignments() {
+  document.getElementById('assignmentRows').innerHTML = emptyTable(state.staffAssignments, item => `
+    <tr>
+      <td><strong>${escapeHtml(item.title)}</strong><br><small>${escapeHtml(item.details || '-')}</small></td>
+      <td>${staffRoleDisplay(item.assignedRole)}${item.isMaintenanceRequest ? '<br><small>⚒ Arıza iş emri</small>' : ''}</td>
+      <td>${escapeHtml(item.location)}</td>
+      <td>${escapeHtml(item.priority)}</td>
+      <td>${item.dueDate ? date(item.dueDate) : '-'}</td>
+      <td>${item.isCompleted ? getStatusBadge('Completed') : `<span class="badge badge-warning">Bekliyor</span>`}</td>
+    </tr>
+  `);
+}
+
+function staffAssignmentForm() {
+  const openRequests = (state.requests || []).filter(r => r.status === 'Open' || r.status === 'InProgress');
+  return {
+    title: 'Personele Görev Ata',
+    html: `<form id="staffAssignmentForm" class="form-grid two">
+      <label class="full">Arıza Talebi (isteğe bağlı — açık taleplerden seçerek görev oluştur)
+        <select name="requestId" id="requestSelect">
+          <option value="">Manuel görev (arıza seçilmedi)</option>
+          ${openRequests.map(r => `<option value="${r.id}">${escapeHtml(r.category)} — ${escapeHtml(r.facilityName)} / ${escapeHtml(r.blockName)} / Oda ${escapeHtml(r.roomNumber)} — ${escapeHtml(r.fullName)}: ${escapeHtml((r.description || '').substring(0, 50))}</option>`).join('')}
+        </select>
+      </label>
+      <label>Görevli Rolü<select name="assignedRole">
+        <option value="TeknikPersonel">Teknik Personel</option>
+        <option value="TemizlikPersoneli">Temizlik Personeli</option>
+      </select></label>
+      <label>Öncelik<select name="priority">
+        ${['Acil', 'Yüksek', 'Normal', 'Düşük'].map(p => `<option ${p === 'Normal' ? 'selected' : ''}>${p}</option>`).join('')}
+      </select></label>
+      <label>Başlık<input name="title" required placeholder="Örn. Wi-Fi ağ düzenlemesi"></label>
+      <label>Termin<input name="dueDate" type="date"></label>
+      <label class="full">Konum<input name="location" required placeholder="Örn. B Blok / 1. kat"></label>
+      <label class="full">Detay<textarea name="details"></textarea></label>
+      <label class="inline-check full"><input type="checkbox" name="isMaintenanceRequest" value="true"> Arıza / onarım işidir (teknik personelin arıza talepleri ekranında da listelenir)</label>
+      <button class="primary-btn full" type="submit">Görevi Kaydet</button>
+    </form>`,
+    bind: () => {
+      const form = document.getElementById('staffAssignmentForm');
+      const requestSelect = form.querySelector('#requestSelect');
+      const titleInput = form.querySelector('[name="title"]');
+      const locationInput = form.querySelector('[name="location"]');
+      const detailsInput = form.querySelector('[name="details"]');
+      const isMaintenanceCheck = form.querySelector('[name="isMaintenanceRequest"]');
+      requestSelect.addEventListener('change', () => {
+        const req = state.requests.find(r => String(r.id) === requestSelect.value);
+        if (req) {
+          titleInput.value = `${req.category} — Oda ${req.roomNumber} (${req.facilityName} / ${req.blockName})`;
+          locationInput.value = `${req.facilityName} / ${req.blockName} / Kat ${req.floorNumber} / Oda ${req.roomNumber}`;
+          detailsInput.value = req.description;
+          isMaintenanceCheck.checked = true;
+        }
+      });
+      form.addEventListener('submit', submitStaffAssignment);
+    }
+  };
+}
+
+async function submitStaffAssignment(event) {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  await saveAndRefresh('/api/admin/staff-assignments', 'POST', {
+    assignedRole: data.assignedRole,
+    title: data.title,
+    location: data.location,
+    details: data.details || null,
+    priority: data.priority,
+    isMaintenanceRequest: data.isMaintenanceRequest === 'true',
+    dueDate: data.dueDate ? `${data.dueDate}T00:00:00Z` : null
+  }, loadStaffAssignments);
+}
+
+async function loadFaultReports() {
+  try {
+    state.faultReports = state.fallbackMode ? [] : await api('/api/admin/fault-reports');
+  } catch {
+    state.faultReports = [];
+  }
+  renderFaultReports();
+}
+
+function renderFaultReports() {
+  document.getElementById('faultReportList').innerHTML = emptyOr(state.faultReports, item => `
+    <div class="activity-item">
+      <div>
+        <strong>${escapeHtml(item.category)} / ${escapeHtml(item.location)}</strong>
+        <small>${escapeHtml(item.description)}</small>
+      </div>
+      <small>${date(item.createdAt)}</small>
+    </div>
+  `);
+}
+
+async function loadUserFacilityAssignments() {
+  if (isYetkili) {
+    state.userFacilityAssignments = [];
+    renderUserFacilityAssignments();
+    return;
+  }
+  try {
+    state.userFacilityAssignments = state.fallbackMode ? [] : await api('/api/admin/user-facility-assignments');
+  } catch {
+    state.userFacilityAssignments = [];
+  }
+  renderUserFacilityAssignments();
+}
+
+function renderUserFacilityAssignments() {
+  document.getElementById('facilityAssignmentRows').innerHTML = emptyTable(state.userFacilityAssignments, item => `
+    <tr>
+      <td><strong>${escapeHtml(item.userFullName)}</strong><br><small>${escapeHtml(item.userRole)}</small></td>
+      <td>${item.dormitoryName ? `<strong>${escapeHtml(item.dormitoryName)}</strong>` : `<strong>${escapeHtml(item.housingUnitName)}</strong>`}</td>
+      <td>${escapeHtml(item.assignedByName)}</td>
+      <td>${date(item.assignedAt)}</td>
+      <td>${item.unassignedAt ? date(item.unassignedAt) : '-'}</td>
+      <td>${item.isActive ? '<span class="badge badge-success">Aktif</span>' : '<span class="badge badge-muted">Pasif</span>'}</td>
+      <td>
+        <button class="row-btn" onclick="editUserFacilityAssignment(${item.id})">Düzenle</button>
+        <button class="row-btn danger" onclick="deleteUserFacilityAssignment(${item.id})">Sil</button>
+      </td>
+    </tr>
+  `);
+}
+
+const ASSIGNABLE_ROLES = ['Yetkili', 'Personel', 'TeknikPersonel', 'TemizlikPersoneli'];
+
+async function fetchUsersByRole(role) {
+  try {
+    return await api(`/api/admin/users-by-role/${role}`);
+  } catch {
+    return [];
+  }
+}
+
+function userFacilityAssignmentForm() {
+  const dormitories = state.facilities.filter(x => x.type === 'Yurt');
+  const housingUnits = state.facilities.filter(x => x.type === 'Lojman');
+
+  return {
+    title: 'Yetkili / Personel Ata',
+    html: `<form id="userFacilityAssignmentForm" class="form-grid" data-assignment-id="">
+      <label class="full">Hesap<select name="accountMode" id="accountMode">
+        <option value="existing">Mevcut kullanıcı seç</option>
+        <option value="new">Yeni hesap oluştur ve ata</option>
+      </select></label>
+      <div id="existingAccountFields" class="form-grid two">
+        <label>Rol<select name="assignRole" id="assignRoleSelect">
+          ${ASSIGNABLE_ROLES.map(r => `<option value="${r}">${staffRoleDisplay(r)}</option>`).join('')}
+        </select></label>
+        <label class="full">Kullanıcı<select name="userId" id="assignUserSelect"><option value="">Yükleniyor...</option></select></label>
+      </div>
+      <div id="newAccountFields" class="form-grid two" style="display:none;">
+        <label>Rol<select name="newRole">
+          ${ASSIGNABLE_ROLES.map(r => `<option value="${r}">${staffRoleDisplay(r)}</option>`).join('')}
+        </select></label>
+        <label>Ad Soyad<input name="fullName" placeholder="Ad Soyad"></label>
+        <label>E-posta<input name="email" type="email" placeholder="ornek@ozal.edu.tr"></label>
+        <label>TC Kimlik No<input name="tcNo" minlength="11" maxlength="11" placeholder="11 haneli TC"></label>
+        <label>Telefon<input name="phoneNumber" placeholder="+90... (isteğe bağlı)"></label>
+        <label class="full">Şifre<input name="password" type="password" minlength="6" placeholder="En az 6 karakter"></label>
+      </div>
+      <label>Yurt<select name="dormitoryId">
+        <option value="">Yurt seçilmedi</option>
+        ${dormitories.map(x => `<option value="${x.id}">${escapeHtml(x.name)}</option>`).join('')}
+      </select></label>
+      <label>Lojman<select name="housingUnitId">
+        <option value="">Lojman seçilmedi</option>
+        ${housingUnits.map(x => `<option value="${x.id}">${escapeHtml(x.name)}</option>`).join('')}
+      </select></label>
+      <button class="primary-btn full" type="submit">Atamayı Kaydet</button>
+    </form>`,
+    bind: () => {
+      const form = document.getElementById('userFacilityAssignmentForm');
+      const modeSel = form.querySelector('#accountMode');
+      const roleSel = form.querySelector('#assignRoleSelect');
+      const userSel = form.querySelector('#assignUserSelect');
+      const existingFields = form.querySelector('#existingAccountFields');
+      const newFields = form.querySelector('#newAccountFields');
+
+      const toggleMode = () => {
+        const isNew = modeSel.value === 'new';
+        existingFields.style.display = isNew ? 'none' : '';
+        newFields.style.display = isNew ? '' : 'none';
+        newFields.querySelectorAll('input').forEach(input => { input.required = isNew && input.name !== 'phoneNumber'; });
+        userSel.required = !isNew;
+      };
+      modeSel.addEventListener('change', toggleMode);
+
+      const loadUsers = async () => {
+        userSel.innerHTML = '<option value="">Yükleniyor...</option>';
+        const users = await fetchUsersByRole(roleSel.value);
+        userSel.innerHTML = users.length
+          ? users.map(u => `<option value="${u.id}">${escapeHtml(u.fullName)} - ${escapeHtml(u.email)}</option>`).join('')
+          : '<option value="">Bu rolde kayıtlı kullanıcı yok</option>';
+      };
+      roleSel.addEventListener('change', loadUsers);
+
+      form._loadUsers = loadUsers;
+      form._toggleMode = toggleMode;
+
+      loadUsers();
+      toggleMode();
+      form.addEventListener('submit', submitUserFacilityAssignment);
+    }
+  };
+}
+
+async function submitUserFacilityAssignment(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = Object.fromEntries(new FormData(form).entries());
+  const assignmentId = form.dataset.assignmentId;
+  const isNewAccount = data.accountMode === 'new';
+  const dormitoryId = data.dormitoryId ? Number(data.dormitoryId) : null;
+  const housingUnitId = data.housingUnitId ? Number(data.housingUnitId) : null;
+
+  if (!dormitoryId && !housingUnitId) {
+    toast('Yurt veya lojmandan biri seçilmelidir.', true);
+    return;
+  }
+
+  try {
+    let userId;
+    if (assignmentId) {
+      await api(`/api/admin/user-facility-assignments/${assignmentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dormitoryId, housingUnitId, isActive: true })
+      });
+      toast('Atama güncellendi.');
+    } else {
+      if (isNewAccount) {
+        const created = await api('/api/admin/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fullName: data.fullName,
+            email: data.email,
+            password: data.password,
+            tcNo: data.tcNo,
+            phoneNumber: data.phoneNumber || null,
+            role: data.newRole
+          })
+        });
+        userId = created.id;
+        toast(`${created.fullName} hesabı sisteme kaydedildi.`);
+      } else {
+        userId = data.userId;
+        if (!userId) {
+          toast('Kullanıcı seçin.', true);
+          return;
+        }
+      }
+      await api('/api/admin/user-facility-assignments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, dormitoryId, housingUnitId })
+      });
+      toast('Atama kaydedildi.');
+    }
+    closeModalIfOpen();
+    await loadUserFacilityAssignments();
+  } catch (error) {
+    toast(error.message || 'Atama kaydedilemedi.', true);
+  }
+}
+
+async function editUserFacilityAssignment(id) {
+  const item = state.userFacilityAssignments.find(x => x.id === id);
+  if (!item) return;
+  const form = userFacilityAssignmentForm();
+  form.html = form.html.replace('<form id="userFacilityAssignmentForm"', `<form id="userFacilityAssignmentForm" data-assignment-id="${id}"`);
+  form.html = form.html.replace('<button class="primary-btn full" type="submit">Atamayı Kaydet</button>', '<button class="primary-btn full" type="submit">Atamayı Güncelle</button>');
+  openModal(form.title, form.html, () => {
+    form.bind();
+    const formEl = document.getElementById('userFacilityAssignmentForm');
+    const modeSel = formEl.querySelector('#accountMode');
+    const roleSel = formEl.querySelector('#assignRoleSelect');
+    const userSel = formEl.querySelector('#assignUserSelect');
+    const newFields = formEl.querySelector('#newAccountFields');
+    modeSel.value = 'existing';
+    modeSel.disabled = true;
+    newFields.style.display = 'none';
+    formEl._toggleMode();
+    (async () => {
+      if (ASSIGNABLE_ROLES.includes(item.userRole)) {
+        roleSel.value = item.userRole;
+        await formEl._loadUsers();
+      }
+      userSel.value = item.userId;
+      userSel.disabled = true;
+      roleSel.disabled = true;
+      if (item.dormitoryId) formEl.querySelector('[name="dormitoryId"]').value = String(item.dormitoryId);
+      if (item.housingUnitId) formEl.querySelector('[name="housingUnitId"]').value = String(item.housingUnitId);
+    })();
+  });
+}
+
+async function deleteUserFacilityAssignment(id) {
+  if (!confirm('Bu atamayı silmek istiyor musunuz?')) return;
+  await saveAndRefresh(`/api/admin/user-facility-assignments/${id}`, 'DELETE', null, loadUserFacilityAssignments);
+}
+
+// ============ DUYURULAR ============
+async function loadAnnouncements() {
+  try {
+    state.announcements = await api('/api/announcements');
+  } catch {
+    state.announcements = [];
+  }
+  renderAnnouncements();
+}
+
+function announcementTargetDisplay(role) {
+  const map = { All: 'Herkes', Student: 'Öğrenci', Staff: 'Personel' };
+  return map[role] || role;
+}
+
+function renderAnnouncements() {
+  document.getElementById('announcementRowsAdmin').innerHTML = emptyTable(state.announcements, item => `
+    <tr>
+      <td><strong>${escapeHtml(item.title)}</strong></td>
+      <td class="desc-cell">${escapeHtml(item.content)}</td>
+      <td>${escapeHtml(announcementTargetDisplay(item.targetRole))}</td>
+      <td>${date(item.createdAt)}</td>
+      <td>${item.isActive ? '<span class="badge badge-success">Yayında</span>' : '<span class="badge badge-muted">Yayın dışı</span>'}</td>
+      <td>
+        ${item.isActive ? `<button class="row-btn warn" onclick="unpublishAnnouncement(${item.id})">Yayından Kaldır</button>` : '-'}
+      </td>
+    </tr>
+  `);
+}
+
+function announcementFormAdmin() {
+  return {
+    title: 'Yeni Duyuru',
+    html: `<form id="announcementFormAdmin" class="form-grid">
+      <label class="full">Başlık<input name="title" required maxlength="180" placeholder="Duyuru başlığı"></label>
+      <label class="full">İçerik<textarea name="content" required maxlength="4000" placeholder="Duyuru içeriği"></textarea></label>
+      <label>Hedef<select name="targetRole">
+        <option value="All">Herkes</option>
+        <option value="Student">Öğrenciler</option>
+        <option value="Staff">Personel</option>
+      </select></label>
+      <label>Durum<select name="isActive"><option value="true" selected>Yayında</option><option value="false">Yayın dışı</option></select></label>
+      <button class="primary-btn full" type="submit">Duyuruyu Yayınla</button>
+    </form>`,
+    bind: () => document.getElementById('announcementFormAdmin').addEventListener('submit', submitAnnouncementAdmin)
+  };
+}
+
+async function submitAnnouncementAdmin(event) {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  try {
+    await api('/api/announcements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: data.title,
+        content: data.content,
+        targetRole: data.targetRole,
+        isActive: data.isActive === 'true'
+      })
+    });
+    closeModalIfOpen();
+    toast('Duyuru yayınlandı.');
+    await loadAnnouncements();
+  } catch (error) {
+    toast(error.message || 'Duyuru yayınlanamadı.', true);
+  }
+}
+
+async function unpublishAnnouncement(id) {
+  const item = state.announcements.find(x => x.id === id);
+  if (!item || !confirm('Bu duyuruyu yayından kaldırmak istiyor musunuz?')) return;
+  try {
+    await api(`/api/announcements/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: item.title, content: item.content, targetRole: item.targetRole, isActive: false })
+    });
+    toast('Duyuru yayından kaldırıldı.');
+    await loadAnnouncements();
+  } catch (error) {
+    toast(error.message, true);
+  }
 }
 
 function facilityForm(item = null, type = 'Yurt') {
@@ -400,31 +950,66 @@ function roomForm(item = null) {
 }
 
 function assignForm() {
-  const assignableUsers = state.users.items.length ? state.users.items : mock.users;
   return {
     title: 'Kullanıcıyı Odaya Ata',
     html: `<form id="assignForm" class="form-grid">
-      <label>Kullanıcı<select name="userId">${assignableUsers.map(x => `<option value="${x.id}">${escapeHtml(x.fullName)} - ${escapeHtml(x.role)}</option>`).join('')}</select></label>
-      <label>Oda<select name="roomId">${state.rooms.filter(x => x.status !== 'Maintenance' && x.currentOccupancy < x.capacity).map(x => `<option value="${x.id}">${escapeHtml(x.roomNumber)} - ${escapeHtml(x.facilityName)}</option>`).join('')}</select></label>
+      <label>Kullanıcı Ara<input type="search" id="assignUserSearch" placeholder="İsim, e-posta veya TC ile ara" autocomplete="off"></label>
+      <label>Kullanıcı<select name="userId" id="assignUserSelect" required><option value="">Arama yapın...</option></select></label>
+      <label>Oda<select name="roomId">${state.rooms.filter(x => x.status !== 'Maintenance' && x.currentOccupancy < x.capacity).map(x => `<option value="${x.id}">${escapeHtml(x.roomNumber)} - ${escapeHtml(x.facilityName)} / ${escapeHtml(x.blockName)}</option>`).join('')}</select></label>
       <label>Konaklama Türü<select name="accommodationType"><option value="Yurt">Yurt</option><option value="Lojman">Lojman</option></select></label>
       <button class="primary-btn" type="submit">Ata</button>
     </form>`,
-    bind: () => document.getElementById('assignForm').addEventListener('submit', submitAssign)
+    bind: () => {
+      const form = document.getElementById('assignForm');
+      const searchInput = form.querySelector('#assignUserSearch');
+      const userSelect = form.querySelector('#assignUserSelect');
+      let debounceTimer;
+      const doSearch = async () => {
+        const term = searchInput.value.trim();
+        if (term.length < 2) {
+          userSelect.innerHTML = '<option value="">En az 2 karakter girin...</option>';
+          return;
+        }
+        userSelect.innerHTML = '<option value="">Aranıyor...</option>';
+        try {
+          const result = await api(`/api/admin/users?search=${encodeURIComponent(term)}&page=1&pageSize=20`);
+          const users = result.items || [];
+          if (!users.length) {
+            userSelect.innerHTML = '<option value="">Sonuç bulunamadı</option>';
+          } else {
+            userSelect.innerHTML = users.map(x => `<option value="${x.id}">${escapeHtml(x.fullName)} - ${escapeHtml(x.email)} - ${escapeHtml(x.role)}</option>`).join('');
+          }
+        } catch {
+          userSelect.innerHTML = '<option value="">Arama hatası</option>';
+        }
+      };
+      searchInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(doSearch, 300);
+      });
+      form.addEventListener('submit', submitAssign);
+    }
   };
 }
 
 function openAssignModal(applicationId, userId, fullName, accommodationType) {
-  const availableRooms = state.rooms.filter(x => x.status !== 'Maintenance' && x.currentOccupancy < x.capacity);
+  const facilityMap = new Map(state.facilities.map(f => [f.name, f.type]));
+  const availableRooms = state.rooms.filter(x => x.status !== 'Maintenance' && x.currentOccupancy < x.capacity && facilityMap.get(x.facilityName) === accommodationType);
   const form = {
-    title: `${fullName} - Odaya Yerleştir`,
+    title: `${fullName} - Odaya Yerleştir (${escapeHtml(accommodationType)})`,
     html: `<form id="assignForm" class="form-grid">
       <input type="hidden" name="applicationId" value="${applicationId}">
       <input type="hidden" name="userId" value="${userId}">
       <input type="hidden" name="accommodationType" value="${accommodationType}">
-      <label>Oda Seç<select name="roomId">${availableRooms.map(x => `<option value="${x.id}">${escapeHtml(x.roomNumber)} - ${escapeHtml(x.facilityName)} (${x.currentOccupancy}/${x.capacity})</option>`).join('')}</select></label>
-      <button class="primary-btn" type="submit">Odaya Yerleştir</button>
+      ${availableRooms.length === 0
+        ? `<p class="muted">Seçili tesis türünde (${escapeHtml(accommodationType)}) müsait oda bulunmuyor.</p>`
+        : `<label>Oda Seç<select name="roomId" required>${availableRooms.map(x => `<option value="${x.id}">${escapeHtml(x.roomNumber)} - ${escapeHtml(x.facilityName)} / ${escapeHtml(x.blockName)} (${x.currentOccupancy}/${x.capacity}) - ${money(x.price)}</option>`).join('')}</select></label>
+           <button class="primary-btn" type="submit">Odaya Yerleştir</button>`}
     </form>`,
-    bind: () => document.getElementById('assignForm').addEventListener('submit', submitApplicationAssign)
+    bind: () => {
+      const formEl = document.getElementById('assignForm');
+      if (formEl) formEl.addEventListener('submit', submitApplicationAssign);
+    }
   };
   openModal(form.title, form.html, form.bind);
 }
@@ -617,10 +1202,13 @@ async function api(path, options = {}, attachToken = true) {
   }
 
   const response = await fetch(path, { ...options, headers });
-  if (response.status === 401 || response.status === 403) {
+  if (response.status === 401) {
     clearStoredTokens();
     window.location.href = '/index.html';
     throw new Error('Yetkisiz oturum. Lütfen tekrar giriş yapın.');
+  }
+  if (response.status === 403) {
+    throw new Error('Bu işlem için yetkiniz yok.');
   }
   if (!response.ok) {
     const text = await response.text();
@@ -808,9 +1396,9 @@ function createMockStore() {
       { id: '77777777-7777-7777-7777-777777777777', fullName: 'Elif Şahin', email: 'elif.sahin@ozal.edu.tr', phoneNumber: '+905550000005', tcNo: '77777777777', studentStaffNo: 'PRS-2026-019', role: 'Personel', isActive: true, createdAt: isoDaysAgo(9) }
     ],
     placements: [
-      { id: 1, userId: '44444444-4444-4444-4444-444444444444', fullName: 'Mehmet Kaya', roomId: 1, roomNumber: '101', checkInDate: isoDaysAgo(30), checkOutDate: null, isActive: true },
-      { id: 2, userId: '55555555-5555-5555-5555-555555555555', fullName: 'Zeynep Demir', roomId: 2, roomNumber: '102', checkInDate: isoDaysAgo(18), checkOutDate: null, isActive: true },
-      { id: 3, userId: '66666666-6666-6666-6666-666666666666', fullName: 'Ali Çelik', roomId: 6, roomNumber: 'L101', checkInDate: isoDaysAgo(45), checkOutDate: null, isActive: true }
+      { id: 1, userId: '44444444-4444-4444-4444-444444444444', fullName: 'Mehmet Kaya', roomId: 1, roomNumber: '101', facilityName: 'MTU Merkez Ogrenci Yurdu', blockName: 'A Blok', checkInDate: isoDaysAgo(30), checkOutDate: null, isActive: true },
+      { id: 2, userId: '55555555-5555-5555-5555-555555555555', fullName: 'Zeynep Demir', roomId: 2, roomNumber: '102', facilityName: 'MTU Merkez Ogrenci Yurdu', blockName: 'A Blok', checkInDate: isoDaysAgo(18), checkOutDate: null, isActive: true },
+      { id: 3, userId: '66666666-6666-6666-6666-666666666666', fullName: 'Ali Çelik', roomId: 6, roomNumber: 'L101', facilityName: 'MTU Personel Lojmanlari', blockName: 'L Blok', checkInDate: isoDaysAgo(45), checkOutDate: null, isActive: true }
     ],
     recentApplications: [
       { id: 5, userId: '55555555-5555-5555-5555-555555555555', fullName: 'Zeynep Demir', tcNo: '55555555555', accommodationType: 'Yurt', status: 'Pending', createdAt: isoDaysAgo(1) },
@@ -902,6 +1490,24 @@ function applicationStatusDisplay(status) {
   return map[status] || status;
 }
 
+function requestStatusDisplay(status) {
+  const map = {
+    Open: 'Açık',
+    InProgress: 'İşlemde',
+    Resolved: 'Çözüldü',
+    Rejected: 'Reddedildi'
+  };
+  return map[status] || status;
+}
+
+function staffRoleDisplay(role) {
+  const map = {
+    TeknikPersonel: 'Teknik Personel',
+    TemizlikPersoneli: 'Temizlik Personeli'
+  };
+  return map[role] || role;
+}
+
 function emptyTable(items, renderer) {
   return (items || []).length ? (items || []).map(renderer).join('') : '<tr><td colspan="8">Kayıt bulunamadı.</td></tr>';
 }
@@ -912,7 +1518,9 @@ function emptyOr(items, renderer) {
 
 function parseJwt(token) {
   try {
-    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    let payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    // Add padding if needed
+    while (payload.length % 4) payload += '=';
     return JSON.parse(decodeURIComponent(atob(payload).split('').map(c => `%${(`00${c.charCodeAt(0).toString(16)}`).slice(-2)}`).join('')));
   } catch {
     return {};

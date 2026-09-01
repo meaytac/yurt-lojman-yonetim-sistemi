@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MTÜ Personel Operasyon Paneli</title>
+  <link rel="stylesheet" href="/css/staff.css">
+</head>
+<body>
+  <div class="staff-shell">
+    <aside class="sidebar">
+      <div class="brand"><img src="/img/mtu-amblem.png" alt="MTÜ amblemi"><div><strong>MTÜ OPERASYON</strong><small id="roleLabel">Personel Paneli</small></div></div>
+      <p class="nav-caption">ÇALIŞMA ALANI</p>
+      <nav id="staffNav" class="staff-nav"></nav>
+      <button class="logout" id="logoutBtn">↩ Çıkış yap</button>
+    </aside>
+    <div class="workspace">
+      <header class="topbar"><div><p class="eyebrow" id="welcomeLabel">GÜNLÜK OPERASYON</p><h1 id="sectionTitle">Bugünün iş akışı</h1></div><div class="user-chip"><span id="staffName"></span><small id="staffRole"></small><small id="dutyLocation" style="display:block; margin-top:4px; font-size:0.75rem; opacity:0.8;"></small></div></header>
+      <main>
+        <section id="dashboard" class="page active"><div id="overview" class="overview"></div><div class="shift-strip"><span class="pulse"></span><div><strong>Vardiya açık</strong><small>Görevlerinizi tamamladıkça durumları güncelleyin.</small></div></div><div id="dashboardContent" class="card-grid"></div></section>
+        <section id="requests" class="page"><div class="section-head"><div><p class="eyebrow">TEKNİK İŞ EMİRLERİ</p><h2>Arıza talepleri</h2><p>Onarım süresini belirleyin, iş tamamlandığında kaydı kapatın.</p></div></div><div id="requestList" class="work-list"></div></section>
+        <section id="periodic" class="page"><div class="section-head"><div><p class="eyebrow">PLANLI KONTROL</p><h2>Periyodik bakımlar</h2><p>Yurt sistemlerinin bakım döngülerini takip edin.</p></div><button class="primary" id="addMaintenanceBtn">Bakım planla</button></div><div id="periodicList" class="work-list"></div></section>
+        <section id="assignments" class="page"><div class="section-head"><div><p class="eyebrow">YURT YÖNETİMİ</p><h2>Görevlendirmeler</h2><p>Yalnızca yurt yöneticilerinin atadığı işler, öncelik sırasına göre listelenir.</p></div></div><div id="assignmentList" class="work-list"></div></section>
+        <section id="tasks" class="page"><div class="section-head"><div><p class="eyebrow">GÜNLÜK GÖREVLER</p><h2>Temizlik ve düzenleme</h2><p>Size atanan işleri tamamlandığında işaretleyin.</p></div></div><div id="taskList" class="work-list"></div></section>
+        <section id="faultReport" class="page"><div class="form-card"><p class="eyebrow">ARIZA BİLDİRİMİ</p><h2>Görev sırasında arıza bildir</h2><p>Bu alan yalnızca gördüğünüz arızayı yurt yönetimine bildirmek içindir; buradan görev oluşturulmaz.</p><form id="faultForm" class="form-grid"><label>Arıza türü<select name="category" required><option>Elektrik</option><option>Su tesisatı</option><option>Isıtma / soğutma</option><option>Mobilya / demirbaş</option><option>Diğer</option></select></label><label>Konum<input name="location" placeholder="Örn. A Blok / Oda 204" required></label><label class="full">Arıza açıklaması<textarea name="description" placeholder="Gördüğünüz arızayı açıklayın" required></textarea></label><button class="primary" type="submit">Arızayı bildir</button></form></div></section>
+      </main>
+    </div>
+  </div>
+  <div id="modalBackdrop" class="modal-backdrop"><div class="modal"><button id="closeModal" class="close">×</button><div id="modalBody"></div></div></div>
+  <div id="toastHost" class="toast-host"></div>
+  <script src="/js/staff.js?v=20260826"></script>
+</body>
+</html>

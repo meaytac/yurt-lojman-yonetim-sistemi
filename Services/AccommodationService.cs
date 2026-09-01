@@ -6,14 +6,14 @@ namespace yurt_lojman_yonetim_sistemi.Services;
 
 public interface IAccommodationService
 {
-    Task<Placement> PlaceUserAsync(Guid userId, AccommodationType type, int? roomId, CancellationToken cancellationToken);
+    Task<Placement> PlaceUserAsync(Guid userId, AccommodationType type, int? roomId, CancellationToken cancellationToken, IReadOnlyList<int>? dormitoryIds = null, IReadOnlyList<int>? housingUnitIds = null);
     Task CheckoutAsync(int placementId, CancellationToken cancellationToken);
     void RefreshRoomStatus(Room room);
 }
 
 public class AccommodationService(AppDbContext db) : IAccommodationService
 {
-    public async Task<Placement> PlaceUserAsync(Guid userId, AccommodationType type, int? roomId, CancellationToken cancellationToken)
+    public async Task<Placement> PlaceUserAsync(Guid userId, AccommodationType type, int? roomId, CancellationToken cancellationToken, IReadOnlyList<int>? dormitoryIds = null, IReadOnlyList<int>? housingUnitIds = null)
     {
         var hasActivePlacement = await db.Placements.AnyAsync(x => x.UserId == userId && x.IsActive, cancellationToken);
         if (hasActivePlacement)
@@ -21,9 +21,19 @@ public class AccommodationService(AppDbContext db) : IAccommodationService
             throw new InvalidOperationException("Kullanicinin aktif bir yerlestirmesi zaten var.");
         }
 
-        var room = roomId.HasValue
-            ? await db.Rooms.Include(x => x.BlockFloor).ThenInclude(x => x.Building).FirstOrDefaultAsync(x => x.Id == roomId.Value, cancellationToken)
-            : await FindAvailableRoomAsync(type, cancellationToken);
+        Room? room;
+        if (roomId.HasValue)
+        {
+            room = await db.Rooms.Include(x => x.BlockFloor).ThenInclude(x => x.Building).FirstOrDefaultAsync(x => x.Id == roomId.Value, cancellationToken);
+            if (room != null && !IsRoomInScope(room, dormitoryIds, housingUnitIds))
+            {
+                throw new InvalidOperationException("Secilen oda yetkili oldugunuz tesiste bulunmuyor.");
+            }
+        }
+        else
+        {
+            room = await FindAvailableRoomAsync(type, cancellationToken, dormitoryIds, housingUnitIds);
+        }
 
         if (room is null)
         {
@@ -87,15 +97,36 @@ public class AccommodationService(AppDbContext db) : IAccommodationService
                 : RoomStatus.PartiallyFull;
     }
 
-    private Task<Room?> FindAvailableRoomAsync(AccommodationType type, CancellationToken cancellationToken)
+    private static bool IsRoomInScope(Room room, IReadOnlyList<int>? dormitoryIds, IReadOnlyList<int>? housingUnitIds)
     {
-        return db.Rooms
+        if (dormitoryIds == null && housingUnitIds == null)
+        {
+            return true;
+        }
+
+        var building = room.BlockFloor.Building;
+        return (building.DormitoryId != null && dormitoryIds != null && dormitoryIds.Contains(building.DormitoryId.Value))
+            || (building.HousingUnitId != null && housingUnitIds != null && housingUnitIds.Contains(building.HousingUnitId.Value));
+    }
+
+    private Task<Room?> FindAvailableRoomAsync(AccommodationType type, CancellationToken cancellationToken, IReadOnlyList<int>? dormitoryIds = null, IReadOnlyList<int>? housingUnitIds = null)
+    {
+        var query = db.Rooms
             .Include(x => x.BlockFloor)
             .ThenInclude(x => x.Building)
             .Where(x => x.Status != RoomStatus.Maintenance && x.CurrentOccupancy < x.Capacity)
             .Where(x => type == AccommodationType.Yurt
                 ? x.BlockFloor.Building.DormitoryId != null
-                : x.BlockFloor.Building.HousingUnitId != null)
+                : x.BlockFloor.Building.HousingUnitId != null);
+
+        if (dormitoryIds != null || housingUnitIds != null)
+        {
+            query = query.Where(x =>
+                (x.BlockFloor.Building.DormitoryId != null && dormitoryIds != null && dormitoryIds.Contains(x.BlockFloor.Building.DormitoryId.Value)) ||
+                (x.BlockFloor.Building.HousingUnitId != null && housingUnitIds != null && housingUnitIds.Contains(x.BlockFloor.Building.HousingUnitId.Value)));
+        }
+
+        return query
             .OrderByDescending(x => x.CurrentOccupancy)
             .ThenBy(x => x.RoomNumber)
             .FirstOrDefaultAsync(cancellationToken);

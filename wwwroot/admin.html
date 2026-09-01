@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MTÜ Yönetim Paneli</title>
-  <link rel="stylesheet" href="/css/admin.css">
+  <link rel="stylesheet" href="/css/admin.css?v=20260826">
 </head>
 
 <body>
@@ -25,6 +25,9 @@
         <button class="nav-item" data-section="applications"><span>📝</span>Başvurular</button>
         <button class="nav-item" data-section="users"><span>👥</span>Kullanıcılar &amp; Roller</button>
         <button class="nav-item" data-section="placements"><span>🏠</span>Yerleşimler</button>
+        <button class="nav-item" data-section="requests"><span>🔧</span>Arıza Talepleri</button>
+        <button class="nav-item" data-section="operations"><span>🛠️</span>Operasyon &amp; Görevlendirme</button>
+        <button class="nav-item" data-section="announcements"><span>📢</span>Duyurular</button>
         <button class="nav-item danger" id="logoutBtn"><span>🚪</span>Çıkış Yap</button>
       </nav>
     </aside>
@@ -103,6 +106,9 @@
             </div>
             <div class="toolbar-actions">
               <input id="roomSearch" type="search" placeholder="Oda ara">
+              <select id="roomFacilityFilter">
+                <option value="">Tüm tesisler</option>
+              </select>
               <select id="roomStatusFilter">
                 <option value="">Tüm durumlar</option>
                 <option value="Empty">Boş</option>
@@ -219,6 +225,8 @@
               <thead>
                 <tr>
                   <th>Kişi</th>
+                  <th>Tesis</th>
+                  <th>Blok</th>
                   <th>Oda</th>
                   <th>Giriş</th>
                   <th>Çıkış</th>
@@ -229,6 +237,136 @@
               <tbody id="placementRows"></tbody>
             </table>
           </div>
+        </section>
+        <section id="announcements" class="page-section">
+          <div class="toolbar">
+            <div>
+              <h2>Duyuru Yönetimi</h2>
+              <p>Buradan oluşturduğunuz duyurular öğrenci ve personel portallarında görünür.</p>
+            </div>
+            <div class="toolbar-actions">
+              <button class="primary-btn" data-modal="announcementModal">+ Yeni Duyuru</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Başlık</th>
+                  <th>İçerik</th>
+                  <th>Hedef</th>
+                  <th>Tarih</th>
+                  <th>Durum</th>
+                  <th>Aksiyon</th>
+                </tr>
+              </thead>
+              <tbody id="announcementRowsAdmin"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="requests" class="page-section">
+          <div class="toolbar">
+            <div>
+              <h2>Arıza Talepleri</h2>
+              <p>Öğrencilerin bildirdiği arızalar — Tesis / Blok / Kat / Oda olarak görüntülenir.</p>
+            </div>
+            <div class="toolbar-actions">
+              <select id="requestOpenOnlyFilter">
+                <option value="">Tüm arıza talepleri</option>
+                <option value="open">Sadece açık / işlemde</option>
+              </select>
+            </div>
+          </div>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Arıza Talepleri · Yurt Sakinleri</h2>
+              <small class="muted">Sakinlerin oluşturduğu talepler; durum güncellemesi sakin ve teknik personel ekranlarına yansır.</small>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Sakin</th>
+                    <th>Tesis</th>
+                    <th>Blok/Kat</th>
+                    <th>Oda</th>
+                    <th>Kategori</th>
+                    <th>Açıklama</th>
+                    <th>Tarih</th>
+                    <th>Durum</th>
+                    <th>Durum Güncelle</th>
+                  </tr>
+                </thead>
+                <tbody id="requestRows"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section id="operations" class="page-section">
+          <div class="toolbar">
+            <div>
+              <h2>Operasyon & Görevlendirme</h2>
+              <p>Personele görev ve yetkili/personel görev yeri atamalarını yönetin.</p>
+            </div>
+          </div>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Görevlendirmeler · Yurt Yönetimi Atamaları</h2>
+              <small class="muted">Bu listedeki görevler personel panellerindeki "Görevlendirmeler" sekmesinde görünür.</small>
+              <button class="primary-btn" data-modal="staffAssignmentModal">+ Personele Görev Ata</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Görev</th>
+                    <th>Rol</th>
+                    <th>Konum</th>
+                    <th>Öncelik</th>
+                    <th>Termin</th>
+                    <th>Durum</th>
+                  </tr>
+                </thead>
+                <tbody id="assignmentRows"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Personel Arıza Bildirimleri</h2>
+              <small class="muted">Personelin görev sırasında bildirdiği arızalar.</small>
+            </div>
+            <div id="faultReportList" class="activity-list"></div>
+          </article>
+
+          <article id="facilityAssignmentPanel" class="panel">
+            <div class="panel-head">
+              <h2>Yetkili / Personel Görev Yeri Atamaları</h2>
+              <small class="muted">Yetkililerin ve personelin hangi yurt/lojmana atandığını yönetin. Bu bilgiler ilgili panellerde "Görev Yeri" olarak gösterilir.</small>
+              <button class="primary-btn" data-modal="userFacilityAssignmentModal">+ Yetkili / Personel Ata</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Kullanıcı</th>
+                    <th>Görev Yeri</th>
+                    <th>Atayan</th>
+                    <th>Atama Tarihi</th>
+                    <th>Bitiş Tarihi</th>
+                    <th>Durum</th>
+                    <th>Aksiyon</th>
+                  </tr>
+                </thead>
+                <tbody id="facilityAssignmentRows"></tbody>
+              </table>
+            </div>
+          </article>
         </section>
       </main>
     </div>
@@ -245,7 +383,7 @@
   </div>
 
   <div id="toastHost" class="toast-host"></div>
-  <script src="/js/admin.js"></script>
+  <script src="/js/admin.js?v=20260827h"></script>
 </body>
 
 </html>

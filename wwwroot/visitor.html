@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MTÜ Ziyaretçi Paneli</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/admin.css?v=20260827j">
+  <style>
+    .visitor-hero { background: linear-gradient(135deg, #0f172a 0%, #334155 100%); color: #fff; padding: 2rem; border-radius: 16px; margin-bottom: 1.5rem; }
+    .visitor-hero h1 { margin: 0 0 0.5rem; font-size: 1.6rem; }
+    .visitor-hero p { margin: 0; opacity: 0.85; line-height: 1.6; }
+    .visitor-card { background: #fff; border: 1px solid #dbe3ee; border-radius: 12px; padding: 1.5rem; }
+    .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-top: 1rem; }
+    .feature-item { background: #f8fafc; border: 1px solid #dbe3ee; border-radius: 10px; padding: 1rem; }
+    .feature-item h4 { margin: 0 0 0.4rem; color: #0f172a; }
+    .feature-item p { margin: 0; color: #475569; font-size: 0.9rem; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div id="appShell" class="admin-shell">
+    <aside class="sidebar">
+      <div class="side-brand">
+        <img class="brand-logo mini" src="/img/mtu-amblem.png" alt="MTÜ amblemi">
+        <div>
+          <strong>ZİYARETÇİ</strong>
+          <small>Ziyaretçi Paneli</small>
+        </div>
+      </div>
+      <nav class="side-nav" aria-label="Ziyaretçi menüsü">
+        <button class="nav-item active" data-section="welcome"><span>👋</span>Hoş Geldiniz</button>
+        <button class="nav-item" data-section="facilities"><span>🏢</span>Tesis Özellikleri</button>
+        <button class="nav-item" data-section="application"><span>📝</span>Başvuru</button>
+        <button class="nav-item" data-section="notifications"><span>🔔</span>Bilgilendirmeler <span id="notifBadge" style="display:none; background:#ef4444; color:#fff; border-radius:10px; padding:2px 6px; font-size:0.7rem; margin-left:4px;">1</span></button>
+        <button class="nav-item" data-section="announcements"><span>📢</span>Duyurular</button>
+        <button class="nav-item danger" id="logoutBtn"><span>🚪</span>Çıkış Yap</button>
+      </nav>
+    </aside>
+
+    <div class="main-area">
+      <header class="topbar">
+        <div>
+          <h1 id="sectionTitle">Hoş Geldiniz</h1>
+          <p>Hoş geldiniz, <span id="visitorNameDisplay">Ziyaretçi</span> — <span id="visitorEmailDisplay"></span></p>
+        </div>
+        <div class="top-actions">
+          <div class="profile-chip">
+            <span id="visitorNameChip">Ziyaretçi</span>
+            <small>Ziyaretçi</small>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section id="welcome" class="page-section active">
+          <div class="visitor-hero">
+            <h1>MTÜ Yurt ve Lojman Yönetim Sistemine Hoş Geldiniz!</h1>
+            <p>Malatya Turgut Özal Üniversitesi yurt ve lojman yönetim sistemi; öğrencilerin ve personelin konaklama başvurularını, oda yerleşimlerini, borç takibini ve arıza bildirimlerini tek bir platformda yönetmesini sağlar. Ziyaretçi olarak tesislerimiz hakkında bilgi alabilir, duyuruları takip edebilir ve başvuru yapabilirsiniz.</p>
+          </div>
+          <div class="visitor-card">
+            <h2>Site Nasıl Çalışır?</h2>
+            <ul style="color:#475569; line-height:1.8; margin:1rem 0;">
+              <li><strong>Tesis Özellikleri</strong> sekmesinden yurt ve lojmanlarımızın imkanlarını inceleyin.</li>
+              <li><strong>Başvuru</strong> sekmesinden konaklama başvurunuzu oluşturun — bilgileriniz otomatik doldurulur.</li>
+              <li><strong>Duyurular</strong> sekmesinden güncel duyuruları takip edin.</li>
+              <li>Başvurunuz onaylandığında kayıtlı hesapla giriş yaparak diğer işlemlere devam edebilirsiniz.</li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="facilities" class="page-section">
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Tesis Özellikleri ve İmkanlar</h2>
+              <small class="muted">MTÜ yurt ve lojmanlarında sunulan olanaklar</small>
+            </div>
+            <div class="feature-grid">
+              <div class="feature-item">
+                <h4>🏠 MTÜ Merkez Öğrenci Yurdu</h4>
+                <p>Battalgazi Yerleşkesi'nde, 120+ kapasite, A ve B bloklar, 4 kişilik odalar, etüt salonları, çamaşırhane ve 24 saat güvenlik.</p>
+              </div>
+              <div class="feature-item">
+                <h4>🏠 Yeşilyurt Kız Öğrenci Yurdu</h4>
+                <p>Yeşilyurt Yerleşkesi'nde, kız öğrencilere özel, güvenli giriş sistemi, yemekhane ve ortak yaşam alanları.</p>
+              </div>
+              <div class="feature-item">
+                <h4>🏢 MTÜ Personel Lojmanları</h4>
+                <p>Battalgazi Yerleşkesi'nde, 1+1 ve 2+1 daire seçenekleri, aileler için uygun, otopark ve yeşil alan.</p>
+              </div>
+              <div class="feature-item">
+                <h4>📚 Etüt ve Sosyal Alanlar</h4>
+                <p>Her yurtta etüt salonları, dinlenme odaları, mutfak ve çamaşırhane. Ortak alanlar günlük temizlenir.</p>
+              </div>
+              <div class="feature-item">
+                <h4>🔒 Güvenlik</h4>
+                <p>7/24 güvenlik personeli, kartlı giriş sistemi, kamera takibi ve danışma hizmeti.</p>
+              </div>
+              <div class="feature-item">
+                <h4>🍽️ Yemekhane</h4>
+                <p>Sabah ve akşam yemek hizmeti, kış menüsü, diyet ve alerji seçenekleri.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="application" class="page-section">
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Konaklama Başvurusu</h2>
+              <small class="muted">Girişte girdiğiniz bilgiler otomatik doldurulur</small>
+            </div>
+            <form id="visitorApplicationForm" class="form-grid" style="margin-top:1rem;">
+              <div class="input-group">
+                <label>Ad Soyad</label>
+                <input type="text" id="appFullName" required>
+              </div>
+              <div class="input-group">
+                <label>E-posta</label>
+                <input type="email" id="appEmail" required>
+              </div>
+              <div class="input-group">
+                <label>Konaklama Türü</label>
+                <select id="appAccommodationType" required>
+                  <option value="Yurt">Yurt</option>
+                  <option value="Lojman">Lojman</option>
+                </select>
+              </div>
+              <div class="input-group full">
+                <label>Öğrenci Belgesi <span style="color:#dc2626;">*</span></label>
+                <input type="file" id="appDocument" required accept=".pdf,.jpg,.jpeg,.png">
+                <small class="muted">Transkript, öğrenci belgesi veya personel görev belgesi (PDF/JPG/PNG)</small>
+              </div>
+              <div class="input-group full">
+                <label>Ek Açıklama (isteğe bağlı)</label>
+                <textarea id="appOptionalText" placeholder="Varsa eklemek istediğiniz notlar..." rows="3"></textarea>
+              </div>
+              <button type="submit" class="btn-primary" style="background:#0f172a;">Başvuruyu Gönder</button>
+              <p id="visitorAppState" class="login-message" style="margin-top:0.5rem;"></p>
+            </form>
+          </div>
+        </section>
+
+        <section id="notifications" class="page-section">
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Bilgilendirmeler</h2>
+              <small class="muted">Başvurunuzla ilgili bilgilendirmeler</small>
+            </div>
+            <div id="notificationsList" class="activity-list"><p class="muted">Henüz bilgilendirme bulunmuyor. Başvurunuz onaylandığında burada görünecektir.</p></div>
+          </div>
+        </section>
+
+        <section id="announcements" class="page-section">
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Son Duyurular</h2>
+              <small class="muted">Yurt ve lojman ile ilgili güncel duyurular</small>
+            </div>
+            <div id="announcementsList" class="activity-list"><p class="muted">Duyurular yükleniyor...</p></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const name = localStorage.getItem('visitorName');
+      const email = localStorage.getItem('visitorEmail');
+      if(!name || !email){
+        window.location.replace('/index.html');
+        return;
+      }
+      document.getElementById('visitorNameDisplay').textContent = name;
+      document.getElementById('visitorEmailDisplay').textContent = email;
+      document.getElementById('visitorNameChip').textContent = name;
+      document.getElementById('appFullName').value = name;
+      document.getElementById('appEmail').value = email;
+
+      document.getElementById('logoutBtn').addEventListener('click', () => {
+        localStorage.removeItem('visitorName');
+        localStorage.removeItem('visitorEmail');
+        localStorage.removeItem('visitorLogin');
+        window.location.replace('/index.html');
+      });
+
+      document.querySelectorAll('[data-section]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.section;
+          document.querySelectorAll('.page-section').forEach(s => s.classList.toggle('active', s.id === id));
+          document.querySelectorAll('.nav-item[data-section]').forEach(b => b.classList.toggle('active', b.dataset.section === id));
+          document.getElementById('sectionTitle').textContent = btn.textContent.trim();
+        });
+      });
+
+      document.getElementById('visitorApplicationForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const stateEl = document.getElementById('visitorAppState');
+        const fileInput = document.getElementById('appDocument');
+        if(!fileInput.files.length){
+          stateEl.textContent = 'Lütfen öğrenci belgesi yükleyin.';
+          stateEl.className = 'login-message error';
+          return;
+        }
+        const formData = new FormData();
+        formData.append('FullName', document.getElementById('appFullName').value.trim());
+        formData.append('Email', document.getElementById('appEmail').value.trim());
+        formData.append('AccommodationType', document.getElementById('appAccommodationType').value);
+        formData.append('Document', fileInput.files[0]);
+        const optionalText = document.getElementById('appOptionalText').value.trim();
+        if(optionalText) formData.append('OptionalText', optionalText);
+
+        stateEl.textContent = 'Başvuru gönderiliyor...';
+        stateEl.className = 'login-message';
+        try{
+          const res = await fetch('/api/visitor/applications', { method: 'POST', body: formData });
+          if(!res.ok) throw new Error(await res.text());
+          stateEl.textContent = 'Başvurunuz başarıyla alındı! En kısa sürede değerlendirilecektir.';
+          stateEl.className = 'login-message success';
+          e.target.reset();
+          document.getElementById('appFullName').value = name;
+          document.getElementById('appEmail').value = email;
+        } catch(err){
+          stateEl.textContent = err.message || 'Başvuru gönderilemedi.';
+          stateEl.className = 'login-message error';
+        }
+      });
+
+      async function loadAnnouncements(){
+        const root = document.getElementById('announcementsList');
+        try{
+          const res = await fetch('/api/announcements');
+          if(!res.ok) throw new Error(await res.text());
+          const items = await res.json();
+          const list = items.slice(0, 5);
+          root.innerHTML = list.length ? list.map(x => `
+            <div class="activity-item">
+              <div>
+                <strong>${escapeHtml(x.title)}</strong>
+                <small>${escapeHtml(x.content)}</small>
+              </div>
+              <small>${new Date(x.createdAt).toLocaleDateString('tr-TR')}</small>
+            </div>
+          `).join('') : '<p class="muted">Duyuru bulunmuyor.</p>';
+        } catch(e){
+          root.innerHTML = `<p class="muted">${escapeHtml(e.message)}</p>`;
+        }
+      }
+      async function loadNotifications(){
+        const email = localStorage.getItem('visitorEmail');
+        if(!email) return;
+        try{
+          const res = await fetch(`/api/visitor/notifications?email=${encodeURIComponent(email)}`);
+          if(!res.ok) throw new Error(await res.text());
+          const data = await res.json();
+          const root = document.getElementById('notificationsList');
+          const badge = document.getElementById('notifBadge');
+          if(data.hasNotification){
+            badge.style.display = 'inline-block';
+            root.innerHTML = `
+              <div class="visitor-card" style="border:2px solid #10b981; background:#f0fdf4;">
+                <h3 style="color:#065f46; margin:0 0 0.5rem;">✅ Başvurunuz Onaylandı!</h3>
+                <p style="color:#475569; line-height:1.6; margin:0 0 1rem;">${escapeHtml(data.message)}</p>
+                <p style="color:#dc2626; font-size:0.85rem; margin:0 0 1rem;"><strong>Not:</strong> Bu mesaj onaylandıktan sonra e-postanıza bağlı ziyaretçi hesabı silinecektir.</p>
+                <button class="btn-primary" style="background:#10b981;" onclick="confirmNotification()">Onayla ve Giriş Ekranına Dön</button>
+              </div>
+            `;
+          } else {
+            badge.style.display = 'none';
+            root.innerHTML = '<p class="muted">Henüz bilgilendirme bulunmuyor. Başvurunuz onaylandığında burada görünecektir.</p>';
+          }
+        } catch(e){
+          console.error(e);
+        }
+      }
+      window.confirmNotification = function(){
+        if(confirm('Ziyaretçi hesabınız silinecek ve giriş ekranına yönlendirileceksiniz. Onaylıyor musunuz?')){
+          localStorage.removeItem('visitorName');
+          localStorage.removeItem('visitorEmail');
+          localStorage.removeItem('visitorLogin');
+          window.location.replace('/index.html');
+        }
+      };
+      function escapeHtml(v){ return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
+      loadAnnouncements();
+      loadNotifications();
+      setInterval(loadNotifications, 15000);
+    })();
+  </script>
+</body>
+</html>

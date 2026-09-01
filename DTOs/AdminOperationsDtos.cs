@@ -19,6 +19,9 @@ public record AdminRequestListItemDto(
     string FullName,
     int RoomId,
     string RoomNumber,
+    string FacilityName,
+    string BlockName,
+    int FloorNumber,
     string Category,
     string Description,
     string? PhotoUrl,
@@ -35,3 +38,10 @@ public record AdminPaymentListItemDto(
     DateTime? PaidDate,
     PaymentStatus Status,
     string Description);
+
+public record AdminFaultReportListItemDto(
+    int Id,
+    string Category,
+    string Location,
+    string Description,
+    DateTime CreatedAt);

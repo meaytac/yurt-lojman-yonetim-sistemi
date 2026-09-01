@@ -84,7 +84,7 @@ public static class SeedData
                 NormalizedUserName = $"DEMO{index:000}@OZAL.EDU.TR",
                 NormalizedEmail = $"DEMO{index:000}@OZAL.EDU.TR",
                 EmailConfirmed = true,
-                FullName = $"{firstNames[(index - 1) % firstNames.Length]} {lastNames[(index - 1) % lastNames.Length]}",
+                FullName = $"{firstNames[(index - 1) % firstNames.Length]} {lastNames[((index - 1) / firstNames.Length) % lastNames.Length]}",
                 TcNo = $"9900000{index:0000}",
                 StudentStaffNo = $"OGR-2026-{index:000}",
                 Role = AppRoles.Ogrenci,
@@ -102,33 +102,23 @@ public static class SeedData
         return users;
     }
 
-    private static List<Dormitory> CreateDormitories() => Enumerable.Range(1, 5).Select(index => new Dormitory
-    {
-        Name = $"Demo {index} Ogrenci Yurdu",
-        Type = AccommodationType.Yurt,
-        CampusLocation = index % 2 == 0 ? "Yesilyurt Yerleskesi" : "Battalgazi Yerleskesi",
-        IsActive = true
-    }).ToList();
-
-    private static List<HousingUnit> CreateHousingUnits() => Enumerable.Range(1, 4).Select(index => new HousingUnit
-    {
-        Name = $"Demo {index} Personel Lojmani",
-        Type = AccommodationType.Lojman,
-        CampusLocation = "Battalgazi Yerleskesi",
-        IsActive = true
-    }).ToList();
+    private static List<Dormitory> CreateDormitories() => new();
+    private static List<HousingUnit> CreateHousingUnits() => new();
 
     private static List<Building> CreateBuildings(List<Dormitory> dormitories, List<HousingUnit> housingUnits)
     {
+        if (dormitories.Count == 0 && housingUnits.Count == 0) return new();
         var buildings = new List<Building>(10);
         for (var index = 0; index < 10; index++)
         {
             if (index < 6)
             {
+                if (dormitories.Count == 0) continue;
                 buildings.Add(new Building { DormitoryId = dormitories[index % dormitories.Count].Id, BlockName = $"Demo {index + 1} Blok" });
             }
             else
             {
+                if (housingUnits.Count == 0) continue;
                 buildings.Add(new Building { HousingUnitId = housingUnits[(index - 6) % housingUnits.Count].Id, BlockName = $"Lojman {index - 5} Blok" });
             }
         }
@@ -159,21 +149,21 @@ public static class SeedData
     }
 
     private static List<AccommodationApplication> CreateApplications(List<AppUser> users, DateTime now) =>
-        Enumerable.Range(0, 200).Select(index => new AccommodationApplication
+        Enumerable.Range(0, 20).Select(index => new AccommodationApplication
         {
-            UserId = users[index % users.Count].Id,
+            UserId = users[index].Id,
             AccommodationType = index % 5 == 0 ? AccommodationType.Lojman : AccommodationType.Yurt,
             DocumentUrl = $"/uploads/demo/belge-{index + 1:000}.pdf",
             Status = (ApplicationStatus)(index % 3 + 1),
-            CreatedAt = now.AddDays(-index % 90),
-            UpdatedAt = index % 3 == 0 ? null : now.AddDays(-index % 30)
+            CreatedAt = now.AddDays(-index % 30),
+            UpdatedAt = index % 3 == 0 ? null : now.AddDays(-index % 15)
         }).ToList();
 
     private static List<Placement> CreatePlacements(List<AppUser> users, List<Room> rooms, DateTime now) =>
-        users.Select((user, index) => new Placement
+        rooms.Count == 0 ? new() : users.Select((user, index) => new Placement
         {
             UserId = user.Id,
-            RoomId = rooms[index].Id,
+            RoomId = rooms[index % rooms.Count].Id,
             CheckInDate = now.AddDays(-index - 1),
             IsActive = true
         }).ToList();
@@ -191,25 +181,25 @@ public static class SeedData
 
     private static List<MaintenanceRequest> CreateRequests(List<AppUser> users, List<Room> rooms, DateTime now)
     {
-        var categories = new[] { "Elektrik", "Isitma", "Su Tesisati", "Mobilya" };
-        return Enumerable.Range(0, 80).Select(index => new MaintenanceRequest
+        if (rooms.Count == 0) return new();
+        return new List<MaintenanceRequest>
         {
-            UserId = users[index % users.Count].Id,
-            RoomId = rooms[index].Id,
-            Category = categories[index % categories.Length],
-            Description = $"Demo odasinda {categories[index % categories.Length].ToLowerInvariant()} kontrolu gerekiyor.",
-            Status = (RequestStatus)(index % 4 + 1),
-            CreatedAt = now.AddDays(-index % 45)
-        }).ToList();
+            new() { UserId = users[0].Id, RoomId = rooms[0].Id, Category = "Elektrik", Description = "Oda içindeki çalışma masası prizi temassızlık yapıyor, fiş takılıyken elektrik kesiliyor.", Status = RequestStatus.Open, CreatedAt = now.AddHours(-5) },
+            new() { UserId = users[1].Id, RoomId = rooms[1].Id, Category = "Su Tesisatı", Description = "Banyo musluğu sürekli damlatıyor, su israfı oluyor ve geceleri ses yapıyor.", Status = RequestStatus.Open, CreatedAt = now.AddDays(-1) },
+            new() { UserId = users[2].Id, RoomId = rooms[2].Id, Category = "Isıtma", Description = "Petek vanası sıkışmış, petek ısınmıyor, oda çok soğuk. Kış ayarı kontrol edilmeli.", Status = RequestStatus.InProgress, CreatedAt = now.AddDays(-2) },
+            new() { UserId = users[3].Id, RoomId = rooms[3].Id, Category = "Mobilya", Description = "Ranza üst kat merdiveni gevşemiş, çıkarken sallanıyor, düşme riski var.", Status = RequestStatus.Open, CreatedAt = now.AddHours(-12) },
+            new() { UserId = users[4].Id, RoomId = rooms[4].Id, Category = "İnternet", Description = "Oda içinde Wi-Fi sinyali çok zayıf, bağlantı sürekli kopuyor, çevrimiçi derslere katılamıyorum.", Status = RequestStatus.Open, CreatedAt = now.AddDays(-3) },
+            new() { UserId = users[5].Id, RoomId = rooms[5].Id, Category = "Banyo", Description = "Banyo gideri tıkalı, duş sonrası su birikiyor ve kötü koku yapıyor.", Status = RequestStatus.Open, CreatedAt = now.AddHours(-8) },
+            new() { UserId = users[6].Id, RoomId = rooms[6].Id, Category = "Kapı/Kilit", Description = "Oda kapı kilidi bazen açılmıyor, kartı birkaç kez okutmak gerekiyor.", Status = RequestStatus.Open, CreatedAt = now.AddDays(-4) }
+        };
     }
 
     private static List<Announcement> CreateAnnouncements(DateTime now) =>
-        Enumerable.Range(1, 81).Select(index => new Announcement
+        new List<Announcement>
         {
-            Title = $"Demo Duyurusu {index:00}",
-            Content = "Yurt ve lojman yonetim sistemi bilgilendirmesidir.",
-            TargetRole = (AnnouncementTargetRole)(index % 3 + 1),
-            CreatedAt = now.AddDays(-index),
-            IsActive = true
-        }).ToList();
+            new() { Title = "Çamaşırhane Haftalık Bakım", Content = "A Blok çamaşırhanesi 02–03 Eylül tarihlerinde makine bakımı nedeniyle kapalı olacaktır. Acil ihtiyaçlar için B Blok çamaşırhanesini kullanabilirsiniz.", TargetRole = AnnouncementTargetRole.All, CreatedAt = now.AddDays(-2), IsActive = true },
+            new() { Title = "Etüt Salonlarında Sessizlik Kuralları", Content = "Etüt salonlarında 19:00–23:00 saatleri arasında sessizlik kuralı uygulanacaktır. Grup çalışmaları için zemin kattaki tartışma odalarını kullanınız.", TargetRole = AnnouncementTargetRole.Student, CreatedAt = now.AddDays(-7), IsActive = true },
+            new() { Title = "Güvenlik Giriş Kartı Yenileme", Content = "Güvenlik giriş kartlarının vizesi 15 Eylül'de sona ermektedir. Kartını yenilemek isteyenlerin danışmaya kimlikleri ile başvurması gerekmektedir. Kayıp kart bedeli 150 TL'dir.", TargetRole = AnnouncementTargetRole.All, CreatedAt = now.AddDays(-3), IsActive = true },
+            new() { Title = "Kalorifer Sistemi Kış Ayarları", Content = "Kalorifer sistemi 20 Eylül itibarıyla kış moduna alınacaktır. Odalarda petek ayarlarını 3. kademede tutmanız ve pencereleri uzun süre açık bırakmamanız rica olunur. Arıza için lütfen arıza talebi oluşturun.", TargetRole = AnnouncementTargetRole.All, CreatedAt = now.AddDays(-1), IsActive = true }
+        };
 }

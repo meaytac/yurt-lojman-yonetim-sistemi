@@ -35,14 +35,17 @@ async function login() {
       userId: data.userId,
       fullName: data.fullName,
       email: data.email,
-      role: data.role
+      role: data.role,
+      phoneNumber: data.phoneNumber || ''
     }));
     state.textContent = `${data.fullName} olarak giriş yapıldı.`;
     state.className = 'login-message success';
 
-    const role = String(data.role || '').trim().toLowerCase();
-    const isAdmin = role === 'admin' || role === 'yetkili' || email.trim().toLowerCase() === 'admin@ozal.edu.tr';
-    const target = isAdmin ? '/admin.html' : '/application.html';
+const role = String(data.role || '').trim().toLowerCase();
+    const isAdmin = role === 'admin';
+    const isYetkili = role === 'yetkili';
+    const isStaff = role === 'teknikpersonel' || role === 'temizlikpersoneli';
+    const target = (isAdmin || isYetkili) ? '/admin.html' : isStaff ? '/staff.html' : '/application.html';
     window.setTimeout(() => {
       window.location.href = target;
     }, 250);
@@ -72,7 +75,7 @@ async function loadAnnouncements() {
   if (!root) return;
   try {
     const items = await api('/api/announcements');
-    root.innerHTML = items.map(x => `
+    root.innerHTML = items.slice(0, 5).map(x => `
       <article class="announcement-item">
         <strong>${escapeHtml(x.title)}</strong>
         <span>${escapeHtml(x.content)}</span>

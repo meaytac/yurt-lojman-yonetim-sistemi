@@ -33,6 +33,10 @@
           <h2>Oturum Aç</h2>
           <p>Sisteme erişim için giriş yapınız.</p>
         </div>
+        <div class="login-tabs" style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+          <button type="button" class="tab-btn active" data-tab="registered" style="flex:1; padding:0.6rem; border-radius:8px; border:1px solid #dbe3ee; background:#0f172a; color:#fff; cursor:pointer; font-weight:600;">Kayıtlı Hesap</button>
+          <button type="button" class="tab-btn" data-tab="visitor" style="flex:1; padding:0.6rem; border-radius:8px; border:1px solid #dbe3ee; background:#f8fafc; color:#0f172a; cursor:pointer; font-weight:600;">Ziyaretçi Girişi</button>
+        </div>
         <form id="loginForm" class="login-form">
           <div class="form-group">
             <label for="email">E-posta Adresi</label>
@@ -50,6 +54,19 @@
           </div>
           <button type="submit" class="btn-primary">Giriş Yap</button>
           <p id="loginState" class="login-message"></p>
+        </form>
+        <form id="visitorForm" class="login-form" style="display:none;">
+          <div class="form-group">
+            <label for="visitorName">Ad Soyad <span style="color:#dc2626;">*</span></label>
+            <input id="visitorName" type="text" placeholder="Adınız Soyadınız" required>
+          </div>
+          <div class="form-group">
+            <label for="visitorEmail">E-posta <span style="color:#dc2626;">*</span></label>
+            <input id="visitorEmail" type="email" placeholder="ornek@mail.com" required>
+          </div>
+          <p class="muted" style="font-size:0.85rem; margin-bottom:1rem; color:#64748b;">Kayıtlı hesabınız olmadan ziyaretçi olarak giriş yapabilirsiniz. Duyuruları ve tesis bilgilerini görüntüleyebilirsiniz.</p>
+          <button type="submit" class="btn-primary" style="background:#475569;">Ziyaretçi Girişi Yap</button>
+          <p id="visitorState" class="login-message"></p>
         </form>
       </section>
     </section>
@@ -74,11 +91,51 @@
     </div>
   </footer>
 
-  <script src="/js/app.js"></script>
+  <script src="/js/app.js?v=20260827j"></script>
   <script>
     document.getElementById('loginForm').addEventListener('submit', function (e) {
       e.preventDefault();
       login();
+    });
+    // Sekme gecisi
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => {
+          b.classList.remove('active');
+          b.style.background = '#f8fafc';
+          b.style.color = '#0f172a';
+        });
+        btn.classList.add('active');
+        btn.style.background = '#0f172a';
+        btn.style.color = '#fff';
+        const tab = btn.dataset.tab;
+        document.getElementById('loginForm').style.display = tab === 'registered' ? '' : 'none';
+        document.getElementById('visitorForm').style.display = tab === 'visitor' ? '' : 'none';
+        document.getElementById('visitorWelcome').style.display = 'none';
+      });
+    });
+    // Ziyaretci girisi — ayri arayuze yonlendir
+    document.getElementById('visitorForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      const name = document.getElementById('visitorName').value.trim();
+      const email = document.getElementById('visitorEmail').value.trim();
+      if(!name || !email){
+        const st = document.getElementById('visitorState');
+        st.textContent = 'Lütfen ad soyad ve e-posta girin.';
+        st.className = 'login-message error';
+        return;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if(!emailRegex.test(email)){
+        const st = document.getElementById('visitorState');
+        st.textContent = 'Geçerli bir e-posta girin.';
+        st.className = 'login-message error';
+        return;
+      }
+      localStorage.setItem('visitorName', name);
+      localStorage.setItem('visitorEmail', email);
+      localStorage.setItem('visitorLogin', 'true');
+      window.location.href = '/visitor.html';
     });
     loadDashboard();
     loadAnnouncements();

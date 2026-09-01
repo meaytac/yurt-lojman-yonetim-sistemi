@@ -755,7 +755,7 @@
                                 </div>
                                 <div class="list-row">
                                     <span class="info-label">Telefon</span>
-                                    <span class="info-value" id="displayPhone"></span>
+                                    <span class="info-value" id="displayPhone">-</span>
                                 </div>
                                 <button class="btn-sm" id="editPersonalInfoBtn" style="margin-top: 1rem;">
                                     <i class="fas fa-edit"></i> Düzenle
@@ -807,9 +807,9 @@
                                     <i class="fas fa-bed"></i> Konaklama Bilgisi
                                 </div>
                             </div>
-                            <div class="empty-state">
-                                <i class="fas fa-info-circle"></i>
-                                <p>Kişisel bilgilerinizi doldurduktan sonra konaklama bilgileriniz burada görüntülenecektir.</p>
+                            <div id="accommodationInfo" class="empty-state">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Konaklama bilgileriniz yükleniyor…</p>
                             </div>
                         </div>
                     </div>
@@ -837,6 +837,10 @@
                         <!-- E-posta Değiştirme Formu -->
                         <div id="emailEditForm" style="display: none;">
                             <div class="profile-edit-form">
+                                <div class="list-row" style="margin-bottom: 1rem;">
+                                    <span class="info-label">Hesaba Bağlı Mevcut E-posta</span>
+                                    <span class="info-value" id="currentEmailLabel">-</span>
+                                </div>
                                 <div class="input-group">
                                     <label>Yeni E-posta Adresi</label>
                                     <input type="email" id="profileEmail" placeholder="Yeni e-posta adresiniz">
@@ -949,7 +953,7 @@
                         </div>
                         <form id="applicationForm" class="profile-edit-form">
                             <div class="input-group"><label>Konaklama türü</label><select name="accommodationType"><option value="Yurt">Yurt</option><option value="Lojman">Lojman</option></select></div>
-                            <div class="input-group"><label>Belge (isteğe bağlı)</label><input name="document" type="file"></div>
+                            <div class="input-group"><label>Öğrenci Belgesi <span style="color:#dc2626;">*</span></label><input name="document" type="file" required accept=".pdf,.jpg,.jpeg,.png"></div>
                             <button class="btn btn-outline" type="submit" style="width: auto;"><i class="fas fa-file"></i> Başvuruyu Gönder</button>
                         </form>
                     </div>
@@ -986,666 +990,42 @@
                 <div id="page-sikayet" class="page-section">
                     <div class="page-title"><i class="fas fa-comment-dots"></i> Şikayet & Öneri</div>
 
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-header-left">
-                                <i class="fas fa-plus-circle"></i> Yeni Bildirim
-                            </div>
-                        </div>
-                        <div id="sikayetAlert" class="alert-message"></div>
-                        <div class="profile-edit-form">
-                            <div class="input-group">
-                                <label>Tür</label>
-                                <select id="sikayetType">
-                                    <option value="sikayet">Şikayet</option>
-                                    <option value="oneri">Öneri</option>
-                                </select>
-                            </div>
-                            <div class="input-group">
-                                <label>Konu</label>
-                                <input type="text" id="sikayetSubject" placeholder="Konu başlığı">
-                            </div>
-                            <div class="input-group">
-                                <label>Açıklama</label>
-                                <textarea id="sikayetDescription" placeholder="Şikayet veya önerinizi detaylı olarak açıklayın..."></textarea>
-                            </div>
-                            <button class="btn-save" id="submitSikayetBtn" style="width: auto;">
-                                <i class="fas fa-paper-plane"></i> Gönder
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="card" style="margin-top: 1.5rem;">
-                        <div class="card-header">
-                            <div class="card-header-left">
-                                <i class="fas fa-list"></i> Geçmiş Bildirimler
-                            </div>
-                        </div>
-                        <div id="sikayetList"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        (function () {
-            // ============ VERİLER ============
-            let userData = {
-                fullName: '',
-                email: '',
-                password: '',
-                studentId: '',
-                department: '',
-                phone: '',
-                isProfileComplete: false
-            };
-
-            let sikayetListesi = [];
-
-            // ============ DOM ELEMENTLERİ ============
-            const loginScreen = document.getElementById('loginScreen');
-            const mainApp = document.getElementById('mainApp');
-            const loginButton = document.getElementById('loginButton');
-            const loginEmail = document.getElementById('loginEmail');
-            const loginPassword = document.getElementById('loginPassword');
-            const navItems = document.querySelectorAll('.nav-item');
-            const pageSections = document.querySelectorAll('.page-section');
-            const logoutBtn = document.getElementById('logoutBtn');
-
-            // Hesap bilgileri elementleri
-            const displayEmail = document.getElementById('displayEmail');
-            const emailDisplay = document.getElementById('emailDisplay');
-            const emailEditForm = document.getElementById('emailEditForm');
-            const changeEmailBtn = document.getElementById('changeEmailBtn');
-            const saveEmailBtn = document.getElementById('saveEmailBtn');
-            const cancelEmailBtn = document.getElementById('cancelEmailBtn');
-            const profileEmail = document.getElementById('profileEmail');
-
-            const passwordDisplay = document.getElementById('passwordDisplay');
-            const passwordEditForm = document.getElementById('passwordEditForm');
-            const changePasswordBtn = document.getElementById('changePasswordBtn');
-            const savePasswordBtn = document.getElementById('savePasswordBtn');
-            const cancelPasswordBtn = document.getElementById('cancelPasswordBtn');
-            const currentPassword = document.getElementById('currentPassword');
-            const newPassword = document.getElementById('newPassword');
-            const confirmPassword = document.getElementById('confirmPassword');
-
-            const alertMessage = document.getElementById('alertMessage');
-            const sidebarEmail = document.getElementById('sidebarEmail');
-            const sidebarName = document.getElementById('sidebarName');
-            const sidebarAvatar = document.getElementById('sidebarAvatar');
-
-            // Kişisel bilgiler elementleri
-            const personalInfoDisplay = document.getElementById('personalInfoDisplay');
-            const personalInfoEdit = document.getElementById('personalInfoEdit');
-            const emptyState = document.getElementById('emptyState');
-            const personalInfoForm = document.getElementById('personalInfoForm');
-            const fillPersonalInfoBtn = document.getElementById('fillPersonalInfoBtn');
-            const editPersonalInfoBtn = document.getElementById('editPersonalInfoBtn');
-            const editFullName = document.getElementById('editFullName');
-            const editStudentId = document.getElementById('editStudentId');
-            const editDepartment = document.getElementById('editDepartment');
-            const editPhone = document.getElementById('editPhone');
-            const savePersonalInfoBtn = document.getElementById('savePersonalInfoBtn');
-            const cancelPersonalInfoBtn = document.getElementById('cancelPersonalInfoBtn');
-            const personalInfoBadge = document.getElementById('personalInfoBadge');
-            const profileIncompleteBanner = document.getElementById('profileIncompleteBanner');
-
-            const displayFullName = document.getElementById('displayFullName');
-            const displayStudentId = document.getElementById('displayStudentId');
-            const displayDepartment = document.getElementById('displayDepartment');
-            const displayPhone = document.getElementById('displayPhone');
-
-            const navBorc = document.getElementById('navBorc');
-            const navAriza = document.getElementById('navAriza');
-            const navBasvuru = document.getElementById('navBasvuru');
-            const navDegisim = document.getElementById('navDegisim');
-            const navDuyurular = document.getElementById('navDuyurular');
-            const navSikayet = document.getElementById('navSikayet');
-
-            const sikayetType = document.getElementById('sikayetType');
-            const sikayetSubject = document.getElementById('sikayetSubject');
-            const sikayetDescription = document.getElementById('sikayetDescription');
-            const submitSikayetBtn = document.getElementById('submitSikayetBtn');
-            const sikayetAlert = document.getElementById('sikayetAlert');
-            const sikayetList = document.getElementById('sikayetList');
-
-            // ============ FONKSİYONLAR ============
-            function switchPage(pageId) {
-                if (!userData.isProfileComplete && pageId !== 'profile') {
-                    showAlert('Lütfen önce kişisel bilgilerinizi doldurun!', 'error');
-                    return;
-                }
-
-                pageSections.forEach(section => section.classList.remove('active'));
-                const targetPage = document.getElementById('page-' + pageId);
-                if (targetPage) targetPage.classList.add('active');
-
-                navItems.forEach(item => {
-                    item.classList.remove('active');
-                    if (item.getAttribute('data-page') === pageId) {
-                        item.classList.add('active');
-                    }
-                });
-            }
-
-            function updateProfileInfo() {
-                sidebarEmail.textContent = userData.email || 'E-posta girilmedi';
-                displayEmail.textContent = userData.email || '-';
-
-                if (userData.isProfileComplete && userData.fullName) {
-                    sidebarName.textContent = userData.fullName;
-                    const nameParts = userData.fullName.split(' ');
-                    sidebarAvatar.textContent = nameParts.length >= 2 ?
-                        nameParts[0][0] + nameParts[1][0] :
-                        userData.fullName[0] || '?';
-                } else {
-                    sidebarName.textContent = 'Yeni Kullanıcı';
-                    sidebarAvatar.textContent = '?';
-                }
-
-                profileEmail.value = userData.email || '';
-                displayFullName.textContent = userData.fullName || '-';
-                displayStudentId.textContent = userData.studentId || '-';
-                displayDepartment.textContent = userData.department || '-';
-                displayPhone.textContent = userData.phone || '-';
-
-                editFullName.value = userData.fullName || '';
-                editStudentId.value = userData.studentId || '';
-                editDepartment.value = userData.department || '';
-                editPhone.value = userData.phone || '';
-            }
-
-            function updateNavigationLock() {
-                const navs = [navBorc, navAriza, navBasvuru, navDegisim, navDuyurular, navSikayet];
-
-                if (userData.isProfileComplete) {
-                    navs.forEach(nav => nav.classList.remove('disabled'));
-                    profileIncompleteBanner.style.display = 'none';
-                    personalInfoBadge.textContent = 'Tamamlandı';
-                    personalInfoBadge.className = 'badge approved';
-                } else {
-                    navs.forEach(nav => nav.classList.add('disabled'));
-                    profileIncompleteBanner.style.display = 'flex';
-                    personalInfoBadge.textContent = 'Zorunlu';
-                    personalInfoBadge.className = 'badge warning';
-                }
-            }
-
-            function updatePersonalInfoView() {
-                if (userData.isProfileComplete) {
-                    personalInfoDisplay.style.display = 'block';
-                    personalInfoEdit.style.display = 'none';
-                } else {
-                    personalInfoDisplay.style.display = 'none';
-                    personalInfoEdit.style.display = 'block';
-                }
-            }
-
-            function showAlert(message, type) {
-                alertMessage.textContent = message;
-                alertMessage.className = 'alert-message alert-' + type;
-                alertMessage.style.display = 'block';
-                setTimeout(() => alertMessage.style.display = 'none', 4000);
-            }
-
-            function showSikayetAlert(message, type) {
-                sikayetAlert.textContent = message;
-                sikayetAlert.className = 'alert-message alert-' + type;
-                sikayetAlert.style.display = 'block';
-                setTimeout(() => sikayetAlert.style.display = 'none', 4000);
-            }
-
-            function updateSikayetList() {
-                if (sikayetListesi.length === 0) {
-                    sikayetList.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>Henüz şikayet veya öneri bildirimi yapılmamış.</p></div>';
-                    return;
-                }
-
-                let html = '';
-                sikayetListesi.forEach((item) => {
-                    const typeClass = item.type === 'sikayet' ? 'complaint' : 'suggestion';
-                    const typeLabel = item.type === 'sikayet' ? 'Şikayet' : 'Öneri';
-                    const statusClass = item.status === 'resolved' ? 'resolved' : item.status === 'rejected' ? 'rejected' : 'pending';
-                    const statusLabel = item.status === 'resolved' ? 'Çözüldü' : item.status === 'rejected' ? 'Reddedildi' : 'Beklemede';
-                    const statusBadge = item.status === 'resolved' ? 'approved' : item.status === 'rejected' ? 'danger' : 'warning';
-
-                    html += `
-                                <div class="complaint-card ${statusClass}">
-                                    <div class="complaint-header">
-                                        <div class="complaint-title">
-                                            <span class="type-badge ${typeClass}">${typeLabel}</span>
-                                            <span>${item.subject}</span>
-                                        </div>
-                                        <span class="complaint-date">${item.date}</span>
-                                    </div>
-                                    <div class="complaint-description">${item.description}</div>
-                                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <span class="badge ${statusBadge}">${statusLabel}</span>
-                                        ${item.response ? `<div class="complaint-response"><strong>Yanıt:</strong> ${item.response}</div>` : ''}
-                                    </div>
-                                </div>
-                            `;
-                });
-
-                sikayetList.innerHTML = html;
-            }
-
-            function openPersonalInfoForm() {
-                emptyState.style.display = 'none';
-                personalInfoForm.style.display = 'block';
-                editFullName.value = userData.fullName || '';
-                editStudentId.value = userData.studentId || '';
-                editDepartment.value = userData.department || '';
-                editPhone.value = userData.phone || '';
-            }
-
-            function closePersonalInfoForm() {
-                if (userData.isProfileComplete) {
-                    personalInfoDisplay.style.display = 'block';
-                    personalInfoEdit.style.display = 'none';
-                } else {
-                    personalInfoDisplay.style.display = 'none';
-                    personalInfoEdit.style.display = 'block';
-                    emptyState.style.display = 'block';
-                    personalInfoForm.style.display = 'none';
-                }
-            }
-
-            function openEmailEdit() {
-                emailDisplay.style.display = 'none';
-                emailEditForm.style.display = 'block';
-                profileEmail.value = userData.email || '';
-            }
-
-            function closeEmailEdit() {
-                emailDisplay.style.display = 'block';
-                emailEditForm.style.display = 'none';
-            }
-
-            function openPasswordEdit() {
-                passwordDisplay.style.display = 'none';
-                passwordEditForm.classList.add('active');
-                currentPassword.value = '';
-                newPassword.value = '';
-                confirmPassword.value = '';
-            }
-
-            function closePasswordEdit() {
-                passwordDisplay.style.display = 'block';
-                passwordEditForm.classList.remove('active');
-                currentPassword.value = '';
-                newPassword.value = '';
-                confirmPassword.value = '';
-            }
-
-            // ============ OLAY DİNLEYİCİLERİ ============
-            navItems.forEach(item => {
-                item.addEventListener('click', function () {
-                    const page = this.getAttribute('data-page');
-                    if (page) switchPage(page);
-                });
-            });
-
-            loginButton.addEventListener('click', function (e) {
-                e.preventDefault();
-                const email = loginEmail.value.trim();
-                const password = loginPassword.value.trim();
-
-                if (!email || !password) {
-                    alert('Lütfen e-posta ve şifrenizi giriniz.');
-                    return;
-                }
-
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(email)) {
-                    alert('Geçerli bir e-posta adresi giriniz.');
-                    return;
-                }
-
-                if (password.length < 6) {
-                    alert('Şifre en az 6 karakter olmalıdır.');
-                    return;
-                }
-
-                userData.email = email;
-                userData.password = password;
-
-                updateProfileInfo();
-                loginScreen.style.display = 'none';
-                mainApp.classList.add('active');
-                switchPage('profile');
-                updatePersonalInfoView();
-                updateNavigationLock();
-
-                showAlert('Giriş başarılı! Lütfen kişisel bilgilerinizi doldurun.', 'warning');
-            });
-
-            // Kişisel bilgi olayları
-            fillPersonalInfoBtn.addEventListener('click', openPersonalInfoForm);
-
-            editPersonalInfoBtn.addEventListener('click', function () {
-                personalInfoDisplay.style.display = 'none';
-                personalInfoEdit.style.display = 'block';
-                emptyState.style.display = 'none';
-                personalInfoForm.style.display = 'block';
-                editFullName.value = userData.fullName || '';
-                editStudentId.value = userData.studentId || '';
-                editDepartment.value = userData.department || '';
-                editPhone.value = userData.phone || '';
-            });
-
-            cancelPersonalInfoBtn.addEventListener('click', closePersonalInfoForm);
-
-            savePersonalInfoBtn.addEventListener('click', function () {
-                const fullName = editFullName.value.trim();
-                const studentId = editStudentId.value.trim();
-                const department = editDepartment.value.trim();
-                const phone = editPhone.value.trim();
-
-                if (!fullName || !studentId || !department || !phone) {
-                    showAlert('Lütfen tüm alanları doldurun!', 'error');
-                    return;
-                }
-
-                if (phone.length < 10) {
-                    showAlert('Geçerli bir telefon numarası girin!', 'error');
-                    return;
-                }
-
-                userData.fullName = fullName;
-                userData.studentId = studentId;
-                userData.department = department;
-                userData.phone = phone;
-                userData.isProfileComplete = true;
-
-                updateProfileInfo();
-                updatePersonalInfoView();
-                updateNavigationLock();
-
-                showAlert('Kişisel bilgiler başarıyla kaydedildi! Artık tüm sayfalara erişebilirsiniz.', 'success');
-            });
-
-            // E-posta değiştirme olayları
-            changeEmailBtn.addEventListener('click', openEmailEdit);
-            cancelEmailBtn.addEventListener('click', closeEmailEdit);
-
-            saveEmailBtn.addEventListener('click', function () {
-                const newEmail = profileEmail.value.trim();
-
-                if (!newEmail) {
-                    showAlert('Lütfen yeni e-posta adresinizi girin.', 'error');
-                    return;
-                }
-
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(newEmail)) {
-                    showAlert('Geçerli bir e-posta adresi girin.', 'error');
-                    return;
-                }
-
-                userData.email = newEmail;
-                updateProfileInfo();
-                closeEmailEdit();
-
-                showAlert('E-posta adresi başarıyla güncellendi!', 'success');
-            });
-
-            // Şifre değiştirme olayları
-            changePasswordBtn.addEventListener('click', openPasswordEdit);
-            cancelPasswordBtn.addEventListener('click', closePasswordEdit);
-
-            savePasswordBtn.addEventListener('click', function () {
-                const currentPass = currentPassword.value;
-                const newPass = newPassword.value;
-                const confirmPass = confirmPassword.value;
-
-                if (!currentPass || !newPass || !confirmPass) {
-                    showAlert('Lütfen tüm alanları doldurun.', 'error');
-                    return;
-                }
-
-                if (currentPass !== userData.password) {
-                    showAlert('Mevcut şifre hatalı!', 'error');
-                    return;
-                }
-
-                if (newPass.length < 6) {
-                    showAlert('Yeni şifre en az 6 karakter olmalıdır.', 'error');
-                    return;
-                }
-
-                if (newPass !== confirmPass) {
-                    showAlert('Yeni şifreler eşleşmiyor!', 'error');
-                    return;
-                }
-
-                userData.password = newPass;
-                closePasswordEdit();
-
-                showAlert('Şifreniz başarıyla güncellendi!', 'success');
-            });
-
-            // Şikayet olayları
-            submitSikayetBtn.addEventListener('click', function () {
-                const type = sikayetType.value;
-                const subject = sikayetSubject.value.trim();
-                const description = sikayetDescription.value.trim();
-
-                if (!subject || !description) {
-                    showSikayetAlert('Lütfen konu ve açıklama alanlarını doldurun!', 'error');
-                    return;
-                }
-
-                if (subject.length < 5) {
-                    showSikayetAlert('Konu başlığı en az 5 karakter olmalıdır!', 'error');
-                    return;
-                }
-
-                if (description.length < 10) {
-                    showSikayetAlert('Açıklama en az 10 karakter olmalıdır!', 'error');
-                    return;
-                }
-
-                const now = new Date();
-                const dateStr = now.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
-                sikayetListesi.unshift({
-                    id: Date.now(),
-                    type: type,
-                    subject: subject,
-                    description: description,
-                    date: dateStr,
-                    status: 'pending',
-                    response: null
-                });
-
-                updateSikayetList();
-
-                sikayetSubject.value = '';
-                sikayetDescription.value = '';
-                sikayetType.value = 'sikayet';
-
-                showSikayetAlert('Bildiriminiz başarıyla gönderildi!', 'success');
-            });
-
-            // Çıkış
-            logoutBtn.addEventListener('click', function () {
-                mainApp.classList.remove('active');
-                loginScreen.style.display = 'flex';
-                loginEmail.value = '';
-                loginPassword.value = '';
-                closePasswordEdit();
-                closeEmailEdit();
-            });
-
-            // ============ BAŞLANGIÇ ============
-            loginScreen.style.display = 'flex';
-            mainApp.classList.remove('active');
-            updateProfileInfo();
-            updatePersonalInfoView();
-            updateNavigationLock();
-            updateSikayetList();
-            closePasswordEdit();
-            closeEmailEdit();
-        })();
-    </script>
-    <script src="/js/app.js"></script>
-    <script>
-        (() => {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                window.location.replace('/index.html');
-                return;
-            }
-
-            let currentUser = {};
-            try {
-                currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-            } catch { }
-
-            const byId = id => document.getElementById(id);
-            const safe = value => escapeHtml(value ?? '');
-            const date = value => new Date(value).toLocaleDateString('tr-TR');
-            const status = value => {
-                const key = String(value || '').toLowerCase();
-                const values = {
-                    paid: ['Ödendi', 'approved'], unpaid: ['Planlandı', 'info'], overdue: ['Beklemede', 'pending'],
-                    pending: ['Beklemede', 'pending'], approved: ['Onaylandı', 'approved'], rejected: ['Reddedildi', 'danger'],
-                    open: ['Açık', 'pending'], inprogress: ['İşlemde', 'info'], completed: ['Tamamlandı', 'approved']
-                };
-                return values[key] || [safe(value || 'Beklemede'), 'info'];
-            };
-            const empty = message => `<div class="empty-state"><i class="fas fa-inbox"></i><p>${safe(message)}</p></div>`;
-
-            byId('loginScreen').style.display = 'none';
-            byId('mainApp').classList.add('active');
-            document.querySelectorAll('.nav-item.disabled').forEach(item => item.classList.remove('disabled'));
-            byId('profileIncompleteBanner').style.display = 'none';
-            byId('personalInfoBadge').textContent = 'Hesabınız';
-            byId('personalInfoBadge').className = 'badge approved';
-
-            const fullName = currentUser.fullName || 'Kullanıcı';
-            const email = currentUser.email || '-';
-            byId('sidebarName').textContent = fullName;
-            byId('sidebarEmail').textContent = email;
-            byId('sidebarAvatar').textContent = fullName.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
-            byId('displayFullName').textContent = fullName;
-            byId('displayEmail').textContent = email;
-            byId('editFullName').value = fullName;
-            byId('profileEmail').value = email;
-            byId('personalInfoDisplay').style.display = 'block';
-            byId('personalInfoEdit').style.display = 'none';
-
-            async function loadPayments() {
-                const root = byId('paymentList');
-                const quickPaymentInfo = byId('quickPaymentInfo');
-                const quickPaymentButton = byId('quickPaymentButton');
-                try {
-                    const items = await api('/api/payments/mine');
-                    root.className = '';
-                    root.innerHTML = items.length ? items.map(item => {
-                        const [label, className] = status(item.status);
-                        return `<div class="list-row"><span>${safe(item.description)}<br><small>${date(item.dueDate)}</small></span><span class="amount">${Number(item.amount).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}</span><span class="badge ${className}">${label}</span></div>`;
-                    }).join('') : empty('Kayıtlı borç bulunmuyor.');
-
-                    const latestDue = items
-                        .filter(item => item.status !== 'Paid' && new Date(item.dueDate) <= new Date())
-                        .sort((left, right) => new Date(right.dueDate) - new Date(left.dueDate))[0];
-                    if (latestDue) {
-                        quickPaymentInfo.textContent = `Seçili borç: ${latestDue.description} — ${Number(latestDue.amount).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}`;
-                        quickPaymentButton.disabled = false;
-                    } else {
-                        quickPaymentInfo.textContent = 'Vadesi gelmiş ödenmemiş borç bulunmuyor.';
-                        quickPaymentButton.disabled = true;
-                    }
-                } catch (error) {
-                    root.innerHTML = empty(error.message);
-                    quickPaymentInfo.textContent = 'Borç bilgisi yüklenemedi.';
-                    quickPaymentButton.disabled = true;
-                }
-            }
-
-            async function loadRequests() {
-                const root = byId('requestsList');
-                try {
-                    const items = await api('/api/requests/mine');
-                    root.className = '';
-                    root.innerHTML = items.length ? items.map(item => {
-                        const [label, className] = status(item.status);
-                        return `<div class="ticket-card"><div><i class="fas fa-wrench" style="color:#f59e0b;"></i> <strong>${safe(item.category)}</strong><div>${safe(item.description)}</div><small>${date(item.createdAt)} · Oda #${item.roomId}</small></div><span class="badge ${className}">${label}</span></div>`;
-                    }).join('') : empty('Henüz arıza talebiniz bulunmuyor.');
-                } catch (error) { root.innerHTML = empty(error.message); }
-            }
-
-            async function loadApplications() {
-                const root = byId('myApplications');
-                try {
-                    const items = await api('/api/applications/mine');
-                    root.className = '';
-                    root.innerHTML = items.length ? items.map(item => {
-                        const [label, className] = status(item.status);
-                        return `<div class="list-row"><span>${safe(item.accommodationType)} başvurusu<br><small>${date(item.createdAt)}</small></span><strong>#${item.id}</strong><span class="badge ${className}">${label}</span></div>`;
-                    }).join('') : empty('Henüz başvurunuz bulunmuyor.');
-                } catch (error) { root.innerHTML = empty(error.message); }
-            }
-
-            async function loadAnnouncementsForUser() {
-                const root = byId('announcementsList');
-                try {
-                    const items = await api('/api/announcements');
-                    root.className = '';
-                    root.innerHTML = items.length ? items.map(item => `<div class="announcement-item"><i class="fas fa-circle-info"></i><span><strong>${safe(item.title)}</strong> — ${safe(item.content)}<br><small>${date(item.createdAt)}</small></span></div>`).join('') : empty('Yayınlanmış duyuru bulunmuyor.');
-                } catch (error) { root.innerHTML = empty(error.message); }
-            }
-
-            byId('requestForm').addEventListener('submit', async event => {
-                event.preventDefault();
-                const form = event.currentTarget;
-                try {
-                    await api('/api/requests', { method: 'POST', body: new FormData(form) });
-                    form.reset();
-                    await loadRequests();
-                    alert('Arıza talebiniz kaydedildi.');
-                } catch (error) { alert(error.message); }
-            });
-
-            byId('applicationForm').addEventListener('submit', async event => {
-                event.preventDefault();
-                const form = event.currentTarget;
-                try {
-                    await api('/api/applications', { method: 'POST', body: new FormData(form) });
-                    form.reset();
-                    await loadApplications();
-                    alert('Başvurunuz kaydedildi.');
-                } catch (error) { alert(error.message); }
-            });
-
-            byId('quickPaymentButton').addEventListener('click', async event => {
-                const button = event.currentTarget;
-                button.disabled = true;
-                try {
-                    await api('/api/payments/mine/pay-latest-due', { method: 'POST' });
-                    await loadPayments();
-                    alert('Borç ödendi olarak işaretlendi.');
-                } catch (error) {
-                    alert(error.message);
-                    await loadPayments();
-                }
-            });
-
-            byId('logoutBtn').addEventListener('click', () => {
-                localStorage.removeItem('token');
-                localStorage.removeItem('currentUser');
-                window.location.replace('/index.html');
-            });
-
-            loadPayments();
-            loadRequests();
-            loadApplications();
-            loadAnnouncementsForUser();
-        })();
-    </script>
+  <main class="shell columns">
+    <section class="panel">
+      <h1>Yeni Basvuru</h1>
+      <form id="applicationForm" class="stack">
+        <select name="accommodationType">
+          <option>Yurt</option>
+          <option>Lojman</option>
+        </select>
+        <input name="documentUrl" placeholder="Belge URL">
+        <input name="document" type="file">
+        <button>Basvuru Gonder</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h1>Ariza / Talep</h1>
+      <form id="requestForm" class="stack">
+        <input name="roomId" type="number" value="1" min="1" required>
+        <input name="category" placeholder="Kategori" required>
+        <textarea name="description" placeholder="Aciklama" required></textarea>
+        <input name="photo" type="file">
+        <button>Talep Olustur</button>
+      </form>
+    </section>
+
+    <section class="panel wide">
+      <h2>Basvurularim</h2>
+      <div id="myApplications" class="list"></div>
+    </section>
+  </main>
+
+  <script src="/js/app.js"></script>
+  <script>
+    bindMultipartForm('applicationForm', '/api/applications', loadMyApplications);
+    bindMultipartForm('requestForm', '/api/requests', () => alert('Talep olusturuldu.'));
+    loadMyApplications();
+  </script>
 </body>
 </html>

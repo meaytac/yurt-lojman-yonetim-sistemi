@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using yurt_lojman_yonetim_sistemi.Data;
 
@@ -10,9 +11,11 @@ using yurt_lojman_yonetim_sistemi.Data;
 namespace yurt_lojman_yonetim_sistemi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260825072216_PendingModelChanges")]
+    partial class PendingModelChanges
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
@@ -286,11 +289,6 @@ namespace yurt_lojman_yonetim_sistemi.Migrations
 
                     b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("TEXT");
-
-                    b.Property<bool>("MustChangePassword")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(false);
 
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
@@ -843,49 +841,6 @@ namespace yurt_lojman_yonetim_sistemi.Migrations
                     b.ToTable("StaffAssignments");
                 });
 
-            modelBuilder.Entity("yurt_lojman_yonetim_sistemi.Models.UserFacilityAssignment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("AssignedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("AssignedById")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("DormitoryId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int?>("HousingUnitId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime?>("UnassignedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AssignedById");
-
-                    b.HasIndex("DormitoryId");
-
-                    b.HasIndex("HousingUnitId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserFacilityAssignments", t =>
-                        {
-                            t.HasCheckConstraint("CK_UserFacilityAssignment_OneFacility", "([DormitoryId] IS NOT NULL AND [HousingUnitId] IS NULL) OR ([DormitoryId] IS NULL AND [HousingUnitId] IS NOT NULL)");
-                        });
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("yurt_lojman_yonetim_sistemi.Models.AppRole", null)
@@ -1036,44 +991,9 @@ namespace yurt_lojman_yonetim_sistemi.Migrations
                     b.Navigation("BlockFloor");
                 });
 
-            modelBuilder.Entity("yurt_lojman_yonetim_sistemi.Models.UserFacilityAssignment", b =>
-                {
-                    b.HasOne("yurt_lojman_yonetim_sistemi.Models.AppUser", "AssignedBy")
-                        .WithMany()
-                        .HasForeignKey("AssignedById")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("yurt_lojman_yonetim_sistemi.Models.Dormitory", "Dormitory")
-                        .WithMany()
-                        .HasForeignKey("DormitoryId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("yurt_lojman_yonetim_sistemi.Models.HousingUnit", "HousingUnit")
-                        .WithMany()
-                        .HasForeignKey("HousingUnitId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("yurt_lojman_yonetim_sistemi.Models.AppUser", "User")
-                        .WithMany("FacilityAssignments")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("AssignedBy");
-
-                    b.Navigation("Dormitory");
-
-                    b.Navigation("HousingUnit");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("yurt_lojman_yonetim_sistemi.Models.AppUser", b =>
                 {
                     b.Navigation("Applications");
-
-                    b.Navigation("FacilityAssignments");
 
                     b.Navigation("Payments");
 

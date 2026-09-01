@@ -40,7 +40,7 @@ public class RequestsController(AppDbContext db, IFileStorageService fileStorage
 
         db.Requests.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
-        return Ok(ToResponse(entity));
+        return Ok(await ToResponseAsync(entity, cancellationToken));
     }
 
     [HttpPatch("{id:int}/status")]
@@ -64,8 +64,25 @@ public class RequestsController(AppDbContext db, IFileStorageService fileStorage
 
         return requests
             .OrderByDescending(x => x.CreatedAt)
-            .Select(x => new MaintenanceRequestResponse(x.Id, x.UserId, x.RoomId, x.Category, x.Description, x.PhotoUrl, x.Status, x.CreatedAt));
+            .Select(x => new MaintenanceRequestResponse(
+                x.Id,
+                x.UserId,
+                x.RoomId,
+                x.Room.RoomNumber,
+                x.Room.BlockFloor.Building.Dormitory != null ? x.Room.BlockFloor.Building.Dormitory.Name : x.Room.BlockFloor.Building.HousingUnit!.Name,
+                x.Room.BlockFloor.Building.BlockName,
+                x.Room.BlockFloor.FloorNumber,
+                x.Category,
+                x.Description,
+                x.PhotoUrl,
+                x.Status,
+                x.CreatedAt));
     }
 
-    private static MaintenanceRequestResponse ToResponse(MaintenanceRequest x) => new(x.Id, x.UserId, x.RoomId, x.Category, x.Description, x.PhotoUrl, x.Status, x.CreatedAt);
+    private async Task<MaintenanceRequestResponse> ToResponseAsync(MaintenanceRequest x, CancellationToken cancellationToken)
+    {
+        return await Query(x.UserId).FirstAsync(r => r.Id == x.Id, cancellationToken);
+    }
+
+    private static MaintenanceRequestResponse ToResponse(MaintenanceRequest x) => new(x.Id, x.UserId, x.RoomId, x.Room.RoomNumber ?? string.Empty, string.Empty, string.Empty, 0, x.Category, x.Description, x.PhotoUrl, x.Status, x.CreatedAt);
 }
