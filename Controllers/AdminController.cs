@@ -133,8 +133,8 @@ public class AdminController(
         var scope = await GetFacilityScopeAsync(cancellationToken);
         var query = db.Applications.AsNoTracking()
             .Include(x => x.User)
-            .Where(x => (x.User != null && ApplicantRoles.Contains(x.User.Role)) || x.Source == ApplicationSource.PublicVisitor)
-            .Where(x => x.Status == ApplicationStatus.Pending)
+            .Where(x => (x.User != null && ApplicantRoles.Contains(x.User.Role)) || x.Source == ApplicationSource.ExternalApplicant)
+            .Where(x => x.Status == ApplicationStatus.Pending || x.Status == ApplicationStatus.UnderReview)
             .AsQueryable();
 
         if (scope != null)
@@ -168,7 +168,7 @@ public class AdminController(
         var application = await db.Applications.Include(x => x.User).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (application is null) return NotFound(new { success = false, message = "Başvuru bulunamadı." });
         if (application.User != null && !ApplicantRoles.Contains(application.User.Role)) return BadRequest(new { success = false, message = "Yönetici ve yetkili profilleri başvuru akışına dahil edilemez." });
-        if (application.Status != ApplicationStatus.Pending) return BadRequest(new { success = false, message = "Yalnızca beklemedeki başvurular onaylanabilir." });
+        if (application.Status != ApplicationStatus.Pending && application.Status != ApplicationStatus.UnderReview) return BadRequest(new { success = false, message = "Yalnızca inceleme bekleyen başvurular onaylanabilir." });
 
         var scope = await GetFacilityScopeAsync(cancellationToken);
         IReadOnlyList<int>? dormIds = scope?.DormitoryIds;
@@ -204,7 +204,7 @@ public class AdminController(
                 .Where(x => x.Id == placement.RoomId)
                 .Select(x => x.RoomNumber)
                 .FirstAsync(cancellationToken);
-            var message = application.Source == ApplicationSource.PublicVisitor
+            var message = application.Source == ApplicationSource.ExternalApplicant
                 ? $"Başvuru onaylandı, {roomNumber} numaralı odaya yerleştirildi ve aktivasyon e-postası kuyruğa alındı."
                 : $"Başvuru başarıyla onaylandı ve {roomNumber} numaralı odaya yerleştirildi.";
             return Ok(new { success = true, message });
@@ -221,7 +221,7 @@ public class AdminController(
         var application = await db.Applications.Include(x => x.User).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (application is null) return NotFound(new { success = false, message = "Başvuru bulunamadı." });
         if (application.User != null && !ApplicantRoles.Contains(application.User.Role)) return BadRequest(new { success = false, message = "Yönetici ve yetkili profilleri başvuru akışına dahil edilemez." });
-        if (application.Status != ApplicationStatus.Pending) return BadRequest(new { success = false, message = "Yalnızca beklemedeki başvurular reddedilebilir." });
+        if (application.Status != ApplicationStatus.Pending && application.Status != ApplicationStatus.UnderReview) return BadRequest(new { success = false, message = "Yalnızca inceleme bekleyen başvurular reddedilebilir." });
 
         try
         {
@@ -229,6 +229,67 @@ public class AdminController(
             var scope = await GetFacilityScopeAsync(cancellationToken);
             await workflowService.RejectAsync(actorId, id, request, scope?.DormitoryIds, scope?.HousingUnitIds, cancellationToken);
             return Ok(new { success = true, message = "Başvuru reddedildi ve bekleyen başvurular listesinden kaldırıldı." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpPost("applications/{id:int}/under-review")]
+    public async Task<IActionResult> MarkApplicationUnderReview(int id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var actorId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var scope = await GetFacilityScopeAsync(cancellationToken);
+            await workflowService.MarkUnderReviewAsync(actorId, id, scope?.DormitoryIds, scope?.HousingUnitIds, cancellationToken);
+            return Ok(new { success = true, message = "Başvuru incelemeye alındı." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpPost("applications/{id:int}/missing-information")]
+    public async Task<IActionResult> RequestMissingInformation(int id, MissingInformationRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        try
+        {
+            var actorId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var scope = await GetFacilityScopeAsync(cancellationToken);
+            await workflowService.RequestMissingInformationAsync(actorId, id, request, scope?.DormitoryIds, scope?.HousingUnitIds, cancellationToken);
+            return Ok(new { success = true, message = "Ek bilgi talebi başvuru sahibine iletildi." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpPost("applications/{id:int}/resend-activation")]
+    public async Task<IActionResult> ResendActivation(int id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var actorId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var scope = await GetFacilityScopeAsync(cancellationToken);
+            await workflowService.ResendActivationAsync(actorId, id, scope?.DormitoryIds, scope?.HousingUnitIds, cancellationToken);
+            return Ok(new { success = true, message = "Aktivasyon e-postası yeniden kuyruğa alındı." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
         }
         catch (InvalidOperationException ex)
         {

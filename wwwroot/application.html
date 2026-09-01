@@ -44,7 +44,7 @@
           <button class="nav-item active" data-page="profile"><span>👤</span><span class="nav-label">Profilim</span></button>
           <button class="nav-item disabled" data-page="borc" id="navBorc"><span>💳</span><span class="nav-label">Borç Takip &amp; Ödeme</span></button>
           <button class="nav-item disabled" data-page="ariza" id="navAriza"><span>🛠️</span><span class="nav-label">Arıza Talebi</span></button>
-          <button class="nav-item disabled" data-page="basvuru" id="navBasvuru"><span>📝</span><span class="nav-label">Oda Başvurusu</span></button>
+          <button class="nav-item disabled" data-page="basvuru" id="navBasvuru"><span>📝</span><span class="nav-label">Başvurum</span></button>
           <button class="nav-item disabled" data-page="degisim" id="navDegisim"><span>🔁</span><span class="nav-label">Oda Değişimi</span></button>
           <button class="nav-item disabled" data-page="duyurular" id="navDuyurular"><span>📢</span><span class="nav-label">Duyurular</span></button>
           <button class="nav-item disabled" data-page="sikayet" id="navSikayet"><span>💬</span><span class="nav-label">Şikayet &amp; Öneri</span></button>
@@ -196,11 +196,12 @@
 
           <section id="page-basvuru" class="page-section">
             <article class="panel">
-              <div class="panel-head"><h2><i class="fas fa-clipboard-list"></i> Başvurularım</h2></div>
+              <div class="panel-head"><h2><i class="fas fa-clipboard-list"></i> Konaklama Başvurum</h2></div>
               <div id="myApplications" class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Başvurular yükleniyor...</p></div>
             </article>
-            <article class="panel">
+            <article class="panel" id="newApplicationPanel">
               <div class="panel-head"><h2><i class="fas fa-plus"></i> Yeni Başvuru</h2></div>
+              <div id="applicationEligibility" class="inline-feedback"></div>
               <form id="applicationForm" class="form-grid two">
                 <label>Konaklama türü<select name="accommodationType"><option value="Yurt">Yurt</option><option value="Lojman">Lojman</option></select></label>
                 <label>Belge<input name="document" type="file"></label>

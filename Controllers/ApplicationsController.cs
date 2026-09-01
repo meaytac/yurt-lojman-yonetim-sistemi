@@ -41,6 +41,10 @@ public class ApplicationsController(AppDbContext db, IFileStorageService fileSto
             .ToListAsync();
     }
 
+    [HttpGet("eligibility")]
+    public async Task<ApplicationEligibilityResponse> Eligibility(CancellationToken cancellationToken)
+        => await GetEligibilityAsync(CurrentUserId(), cancellationToken);
+
     [HttpPost]
     public async Task<ActionResult<ApplicationResponse>> Create([FromForm] ApplicationCreateRequest request, CancellationToken cancellationToken)
     {
@@ -48,6 +52,8 @@ public class ApplicationsController(AppDbContext db, IFileStorageService fileSto
         var user = await db.Users.FindAsync([userId], cancellationToken);
         if (user is null) return Unauthorized();
         if (!ApplicantRoles.Contains(user.Role)) return BadRequest("Yönetici ve yetkili profilleri başvuru oluşturamaz.");
+        var eligibility = await GetEligibilityAsync(userId, cancellationToken);
+        if (!eligibility.CanApply) return Conflict(eligibility);
 
         var documentUrl = await fileStorage.SaveAsync(request.Document, "documents", cancellationToken) ?? request.DocumentUrl;
         var application = new AccommodationApplication
@@ -92,5 +98,30 @@ public class ApplicationsController(AppDbContext db, IFileStorageService fileSto
     {
         var raw = User.FindFirstValue(ClaimTypes.NameIdentifier);
         return Guid.TryParse(raw, out var userId) ? userId : throw new UnauthorizedAccessException();
+    }
+
+    private async Task<ApplicationEligibilityResponse> GetEligibilityAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var blockedStatuses = new[]
+        {
+            ApplicationStatus.EmailVerificationPending,
+            ApplicationStatus.Pending,
+            ApplicationStatus.UnderReview,
+            ApplicationStatus.MissingInformation,
+            ApplicationStatus.ApprovedAwaitingActivation,
+            ApplicationStatus.Approved
+        };
+
+        if (await db.Applications.AsNoTracking().AnyAsync(x => x.UserId == userId && blockedStatuses.Contains(x.Status), cancellationToken))
+        {
+            return new(false, "active_application_exists", "Devam eden veya onaylanmış bir başvurunuz bulunuyor.");
+        }
+
+        if (await db.Placements.AsNoTracking().AnyAsync(x => x.UserId == userId && x.IsActive, cancellationToken))
+        {
+            return new(false, "active_placement_exists", "Aktif yerleşiminiz bulunduğu için yeni konaklama başvurusu oluşturamazsınız.");
+        }
+
+        return new(true, "eligible", "Yeni başvuru oluşturabilirsiniz.");
     }
 }

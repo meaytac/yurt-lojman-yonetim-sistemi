@@ -3,7 +3,7 @@
     profile: ['Profilim', 'Kişisel bilgileriniz, konaklama durumunuz ve hesap güvenliğiniz.'],
     borc: ['Borç Takip ve Ödeme', 'Dönem borçlarınızı ve vadesi gelmiş ödemelerinizi takip edin.'],
     ariza: ['Arıza Talebi', 'Konaklama alanınızla ilgili arıza kayıtlarını oluşturun ve izleyin.'],
-    basvuru: ['Oda Başvurusu', 'Konaklama başvurularınızın güncel durumunu görüntüleyin.'],
+    basvuru: ['Başvurum', 'Konaklama başvurunuzun güncel durumunu ve yerleşim bilginizi görüntüleyin.'],
     degisim: ['Oda Değişimi', 'Oda değişim taleplerinizi tek alandan takip edin.'],
     duyurular: ['Duyurular', 'Yurt ve lojman yönetiminden gelen duyuruları görüntüleyin.'],
     sikayet: ['Şikayet & Öneri', 'Geri bildirimlerinizi yönetime iletin ve geçmiş kayıtları izleyin.']
@@ -205,6 +205,7 @@
       loadPayments(showErrors),
       loadRequests(showErrors),
       loadApplications(showErrors),
+      loadApplicationEligibility(showErrors),
       loadAnnouncements(showErrors),
       loadAccommodationInfo(showErrors)
     ];
@@ -273,6 +274,23 @@
     }
   }
 
+  async function loadApplicationEligibility(showErrors) {
+    const panel = byId('newApplicationPanel');
+    const message = byId('applicationEligibility');
+    const form = byId('applicationForm');
+    if (!panel || !form || !message) return;
+    try {
+      const eligibility = await api('/api/applications/eligibility');
+      message.textContent = eligibility.message;
+      message.className = `inline-feedback ${eligibility.canApply ? 'success' : ''}`.trim();
+      form.style.display = eligibility.canApply ? 'grid' : 'none';
+    } catch (error) {
+      form.style.display = 'none';
+      message.textContent = 'Başvuru uygunluğu kontrol edilemedi.';
+      if (showErrors) toast(error.message || 'Başvuru uygunluğu kontrol edilemedi.', true);
+    }
+  }
+
   async function loadAnnouncements(showErrors) {
     const root = byId('announcementsList');
     if (!root) return;
@@ -338,7 +356,7 @@
     return `<div class="activity-item">
       <div>
         <strong>${esc(item.accommodationType)} başvurusu</strong>
-        <small>${date(item.createdAt)}</small>
+        <small>Başvuru tarihi: ${date(item.createdAt)}${item.updatedAt ? ` · Güncelleme: ${date(item.updatedAt)}` : ''}</small>
       </div>
       <div class="item-meta">
         <strong>#${esc(item.id)}</strong>
@@ -380,6 +398,7 @@
       state.applications = [created, ...state.applications];
       form.reset();
       await loadApplications(false);
+      await loadApplicationEligibility(false);
       toast('Başvurunuz kaydedildi.');
     } catch (error) {
       toast(error.message || 'Başvuru kaydedilemedi.', true);

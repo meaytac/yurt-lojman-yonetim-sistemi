@@ -13,6 +13,9 @@ public interface IApplicationWorkflowService
 {
     Task<Placement?> ApproveAsync(Guid decidedById, int applicationId, ApplicationDecisionRequest request, IReadOnlyList<int>? dormitoryScope, IReadOnlyList<int>? housingUnitScope, CancellationToken cancellationToken);
     Task RejectAsync(Guid decidedById, int applicationId, ApplicationDecisionRequest request, IReadOnlyList<int>? dormitoryScope, IReadOnlyList<int>? housingUnitScope, CancellationToken cancellationToken);
+    Task MarkUnderReviewAsync(Guid decidedById, int applicationId, IReadOnlyList<int>? dormitoryScope, IReadOnlyList<int>? housingUnitScope, CancellationToken cancellationToken);
+    Task RequestMissingInformationAsync(Guid decidedById, int applicationId, MissingInformationRequest request, IReadOnlyList<int>? dormitoryScope, IReadOnlyList<int>? housingUnitScope, CancellationToken cancellationToken);
+    Task ResendActivationAsync(Guid decidedById, int applicationId, IReadOnlyList<int>? dormitoryScope, IReadOnlyList<int>? housingUnitScope, CancellationToken cancellationToken);
 }
 
 public class ApplicationWorkflowService(
@@ -33,6 +36,11 @@ public class ApplicationWorkflowService(
         if (application.Status != ApplicationStatus.Pending && application.Status != ApplicationStatus.UnderReview)
         {
             throw new InvalidOperationException("Yalnızca inceleme bekleyen başvurular onaylanabilir.");
+        }
+
+        if (application.Source == ApplicationSource.ExternalApplicant && application.EmailVerifiedAt is null)
+        {
+            throw new InvalidOperationException("E-posta doğrulanmadan başvuru onaylanamaz.");
         }
 
         EnsureApplicationInScope(application, dormitoryScope, housingUnitScope);
@@ -57,7 +65,7 @@ public class ApplicationWorkflowService(
         application.DecisionReason = request.Reason;
         application.UpdatedAt = DateTime.UtcNow;
 
-        if (application.Source == ApplicationSource.PublicVisitor)
+        if (application.Source == ApplicationSource.ExternalApplicant)
         {
             application.Status = ApplicationStatus.ApprovedAwaitingActivation;
             application.ActivationSentAt = DateTime.UtcNow;
@@ -113,6 +121,94 @@ public class ApplicationWorkflowService(
         });
 
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task MarkUnderReviewAsync(Guid decidedById, int applicationId, IReadOnlyList<int>? dormitoryScope, IReadOnlyList<int>? housingUnitScope, CancellationToken cancellationToken)
+    {
+        var application = await db.Applications.FirstOrDefaultAsync(x => x.Id == applicationId, cancellationToken)
+            ?? throw new KeyNotFoundException("Başvuru bulunamadı.");
+
+        if (application.Status != ApplicationStatus.Pending)
+        {
+            throw new InvalidOperationException("Yalnızca bekleyen başvurular incelemeye alınabilir.");
+        }
+
+        EnsureApplicationInScope(application, dormitoryScope, housingUnitScope);
+        application.Status = ApplicationStatus.UnderReview;
+        application.DecidedById = decidedById;
+        application.UpdatedAt = DateTime.UtcNow;
+        application.StatusHistory.Add(new ApplicationStatusHistory
+        {
+            Status = ApplicationStatus.UnderReview,
+            ChangedById = decidedById,
+            Note = "Başvuru incelemeye alındı."
+        });
+
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RequestMissingInformationAsync(Guid decidedById, int applicationId, MissingInformationRequest request, IReadOnlyList<int>? dormitoryScope, IReadOnlyList<int>? housingUnitScope, CancellationToken cancellationToken)
+    {
+        var application = await db.Applications.FirstOrDefaultAsync(x => x.Id == applicationId, cancellationToken)
+            ?? throw new KeyNotFoundException("Başvuru bulunamadı.");
+
+        if (application.Status != ApplicationStatus.Pending && application.Status != ApplicationStatus.UnderReview)
+        {
+            throw new InvalidOperationException("Yalnızca inceleme aşamasındaki başvurular için ek bilgi istenebilir.");
+        }
+
+        EnsureApplicationInScope(application, dormitoryScope, housingUnitScope);
+        application.Status = ApplicationStatus.MissingInformation;
+        application.DecidedById = decidedById;
+        application.DecisionReason = request.Reason.Trim();
+        application.UpdatedAt = DateTime.UtcNow;
+        application.StatusHistory.Add(new ApplicationStatusHistory
+        {
+            Status = ApplicationStatus.MissingInformation,
+            ChangedById = decidedById,
+            Note = request.Reason.Trim()
+        });
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        if (application.Source == ApplicationSource.ExternalApplicant && !string.IsNullOrWhiteSpace(application.ApplicantEmail))
+        {
+            var trackingToken = await tokenService.CreateTokenAsync(
+                application.Id,
+                ApplicationTokenPurpose.StatusTracking,
+                TimeSpan.FromDays(options.Value.TrackingTokenDays),
+                cancellationToken);
+            await SendMissingInformationEmailAsync(application, trackingToken, request.Reason, cancellationToken);
+        }
+    }
+
+    public async Task ResendActivationAsync(Guid decidedById, int applicationId, IReadOnlyList<int>? dormitoryScope, IReadOnlyList<int>? housingUnitScope, CancellationToken cancellationToken)
+    {
+        var application = await db.Applications.FirstOrDefaultAsync(x => x.Id == applicationId, cancellationToken)
+            ?? throw new KeyNotFoundException("Başvuru bulunamadı.");
+
+        if (application.Source != ApplicationSource.ExternalApplicant || application.Status != ApplicationStatus.ApprovedAwaitingActivation)
+        {
+            throw new InvalidOperationException("Aktivasyon bağlantısı yalnızca aktivasyon bekleyen başvurular için gönderilebilir.");
+        }
+
+        EnsureApplicationInScope(application, dormitoryScope, housingUnitScope);
+        application.ActivationSentAt = DateTime.UtcNow;
+        application.UpdatedAt = DateTime.UtcNow;
+        application.StatusHistory.Add(new ApplicationStatusHistory
+        {
+            Status = ApplicationStatus.ApprovedAwaitingActivation,
+            ChangedById = decidedById,
+            Note = "Aktivasyon bağlantısı yeniden gönderildi."
+        });
+        await db.SaveChangesAsync(cancellationToken);
+
+        var activationToken = await tokenService.CreateTokenAsync(
+            application.Id,
+            ApplicationTokenPurpose.AccountActivation,
+            TimeSpan.FromHours(options.Value.ActivationTokenHours),
+            cancellationToken);
+        await SendActivationEmailAsync(application, activationToken, cancellationToken);
     }
 
     private async Task<AppUser> CreateLockedPublicUserAsync(AccommodationApplication application, CancellationToken cancellationToken)
@@ -181,6 +277,14 @@ public class ApplicationWorkflowService(
         var link = $"{options.Value.PublicBaseUrl.TrimEnd('/')}/activate-account.html?ref={WebUtility.UrlEncode(application.ReferenceCode)}&token={WebUtility.UrlEncode(rawToken)}";
         return outbox.EnqueueAsync(application.ApplicantEmail!, "Başvuru onaylandı - hesap aktivasyonu",
             $"<p>Başvurunuz onaylandı. Sisteme giriş yapabilmek için şifrenizi belirleyin.</p><p><a href=\"{WebUtility.HtmlEncode(link)}\">Hesabı aktive et</a></p>",
+            cancellationToken);
+    }
+
+    private Task SendMissingInformationEmailAsync(AccommodationApplication application, string rawToken, string reason, CancellationToken cancellationToken)
+    {
+        var link = $"{options.Value.PublicBaseUrl.TrimEnd('/')}/track-application.html?ref={WebUtility.UrlEncode(application.ReferenceCode)}&token={WebUtility.UrlEncode(rawToken)}";
+        return outbox.EnqueueAsync(application.ApplicantEmail!, "Başvurunuz için ek bilgi gerekiyor",
+            $"<p>Başvurunuzun incelenebilmesi için ek bilgi gerekiyor.</p><p><strong>Gerekçe:</strong> {WebUtility.HtmlEncode(reason)}</p><p><a href=\"{WebUtility.HtmlEncode(link)}\">Başvuruyu güncelle</a></p>",
             cancellationToken);
     }
 }

@@ -51,7 +51,7 @@ public interface IAdminService
 
             var recentApplications = await db.Applications.AsNoTracking()
                 .Include(x => x.User)
-                .Where(x => (x.User != null && ApplicantRoles.Contains(x.User.Role)) || x.Source == ApplicationSource.PublicVisitor)
+                .Where(x => (x.User != null && ApplicantRoles.Contains(x.User.Role)) || x.Source == ApplicationSource.ExternalApplicant)
                 .Where(x => scope == null
                     || (scope.DormitoryIds.Count > 0 && x.AccommodationType == AccommodationType.Yurt)
                     || (scope.HousingUnitIds.Count > 0 && x.AccommodationType == AccommodationType.Lojman))
@@ -95,7 +95,7 @@ public interface IAdminService
                 MaintenanceRoomCount: await rooms.CountAsync(x => x.Status == RoomStatus.Maintenance, cancellationToken),
                 OccupancyRate: totalCapacity == 0 ? 0 : Math.Round((decimal)currentOccupancy / totalCapacity * 100, 2),
                 PendingApplicationCount: await db.Applications.AsNoTracking()
-                    .Where(x => (x.User != null && ApplicantRoles.Contains(x.User.Role)) || x.Source == ApplicationSource.PublicVisitor)
+                    .Where(x => (x.User != null && ApplicantRoles.Contains(x.User.Role)) || x.Source == ApplicationSource.ExternalApplicant)
                     .Where(x => scope == null
                         || (scope.DormitoryIds.Count > 0 && x.AccommodationType == AccommodationType.Yurt)
                         || (scope.HousingUnitIds.Count > 0 && x.AccommodationType == AccommodationType.Lojman))

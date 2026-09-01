@@ -11,6 +11,7 @@ namespace yurt_lojman_yonetim_sistemi.Services;
 public interface IApplicationTokenService
 {
     Task<string> CreateTokenAsync(int applicationId, ApplicationTokenPurpose purpose, TimeSpan lifetime, CancellationToken cancellationToken);
+    Task<ApplicationAccessToken?> ValidateTokenAsync(string referenceCode, string rawToken, ApplicationTokenPurpose purpose, CancellationToken cancellationToken);
     Task<ApplicationAccessToken?> ConsumeTokenAsync(string referenceCode, string rawToken, ApplicationTokenPurpose purpose, CancellationToken cancellationToken);
     string HashValue(string value);
 }
@@ -34,6 +35,12 @@ public class ApplicationTokenService(AppDbContext db) : IApplicationTokenService
     }
 
     public async Task<ApplicationAccessToken?> ConsumeTokenAsync(string referenceCode, string rawToken, ApplicationTokenPurpose purpose, CancellationToken cancellationToken)
+        => await FindTokenAsync(referenceCode, rawToken, purpose, consume: true, cancellationToken);
+
+    public async Task<ApplicationAccessToken?> ValidateTokenAsync(string referenceCode, string rawToken, ApplicationTokenPurpose purpose, CancellationToken cancellationToken)
+        => await FindTokenAsync(referenceCode, rawToken, purpose, consume: false, cancellationToken);
+
+    private async Task<ApplicationAccessToken?> FindTokenAsync(string referenceCode, string rawToken, ApplicationTokenPurpose purpose, bool consume, CancellationToken cancellationToken)
     {
         var candidates = await db.ApplicationAccessTokens
             .Include(x => x.Application)
@@ -52,8 +59,12 @@ public class ApplicationTokenService(AppDbContext db) : IApplicationTokenService
             return null;
         }
 
-        token.UsedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
+        if (consume)
+        {
+            token.UsedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
         return token;
     }
 

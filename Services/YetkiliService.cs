@@ -19,6 +19,9 @@ public interface IYetkiliService
     Task<IReadOnlyList<AdminApplicationListItemDto>> GetApplicationsAsync(Guid yetkiliId, CancellationToken cancellationToken);
     Task<Placement> AssignApplicationAsync(Guid yetkiliId, int applicationId, ApplicationDecisionRequest request, CancellationToken cancellationToken);
     Task RejectApplicationAsync(Guid yetkiliId, int applicationId, ApplicationDecisionRequest request, CancellationToken cancellationToken);
+    Task MarkApplicationUnderReviewAsync(Guid yetkiliId, int applicationId, CancellationToken cancellationToken);
+    Task RequestMissingInformationAsync(Guid yetkiliId, int applicationId, MissingInformationRequest request, CancellationToken cancellationToken);
+    Task ResendActivationAsync(Guid yetkiliId, int applicationId, CancellationToken cancellationToken);
     Task<IReadOnlyList<AdminRoomListItemDto>> GetAvailableRoomsAsync(Guid yetkiliId, AccommodationType type, CancellationToken cancellationToken);
     Task<IReadOnlyList<YetkiliStudentListItemDto>> GetStudentsWithRoomsAsync(Guid yetkiliId, CancellationToken cancellationToken);
     Task<IReadOnlyList<AdminRoomListItemDto>> GetAssignedRoomsAsync(Guid yetkiliId, CancellationToken cancellationToken);
@@ -185,7 +188,7 @@ public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, I
 
         var recentApplications = await db.Applications.AsNoTracking()
             .Include(x => x.User)
-            .Where(x => (x.User != null && ApplicantRoles.Contains(x.User.Role)) || x.Source == ApplicationSource.PublicVisitor)
+            .Where(x => (x.User != null && ApplicantRoles.Contains(x.User.Role)) || x.Source == ApplicationSource.ExternalApplicant)
             .Where(x => assignedTypes.Contains(x.AccommodationType))
             .Where(x => x.Status == ApplicationStatus.Pending)
             .OrderByDescending(x => x.CreatedAt)
@@ -205,7 +208,7 @@ public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, I
             OccupancyRate: totalCapacity == 0 ? 0 : Math.Round((decimal)currentOccupancy / totalCapacity * 100, 2),
             PendingApplicationCount: await db.Applications.AsNoTracking()
                 .Include(x => x.User)
-                .Where(x => (x.User != null && ApplicantRoles.Contains(x.User.Role)) || x.Source == ApplicationSource.PublicVisitor)
+                .Where(x => (x.User != null && ApplicantRoles.Contains(x.User.Role)) || x.Source == ApplicationSource.ExternalApplicant)
                 .Where(x => assignedTypes.Contains(x.AccommodationType))
                 .CountAsync(x => x.Status == ApplicationStatus.Pending, cancellationToken),
             OpenRequestCount: await db.Requests.AsNoTracking()
@@ -416,8 +419,8 @@ public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, I
 
         return await db.Applications.AsNoTracking()
             .Include(x => x.User)
-            .Where(x => (x.User != null && ApplicantRoles.Contains(x.User.Role)) || x.Source == ApplicationSource.PublicVisitor)
-            .Where(x => x.Status == ApplicationStatus.Pending)
+            .Where(x => (x.User != null && ApplicantRoles.Contains(x.User.Role)) || x.Source == ApplicationSource.ExternalApplicant)
+            .Where(x => x.Status == ApplicationStatus.Pending || x.Status == ApplicationStatus.UnderReview)
             .Where(x => assignedTypes.Contains(x.AccommodationType))
             .Where(x => x.Source == ApplicationSource.RegisteredUser
                 || (x.RequestedDormitoryId.HasValue && scope.DormitoryIds.Contains(x.RequestedDormitoryId.Value))
@@ -445,9 +448,9 @@ public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, I
             throw new InvalidOperationException("Yönetici ve yetkili profilleri başvuru akışına dahil edilemez.");
         }
 
-        if (application.Status != ApplicationStatus.Pending)
+        if (application.Status != ApplicationStatus.Pending && application.Status != ApplicationStatus.UnderReview)
         {
-            throw new InvalidOperationException("Yalnızca beklemedeki başvurular onaylanabilir.");
+            throw new InvalidOperationException("Yalnızca inceleme bekleyen başvurular onaylanabilir.");
         }
 
         var scope = await GetAssignedFacilityScopeAsync(yetkiliId, cancellationToken);
@@ -466,9 +469,9 @@ public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, I
             throw new InvalidOperationException("Yönetici ve yetkili profilleri başvuru akışına dahil edilemez.");
         }
 
-        if (application.Status != ApplicationStatus.Pending)
+        if (application.Status != ApplicationStatus.Pending && application.Status != ApplicationStatus.UnderReview)
         {
-            throw new InvalidOperationException("Yalnızca beklemedeki başvurular reddedilebilir.");
+            throw new InvalidOperationException("Yalnızca inceleme bekleyen başvurular reddedilebilir.");
         }
 
         var scope = await GetAssignedFacilityScopeAsync(yetkiliId, cancellationToken);
@@ -478,6 +481,41 @@ public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, I
         }
 
         await workflowService.RejectAsync(yetkiliId, applicationId, request, scope.DormitoryIds, scope.HousingUnitIds, cancellationToken);
+    }
+
+    public async Task MarkApplicationUnderReviewAsync(Guid yetkiliId, int applicationId, CancellationToken cancellationToken)
+    {
+        var scope = await GetAssignedFacilityScopeAsync(yetkiliId, cancellationToken);
+        await EnsureApplicationScopeAsync(scope, applicationId, cancellationToken);
+        await workflowService.MarkUnderReviewAsync(yetkiliId, applicationId, scope.DormitoryIds, scope.HousingUnitIds, cancellationToken);
+    }
+
+    public async Task RequestMissingInformationAsync(Guid yetkiliId, int applicationId, MissingInformationRequest request, CancellationToken cancellationToken)
+    {
+        var scope = await GetAssignedFacilityScopeAsync(yetkiliId, cancellationToken);
+        await EnsureApplicationScopeAsync(scope, applicationId, cancellationToken);
+        await workflowService.RequestMissingInformationAsync(yetkiliId, applicationId, request, scope.DormitoryIds, scope.HousingUnitIds, cancellationToken);
+    }
+
+    public async Task ResendActivationAsync(Guid yetkiliId, int applicationId, CancellationToken cancellationToken)
+    {
+        var scope = await GetAssignedFacilityScopeAsync(yetkiliId, cancellationToken);
+        await EnsureApplicationScopeAsync(scope, applicationId, cancellationToken);
+        await workflowService.ResendActivationAsync(yetkiliId, applicationId, scope.DormitoryIds, scope.HousingUnitIds, cancellationToken);
+    }
+
+    private async Task EnsureApplicationScopeAsync(FacilityScope scope, int applicationId, CancellationToken cancellationToken)
+    {
+        var inScope = await db.Applications.AsNoTracking()
+            .AnyAsync(x => x.Id == applicationId
+                && (x.Source == ApplicationSource.RegisteredUser
+                    || (x.RequestedDormitoryId.HasValue && scope.DormitoryIds.Contains(x.RequestedDormitoryId.Value))
+                    || (x.RequestedHousingUnitId.HasValue && scope.HousingUnitIds.Contains(x.RequestedHousingUnitId.Value))), cancellationToken);
+
+        if (!inScope)
+        {
+            throw new InvalidOperationException("Bu başvuru size atanmış tesis kapsamına girmiyor.");
+        }
     }
 
     private async Task<(int? RoomId, IReadOnlyList<int>? DormitoryIds, IReadOnlyList<int>? HousingUnitIds)> ResolvePlacementTargetAsync(

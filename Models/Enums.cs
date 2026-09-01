@@ -29,7 +29,7 @@ public enum ApplicationStatus
 public enum ApplicationSource
 {
     RegisteredUser = 1,
-    PublicVisitor = 2
+    ExternalApplicant = 2
 }
 
 public enum ApplicationTokenPurpose

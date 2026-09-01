@@ -66,17 +66,17 @@ public class AuthController(UserManager<AppUser> userManager, ITokenService toke
         var user = await userManager.FindByEmailAsync(request.Email);
         if (user is null || !await userManager.CheckPasswordAsync(user, request.Password))
         {
-            return Unauthorized("E-posta veya sifre hatali.");
+            return Unauthorized("Giriş bilgileri geçersiz veya hesabınız henüz kullanıma açılmamış olabilir.");
         }
 
         if (!user.EmailConfirmed)
         {
-            return Unauthorized("Hesap aktivasyonu tamamlanmamış.");
+            return Unauthorized("Giriş bilgileri geçersiz veya hesabınız henüz kullanıma açılmamış olabilir.");
         }
 
         if (await userManager.IsLockedOutAsync(user))
         {
-            return Unauthorized("Hesap dondurulmus. Lutfen sistem yoneticisi ile iletisime gecin.");
+            return Unauthorized("Giriş bilgileri geçersiz veya hesabınız henüz kullanıma açılmamış olabilir.");
         }
 
         var token = await tokenService.CreateTokenAsync(user);

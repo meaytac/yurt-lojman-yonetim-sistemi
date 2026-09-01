@@ -8,6 +8,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using yurt_lojman_yonetim_sistemi.Data;
 using yurt_lojman_yonetim_sistemi.Models;
+using yurt_lojman_yonetim_sistemi.DTOs;
+using yurt_lojman_yonetim_sistemi.Services;
 
 namespace YurtLojman.Tests;
 
@@ -48,9 +50,9 @@ public class PublicApplicationFlowTests
 
         Assert.Equal(ApplicationStatus.EmailVerificationPending, application.Status);
         Assert.Null(application.UserId);
-        Assert.False(await db.Users.AnyAsync(x => x.Email == "ziyaretci@example.test"));
+        Assert.False(await db.Users.AnyAsync(x => x.Email == "basvuru@example.test"));
         Assert.Single(await db.ApplicationAccessTokens.Where(x => x.ApplicationId == application.Id).ToListAsync());
-        Assert.Single(await db.EmailOutboxMessages.Where(x => x.ToEmail == "ziyaretci@example.test").ToListAsync());
+        Assert.Single(await db.EmailOutboxMessages.Where(x => x.ToEmail == "basvuru@example.test").ToListAsync());
     }
 
     [Fact]
@@ -82,6 +84,238 @@ public class PublicApplicationFlowTests
         Assert.Equal(HttpStatusCode.BadRequest, secondUse.StatusCode);
     }
 
+    [Fact]
+    public async Task Idempotency_same_key_and_payload_returns_original_reference()
+    {
+        await using var factory = CreateFactory();
+        var dormitoryId = await SeedFacilityAsync(factory);
+        var client = factory.CreateClient();
+        var idempotencyKey = Guid.NewGuid().ToString("N");
+
+        var first = await CreateApplicationAsync(client, dormitoryId, idempotencyKey);
+        first.EnsureSuccessStatusCode();
+        var firstJson = await JsonDocument.ParseAsync(await first.Content.ReadAsStreamAsync());
+        var firstReference = firstJson.RootElement.GetProperty("referenceCode").GetString();
+
+        var second = await CreateApplicationAsync(client, dormitoryId, idempotencyKey);
+        second.EnsureSuccessStatusCode();
+        var secondJson = await JsonDocument.ParseAsync(await second.Content.ReadAsStreamAsync());
+
+        Assert.Equal(firstReference, secondJson.RootElement.GetProperty("referenceCode").GetString());
+    }
+
+    [Fact]
+    public async Task Idempotency_same_key_with_different_payload_returns_conflict()
+    {
+        await using var factory = CreateFactory();
+        var dormitoryId = await SeedFacilityAsync(factory);
+        var client = factory.CreateClient();
+        var idempotencyKey = Guid.NewGuid().ToString("N");
+
+        (await CreateApplicationAsync(client, dormitoryId, idempotencyKey)).EnsureSuccessStatusCode();
+        var conflict = await CreateApplicationAsync(client, dormitoryId, idempotencyKey, fullName: "Farklı Başvuru");
+
+        Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+    }
+
+    [Fact]
+    public async Task Closed_facility_cannot_receive_public_application()
+    {
+        await using var factory = CreateFactory();
+        var dormitoryId = await SeedFacilityAsync(factory, isApplicationOpen: false);
+        var client = factory.CreateClient();
+
+        var response = await CreateApplicationAsync(client, dormitoryId);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Document_mime_type_must_match_allowed_file_type()
+    {
+        await using var factory = CreateFactory();
+        var dormitoryId = await SeedFacilityAsync(factory);
+        var client = factory.CreateClient();
+
+        using var form = NewApplicationForm(dormitoryId, Guid.NewGuid().ToString("N"));
+        var file = new ByteArrayContent("%PDF-1.4 test"u8.ToArray());
+        file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/plain");
+        form.Add(file, "document", "test.pdf");
+        var response = await client.PostAsync("/api/public/applications", form);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Tracking_token_can_be_used_without_being_consumed()
+    {
+        await using var factory = CreateFactory();
+        var dormitoryId = await SeedFacilityAsync(factory);
+        var client = factory.CreateClient();
+        var createResponse = await CreateApplicationAsync(client, dormitoryId);
+        createResponse.EnsureSuccessStatusCode();
+        var created = await JsonDocument.ParseAsync(await createResponse.Content.ReadAsStreamAsync());
+        var reference = created.RootElement.GetProperty("referenceCode").GetString()!;
+        var verifyToken = await ExtractLatestTokenAsync(factory, reference);
+        (await client.PostAsJsonAsync("/api/public/applications/verify-email", new { referenceCode = reference, token = verifyToken })).EnsureSuccessStatusCode();
+        var trackingToken = await ExtractLatestTokenAsync(factory, reference);
+
+        var first = await client.PostAsJsonAsync("/api/public/applications/track", new { referenceCode = reference, token = trackingToken });
+        var second = await client.PostAsJsonAsync("/api/public/applications/track", new { referenceCode = reference, token = trackingToken });
+
+        first.EnsureSuccessStatusCode();
+        second.EnsureSuccessStatusCode();
+    }
+
+    [Fact]
+    public async Task Missing_information_can_be_updated_with_tracking_token()
+    {
+        await using var factory = CreateFactory();
+        var dormitoryId = await SeedFacilityAsync(factory);
+        var client = factory.CreateClient();
+        var createResponse = await CreateApplicationAsync(client, dormitoryId);
+        createResponse.EnsureSuccessStatusCode();
+        var created = await JsonDocument.ParseAsync(await createResponse.Content.ReadAsStreamAsync());
+        var reference = created.RootElement.GetProperty("referenceCode").GetString()!;
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var application = await db.Applications.SingleAsync(x => x.ReferenceCode == reference);
+            application.Status = ApplicationStatus.MissingInformation;
+            application.StatusHistory.Add(new ApplicationStatusHistory { Status = ApplicationStatus.MissingInformation, Note = "Belge okunaklı değil." });
+            await db.SaveChangesAsync();
+        }
+
+        var trackingToken = await CreateTrackingTokenAsync(factory, reference);
+        using var form = new MultipartFormDataContent
+        {
+            { new StringContent(reference), "referenceCode" },
+            { new StringContent(trackingToken), "token" },
+            { new StringContent("Yeni belge eklendi."), "note" }
+        };
+        var response = await client.PostAsync("/api/public/applications/update-missing-information", form);
+
+        response.EnsureSuccessStatusCode();
+        using var verifyScope = factory.Services.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var updated = await verifyDb.Applications.Include(x => x.StatusHistory).SingleAsync(x => x.ReferenceCode == reference);
+        Assert.Equal(ApplicationStatus.Pending, updated.Status);
+        Assert.Contains(updated.StatusHistory, x => x.Status == ApplicationStatus.Pending && x.Note!.Contains("Ek bilgi"));
+    }
+
+    [Fact]
+    public async Task Approval_requires_verified_email_for_external_application()
+    {
+        await using var factory = CreateFactory();
+        var dormitoryId = await SeedFacilityAsync(factory);
+        await SeedRoomAsync(factory, dormitoryId);
+        var client = factory.CreateClient();
+        var createResponse = await CreateApplicationAsync(client, dormitoryId);
+        createResponse.EnsureSuccessStatusCode();
+        var created = await JsonDocument.ParseAsync(await createResponse.Content.ReadAsStreamAsync());
+        var reference = created.RootElement.GetProperty("referenceCode").GetString()!;
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var workflow = scope.ServiceProvider.GetRequiredService<IApplicationWorkflowService>();
+        var applicationId = await db.Applications.Where(x => x.ReferenceCode == reference).Select(x => x.Id).SingleAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => workflow.ApproveAsync(
+            Guid.NewGuid(),
+            applicationId,
+            new ApplicationDecisionRequest(true, null, null, true, dormitoryId, null),
+            [dormitoryId],
+            null,
+            CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Approval_creates_locked_student_account_and_activation_email_only_after_verification()
+    {
+        await using var factory = CreateFactory();
+        var dormitoryId = await SeedFacilityAsync(factory);
+        await SeedRoomAsync(factory, dormitoryId);
+        var client = factory.CreateClient();
+        var createResponse = await CreateApplicationAsync(client, dormitoryId);
+        createResponse.EnsureSuccessStatusCode();
+        var created = await JsonDocument.ParseAsync(await createResponse.Content.ReadAsStreamAsync());
+        var reference = created.RootElement.GetProperty("referenceCode").GetString()!;
+        var verifyToken = await ExtractLatestTokenAsync(factory, reference);
+        (await client.PostAsJsonAsync("/api/public/applications/verify-email", new { referenceCode = reference, token = verifyToken })).EnsureSuccessStatusCode();
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var workflow = scope.ServiceProvider.GetRequiredService<IApplicationWorkflowService>();
+        var applicationId = await db.Applications.Where(x => x.ReferenceCode == reference).Select(x => x.Id).SingleAsync();
+        var placement = await workflow.ApproveAsync(
+            Guid.NewGuid(),
+            applicationId,
+            new ApplicationDecisionRequest(true, null, null, true, dormitoryId, null),
+            [dormitoryId],
+            null,
+            CancellationToken.None);
+
+        var application = await db.Applications.Include(x => x.User).SingleAsync(x => x.ReferenceCode == reference);
+        Assert.NotNull(placement);
+        Assert.Equal(ApplicationStatus.ApprovedAwaitingActivation, application.Status);
+        Assert.NotNull(application.UserId);
+        Assert.Equal(AppRoles.Ogrenci, application.User!.Role);
+        Assert.False(application.User.EmailConfirmed);
+        Assert.True(application.User.LockoutEnd > DateTimeOffset.UtcNow);
+        Assert.Contains(await db.EmailOutboxMessages.Where(x => x.ToEmail == "basvuru@example.test").ToListAsync(), x => x.Subject.Contains("aktivasyon", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Activation_sets_password_unlocks_account_and_consumes_token()
+    {
+        await using var factory = CreateFactory();
+        var dormitoryId = await SeedFacilityAsync(factory);
+        await SeedRoomAsync(factory, dormitoryId);
+        var client = factory.CreateClient();
+        var createResponse = await CreateApplicationAsync(client, dormitoryId);
+        createResponse.EnsureSuccessStatusCode();
+        var created = await JsonDocument.ParseAsync(await createResponse.Content.ReadAsStreamAsync());
+        var reference = created.RootElement.GetProperty("referenceCode").GetString()!;
+        var verifyToken = await ExtractLatestTokenAsync(factory, reference);
+        (await client.PostAsJsonAsync("/api/public/applications/verify-email", new { referenceCode = reference, token = verifyToken })).EnsureSuccessStatusCode();
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var workflow = scope.ServiceProvider.GetRequiredService<IApplicationWorkflowService>();
+            var applicationId = await db.Applications.Where(x => x.ReferenceCode == reference).Select(x => x.Id).SingleAsync();
+            await workflow.ApproveAsync(Guid.NewGuid(), applicationId, new ApplicationDecisionRequest(true, null, null, true, dormitoryId, null), [dormitoryId], null, CancellationToken.None);
+        }
+
+        var activationToken = await ExtractLatestTokenAsync(factory, reference);
+        var activation = await client.PostAsJsonAsync("/api/public/applications/activate", new
+        {
+            referenceCode = reference,
+            token = activationToken,
+            password = "Yeni123!",
+            confirmPassword = "Yeni123!"
+        });
+        activation.EnsureSuccessStatusCode();
+        var secondUse = await client.PostAsJsonAsync("/api/public/applications/activate", new
+        {
+            referenceCode = reference,
+            token = activationToken,
+            password = "Yeni123!",
+            confirmPassword = "Yeni123!"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, secondUse.StatusCode);
+        using var verifyScope = factory.Services.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var application = await verifyDb.Applications.Include(x => x.User).SingleAsync(x => x.ReferenceCode == reference);
+        Assert.Equal(ApplicationStatus.Approved, application.Status);
+        Assert.NotNull(application.ActivatedAt);
+        Assert.True(application.User!.EmailConfirmed);
+        Assert.False(application.User.MustChangePassword);
+        Assert.True(application.User.LockoutEnd is null || application.User.LockoutEnd <= DateTimeOffset.UtcNow);
+    }
+
     private static WebApplicationFactory<Program> CreateFactory()
     {
         return new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
@@ -98,7 +332,7 @@ public class PublicApplicationFlowTests
         });
     }
 
-    private static async Task<int> SeedFacilityAsync(WebApplicationFactory<Program> factory)
+    private static async Task<int> SeedFacilityAsync(WebApplicationFactory<Program> factory, bool isApplicationOpen = true)
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -112,7 +346,7 @@ public class PublicApplicationFlowTests
             TotalCapacity = 10,
             IsActive = true,
             IsPublished = true,
-            IsApplicationOpen = true,
+            IsApplicationOpen = isApplicationOpen,
             PublicDescription = "Public açıklama"
         };
         db.Dormitories.Add(published);
@@ -129,19 +363,46 @@ public class PublicApplicationFlowTests
         return published.Id;
     }
 
-    private static async Task<HttpResponseMessage> CreateApplicationAsync(HttpClient client, int dormitoryId)
+    private static async Task SeedRoomAsync(WebApplicationFactory<Program> factory, int dormitoryId)
     {
-        using var form = new MultipartFormDataContent
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        if (await db.Rooms.AnyAsync(x => x.BlockFloor.Building.DormitoryId == dormitoryId))
         {
-            { new StringContent("Ziyaretçi Aday"), "fullName" },
-            { new StringContent("ziyaretci@example.test"), "email" },
+            return;
+        }
+
+        var building = new Building { DormitoryId = dormitoryId, BlockName = $"Test Blok {Guid.NewGuid():N}"[..18] };
+        var floor = new Floor { Building = building, FloorNumber = 1 };
+        db.Rooms.Add(new Room
+        {
+            BlockFloor = floor,
+            RoomNumber = "101",
+            Capacity = 2,
+            CurrentOccupancy = 0,
+            Status = RoomStatus.Empty,
+            Price = 1000
+        });
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task<HttpResponseMessage> CreateApplicationAsync(HttpClient client, int dormitoryId, string? idempotencyKey = null, string fullName = "Başvuru Adayı")
+    {
+        using var form = NewApplicationForm(dormitoryId, idempotencyKey ?? Guid.NewGuid().ToString("N"), fullName);
+        return await client.PostAsync("/api/public/applications", form);
+    }
+
+    private static MultipartFormDataContent NewApplicationForm(int dormitoryId, string idempotencyKey, string fullName = "Başvuru Adayı")
+        => new()
+        {
+            { new StringContent(idempotencyKey), "idempotencyKey" },
+            { new StringContent(fullName), "fullName" },
+            { new StringContent("basvuru@example.test"), "email" },
             { new StringContent("12345678901"), "tcNo" },
             { new StringContent("Ogrenci"), "applicantRole" },
             { new StringContent("Yurt"), "accommodationType" },
             { new StringContent(dormitoryId.ToString()), "dormitoryId" }
         };
-        return await client.PostAsync("/api/public/applications", form);
-    }
 
     private static async Task<string> ExtractLatestTokenAsync(WebApplicationFactory<Program> factory, string reference)
     {
@@ -159,5 +420,14 @@ public class PublicApplicationFlowTests
         start += marker.Length;
         var end = body.IndexOf('"', start);
         return WebUtility.HtmlDecode(body[start..end]);
+    }
+
+    private static async Task<string> CreateTrackingTokenAsync(WebApplicationFactory<Program> factory, string reference)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var tokenService = scope.ServiceProvider.GetRequiredService<yurt_lojman_yonetim_sistemi.Services.IApplicationTokenService>();
+        var applicationId = await db.Applications.Where(x => x.ReferenceCode == reference).Select(x => x.Id).SingleAsync();
+        return await tokenService.CreateTokenAsync(applicationId, ApplicationTokenPurpose.StatusTracking, TimeSpan.FromDays(30), CancellationToken.None);
     }
 }

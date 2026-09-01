@@ -412,6 +412,8 @@ function renderApplications() {
       <td>${date(item.createdAt)}</td>
       <td>
         <button class="row-btn" onclick="openAssignModal(${item.id}, '${item.userId}', '${escapeAttr(item.fullName)}', '${item.accommodationType}')">Odaya Yerleştir</button>
+        ${item.status === 'Pending' ? `<button class="row-btn" onclick="markUnderReview(${item.id})">İncelemeye Al</button>` : ''}
+        <button class="row-btn warn" onclick="requestMissingInformation(${item.id})">Ek Bilgi İste</button>
         <button class="row-btn danger" onclick="rejectApplication(${item.id})">Reddet</button>
       </td>
     </tr>
@@ -465,7 +467,7 @@ function facilityForm(item = null, type = 'Yurt') {
       <label class="full">Ad<input name="name" value="${escapeAttr(item?.name)}" required maxlength="120"></label>
       <label class="full">Kampüs<input name="campusLocation" value="${escapeAttr(item?.campusLocation)}" required maxlength="180"></label>
       <label>Kapasite<input name="totalCapacity" type="number" min="0" value="${item?.totalCapacity ?? 0}" required></label>
-      <label class="full">Ziyaretçi Açıklaması<textarea name="publicDescription" maxlength="1000">${escapeHtml(item?.publicDescription || '')}</textarea></label>
+      <label class="full">Başvuru Açıklaması<textarea name="publicDescription" maxlength="1000">${escapeHtml(item?.publicDescription || '')}</textarea></label>
       <label class="full">Olanaklar<textarea name="amenities" maxlength="1000">${escapeHtml(item?.amenities || '')}</textarea></label>
       <label class="full">Görsel URL<input name="imageUrl" value="${escapeAttr(item?.imageUrl)}" maxlength="500"></label>
       <label class="full">Başvuru Koşulları<textarea name="applicationConditions" maxlength="1000">${escapeHtml(item?.applicationConditions || '')}</textarea></label>
@@ -867,16 +869,37 @@ async function submitApplicationAssign(event) {
 }
 
 async function rejectApplication(id) {
-  if (!confirm('Bu başvuruyu reddetmek istediğinize emin misiniz?')) return;
+  const reason = prompt('Ret gerekçesi');
+  if (!reason) return;
   const result = await saveEntity(`/api/admin/applications/${id}/reject`, 'POST', {
     approved: false,
-    reason: 'Yönetim panelinden reddedildi.',
+    reason,
     roomId: null,
     autoPlace: false
   });
   if (!result) return;
   removeApplicationFromState(id);
   showApplicationFeedback(result.message || 'Başvuru reddedildi ve bekleyen başvurular listesinden kaldırıldı.');
+  await Promise.allSettled([loadDashboard()]);
+}
+
+async function markUnderReview(id) {
+  const result = await saveEntity(`/api/admin/applications/${id}/under-review`, 'POST', null);
+  if (!result) return;
+  const item = state.applications.find(application => application.id === id);
+  if (item) item.status = 'UnderReview';
+  renderApplications();
+  showApplicationFeedback(result.message || 'Başvuru incelemeye alındı.');
+  await Promise.allSettled([loadDashboard()]);
+}
+
+async function requestMissingInformation(id) {
+  const reason = prompt('Başvuru sahibinden istenecek ek bilgi veya belge');
+  if (!reason) return;
+  const result = await saveEntity(`/api/admin/applications/${id}/missing-information`, 'POST', { reason });
+  if (!result) return;
+  removeApplicationFromState(id);
+  showApplicationFeedback(result.message || 'Ek bilgi talebi iletildi.');
   await Promise.allSettled([loadDashboard()]);
 }
 
@@ -1644,6 +1667,10 @@ function toast(message, isError = false) {
 function getStatusBadge(status) {
   const map = {
     Pending: ['Beklemede', 'badge-warning'],
+    EmailVerificationPending: ['E-posta Bekliyor', 'badge-muted'],
+    UnderReview: ['İnceleniyor', 'badge-info'],
+    MissingInformation: ['Ek Bilgi Bekleniyor', 'badge-warning'],
+    ApprovedAwaitingActivation: ['Aktivasyon Bekliyor', 'badge-warning'],
     Beklemede: ['Beklemede', 'badge-warning'],
     Bekleyen: ['Beklemede', 'badge-warning'],
     Approved: ['Onaylandı', 'badge-success'],
@@ -1688,9 +1715,14 @@ function roomDisplayStatus(status) {
 
 function applicationStatusDisplay(status) {
   const map = {
+    EmailVerificationPending: 'E-posta Doğrulaması Bekleniyor',
     Pending: 'Bekleyen',
+    UnderReview: 'İnceleniyor',
+    MissingInformation: 'Ek Bilgi Bekleniyor',
+    ApprovedAwaitingActivation: 'Aktivasyon Bekliyor',
     Approved: 'Onaylandı',
-    Rejected: 'Reddedildi'
+    Rejected: 'Reddedildi',
+    Cancelled: 'İptal Edildi'
   };
   return map[status] || status;
 }

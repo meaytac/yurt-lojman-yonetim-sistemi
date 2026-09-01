@@ -47,10 +47,11 @@
               <input type="checkbox" id="rememberMe">
               <span>Beni Hatırla</span>
             </label>
-            <a href="/track-application.html">Başvuru takip</a>
+            <a href="/track-application.html">Başvuru Takip</a>
           </div>
           <button type="submit" class="btn-primary">Giriş Yap</button>
-          <a class="btn-secondary public-apply-link" href="/visitor.html">Misafir Başvurusu Oluştur</a>
+          <button class="btn-secondary public-apply-link" id="openApplicationModal" type="button">Başvuru Oluştur</button>
+          <p class="helper-text">Öğrenci veya personel konaklama başvurusu oluşturun.</p>
           <p id="loginState" class="login-message"></p>
         </form>
       </section>
@@ -77,7 +78,84 @@
     </div>
   </footer>
 
+  <div class="application-modal-backdrop" id="applicationModalBackdrop" hidden>
+    <section class="application-modal" role="dialog" aria-modal="true" aria-labelledby="applicationModalTitle">
+      <header class="application-modal-header">
+        <div>
+          <h2 id="applicationModalTitle">Konaklama Başvurusu</h2>
+          <p>Öğrenci veya personel olarak yurt/lojman başvurunuzu oluşturun.</p>
+        </div>
+        <button class="modal-close" id="closeApplicationModal" type="button" aria-label="Kapat">×</button>
+      </header>
+      <form id="preRegistrationApplicationForm" class="application-modal-body" enctype="multipart/form-data">
+        <input type="hidden" name="idempotencyKey" id="applicationIdempotencyKey">
+        <ol class="application-steps" aria-label="Başvuru adımları">
+          <li class="active">Başvuru sahibi</li>
+          <li>Tesis seçimi</li>
+          <li>Belge ve onay</li>
+        </ol>
+
+        <fieldset class="application-step">
+          <legend>Adım 1 — Başvuru sahibi</legend>
+          <div class="form-grid two">
+            <label>Başvuru türü
+              <select name="applicantRole" id="applicantRole" required>
+                <option value="Ogrenci">Öğrenci</option>
+                <option value="Personel">Personel</option>
+              </select>
+            </label>
+            <label>Ad Soyad<input name="fullName" required maxlength="150" autocomplete="name"></label>
+            <label>E-posta<input name="email" type="email" required maxlength="256" autocomplete="email"></label>
+            <label>Telefon<input name="phoneNumber" maxlength="30" autocomplete="tel"></label>
+            <label>T.C. Kimlik Numarası<input name="tcNo" required minlength="11" maxlength="11" inputmode="numeric"></label>
+            <label>Öğrenci/Personel Numarası<input name="studentStaffNo" maxlength="30"></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="application-step">
+          <legend>Adım 2 — Tesis seçimi</legend>
+          <div class="form-grid two">
+            <label>Konaklama türü
+              <select name="accommodationType" id="applicationAccommodationType" required>
+                <option value="Yurt">Yurt</option>
+                <option value="Lojman">Lojman</option>
+              </select>
+            </label>
+            <label>Kampüs filtresi<input id="campusFilter" type="search" placeholder="Kampüs adı"></label>
+          </div>
+          <input type="hidden" name="dormitoryId" id="applicationDormitoryId">
+          <input type="hidden" name="housingUnitId" id="applicationHousingUnitId">
+          <div id="applicationFacilityList" class="application-facility-list"></div>
+          <div id="selectedFacilitySummary" class="selected-facility-summary">Tesis seçilmedi.</div>
+        </fieldset>
+
+        <fieldset class="application-step">
+          <legend>Adım 3 — Belge ve açıklama</legend>
+          <label>Öğrenci belgesi veya personel görev belgesi
+            <input name="document" type="file" accept="application/pdf,image/jpeg,image/png">
+          </label>
+          <label>Açıklama<textarea name="note" maxlength="1000"></textarea></label>
+          <label class="checkbox-label declaration">
+            <input name="declarationAccepted" type="checkbox" required>
+            <span>Başvuru bilgilerimin doğru olduğunu ve aydınlatma/gizlilik bilgilendirmesini okuduğumu onaylıyorum.</span>
+          </label>
+          <div id="applicationSummary" class="selected-facility-summary"></div>
+        </fieldset>
+
+        <div class="modal-actions">
+          <button class="btn-secondary" id="copyReferenceButton" type="button" hidden>Başvuru numarasını kopyala</button>
+          <a class="btn-secondary" id="goTrackButton" href="/track-application.html" hidden>Başvuru takibe git</a>
+          <button class="btn-secondary" id="closeApplicationResult" type="button" hidden>Kapat</button>
+          <button class="btn-primary" id="submitApplicationButton" type="submit">Başvuruyu Gönder</button>
+        </div>
+        <p id="applicationModalState" class="login-message" aria-live="polite"></p>
+      </form>
+    </section>
+  </div>
+
+  <script src="/js/public-common.js?v=20260901"></script>
   <script src="/js/app.js?v=20260901"></script>
+  <script src="/js/application-form.js?v=20260901"></script>
 </body>
 
 </html>

@@ -123,6 +123,61 @@ public class YetkiliController(IYetkiliService yetkiliService) : ControllerBase
         }
     }
 
+    [HttpPost("applications/{id:int}/under-review")]
+    public async Task<IActionResult> MarkApplicationUnderReview(int id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await yetkiliService.MarkApplicationUnderReviewAsync(CurrentYetkiliId(), id, cancellationToken);
+            return Ok(new { success = true, message = "Başvuru incelemeye alındı." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpPost("applications/{id:int}/missing-information")]
+    public async Task<IActionResult> RequestMissingInformation(int id, MissingInformationRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        try
+        {
+            await yetkiliService.RequestMissingInformationAsync(CurrentYetkiliId(), id, request, cancellationToken);
+            return Ok(new { success = true, message = "Ek bilgi talebi başvuru sahibine iletildi." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpPost("applications/{id:int}/resend-activation")]
+    public async Task<IActionResult> ResendActivation(int id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await yetkiliService.ResendActivationAsync(CurrentYetkiliId(), id, cancellationToken);
+            return Ok(new { success = true, message = "Aktivasyon e-postası yeniden kuyruğa alındı." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
     [HttpGet("rooms/available")]
     public Task<IReadOnlyList<AdminRoomListItemDto>> GetAvailableRooms([FromQuery] AccommodationType type, CancellationToken cancellationToken)
         => yetkiliService.GetAvailableRoomsAsync(CurrentYetkiliId(), type, cancellationToken);

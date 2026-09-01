@@ -39,6 +39,10 @@ public class PublicController(IPublicApplicationService publicApplications) : Co
         {
             return Ok(await publicApplications.CreateAsync(request, cancellationToken));
         }
+        catch (IdempotencyConflictException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { message = ex.Message });
@@ -76,6 +80,22 @@ public class PublicController(IPublicApplicationService publicApplications) : Co
         catch (InvalidOperationException)
         {
             return BadRequest(new PublicMessageResponse("Başvuru durumu görüntülenemedi. Takip bağlantısı geçersiz veya süresi dolmuş olabilir."));
+        }
+    }
+
+    [HttpPost("applications/update-missing-information")]
+    [RequestSizeLimit(8 * 1024 * 1024)]
+    public async Task<IActionResult> UpdateMissingInformation([FromForm] PublicApplicationUpdateRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        try
+        {
+            await publicApplications.ResubmitMissingInformationAsync(request, cancellationToken);
+            return Ok(new PublicMessageResponse("Ek bilgiler alındı. Başvurunuz yeniden inceleme kuyruğuna alındı."));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new PublicMessageResponse(ex.Message));
         }
     }
 

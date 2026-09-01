@@ -24,6 +24,7 @@ async function trackApplication(event) {
   event.preventDefault();
   const state = document.getElementById('trackState');
   const result = document.getElementById('trackResult');
+  const missingForm = document.getElementById('missingInfoForm');
   try {
     const form = new FormData(event.currentTarget);
     const data = await publicApi('/api/public/applications/track', {
@@ -34,15 +35,64 @@ async function trackApplication(event) {
         token: form.get('token')
       })
     });
-    setStatus(state, `${data.referenceCode} başvurusu: ${data.status}`, 'success');
+    const statusText = applicationStatusText(data.status);
+    setStatus(state, `${data.referenceCode} başvurusu: ${statusText}`, 'success');
     result.innerHTML = `
       <h2>${publicEscape(data.applicantFullName)}</h2>
-      <p>${publicEscape(data.facilityName || data.accommodationType)} için başvuru durumu: <strong>${publicEscape(data.status)}</strong></p>
-      <ul class="timeline">${(data.history || []).map(item => `<li><strong>${publicEscape(item.status)}</strong><br><span>${new Date(item.createdAt).toLocaleString('tr-TR')}</span><br>${publicEscape(item.note || '')}</li>`).join('')}</ul>`;
+      <dl class="track-summary">
+        <div><dt>Referans</dt><dd>${publicEscape(data.referenceCode)}</dd></div>
+        <div><dt>E-posta</dt><dd>${publicEscape(data.maskedEmail || '-')}</dd></div>
+        <div><dt>Rol</dt><dd>${roleText(data.applicantRole)}</dd></div>
+        <div><dt>Tesis</dt><dd>${publicEscape(data.facilityName || data.accommodationType)}</dd></div>
+        <div><dt>Durum</dt><dd><strong>${publicEscape(statusText)}</strong></dd></div>
+      </dl>
+      <ul class="timeline">${(data.history || []).map(item => `<li><strong>${publicEscape(applicationStatusText(item.status))}</strong><br><span>${new Date(item.createdAt).toLocaleString('tr-TR')}</span><br>${publicEscape(item.note || '')}</li>`).join('')}</ul>`;
+    if (missingForm) {
+      missingForm.hidden = data.status !== 'MissingInformation';
+      document.getElementById('missingReference').value = form.get('referenceCode') || '';
+      document.getElementById('missingToken').value = form.get('token') || '';
+    }
   } catch (error) {
     setStatus(state, error.message, 'error');
     result.innerHTML = '';
+    if (missingForm) missingForm.hidden = true;
   }
+}
+
+async function submitMissingInformation(event) {
+  event.preventDefault();
+  const state = document.getElementById('trackState');
+  const form = event.currentTarget;
+  try {
+    const response = await publicApi('/api/public/applications/update-missing-information', {
+      method: 'POST',
+      body: new FormData(form)
+    });
+    setStatus(state, response.message, 'success');
+    form.hidden = true;
+    form.reset();
+  } catch (error) {
+    setStatus(state, error.message, 'error');
+  }
+}
+
+function applicationStatusText(status) {
+  const map = {
+    EmailVerificationPending: 'E-posta doğrulaması bekleniyor',
+    Pending: 'İnceleme kuyruğunda',
+    UnderReview: 'İnceleniyor',
+    MissingInformation: 'Ek bilgi gerekiyor',
+    ApprovedAwaitingActivation: 'Onaylandı, hesap aktivasyonu bekleniyor',
+    Approved: 'Onaylandı',
+    Rejected: 'Reddedildi',
+    Cancelled: 'İptal edildi'
+  };
+  return map[status] || status || '-';
+}
+
+function roleText(role) {
+  const map = { Ogrenci: 'Öğrenci', Personel: 'Personel' };
+  return publicEscape(map[role] || role || '-');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -52,4 +102,5 @@ document.addEventListener('DOMContentLoaded', () => {
   if (ref) document.getElementById('trackReference')?.setAttribute('value', ref);
   if (token) document.getElementById('trackToken')?.setAttribute('value', token);
   document.getElementById('trackForm')?.addEventListener('submit', trackApplication);
+  document.getElementById('missingInfoForm')?.addEventListener('submit', submitMissingInformation);
 });

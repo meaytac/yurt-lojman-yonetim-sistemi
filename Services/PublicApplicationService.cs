@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -16,6 +17,7 @@ public interface IPublicApplicationService
     Task VerifyEmailAsync(PublicTokenRequest request, CancellationToken cancellationToken);
     Task ResendVerificationAsync(string referenceCode, string email, CancellationToken cancellationToken);
     Task<PublicTrackResponse> TrackAsync(PublicTrackRequest request, CancellationToken cancellationToken);
+    Task ResubmitMissingInformationAsync(PublicApplicationUpdateRequest request, CancellationToken cancellationToken);
     Task ActivateAsync(ActivateAccountRequest request, CancellationToken cancellationToken);
 }
 
@@ -58,12 +60,26 @@ public class PublicApplicationService(
     {
         var role = NormalizeApplicantRole(request.ApplicantRole);
         await EnsureFacilityAcceptsApplicationsAsync(request, cancellationToken);
+        var idempotencyKeyHash = tokenService.HashValue(request.IdempotencyKey);
+        var payloadHash = tokenService.HashValue(NormalizedApplicationPayload(request, role));
+        var existing = await db.Applications.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.IdempotencyKeyHash == idempotencyKeyHash, cancellationToken);
+        if (existing is not null)
+        {
+            if (!string.Equals(existing.IdempotencyPayloadHash, payloadHash, StringComparison.Ordinal))
+            {
+                throw new IdempotencyConflictException("Aynı işlem anahtarı farklı başvuru bilgileriyle kullanılamaz.");
+            }
+
+            return new PublicApplicationCreatedResponse(existing.ReferenceCode, existing.Status, "Başvurunuz oluşturuldu. Devam edebilmek için e-posta adresinize gönderilen doğrulama bağlantısını kullanın.");
+        }
+
         var documentKey = await documentStorage.SavePublicDocumentAsync(request.Document, cancellationToken);
         var referenceCode = await GenerateReferenceCodeAsync(cancellationToken);
 
         var application = new AccommodationApplication
         {
-            Source = ApplicationSource.PublicVisitor,
+            Source = ApplicationSource.ExternalApplicant,
             Status = ApplicationStatus.EmailVerificationPending,
             ReferenceCode = referenceCode,
             AccommodationType = request.AccommodationType,
@@ -76,7 +92,9 @@ public class PublicApplicationService(
             ApplicantNote = request.Note?.Trim(),
             RequestedDormitoryId = request.DormitoryId,
             RequestedHousingUnitId = request.HousingUnitId,
-            DocumentUrl = documentKey
+            DocumentUrl = documentKey,
+            IdempotencyKeyHash = idempotencyKeyHash,
+            IdempotencyPayloadHash = payloadHash
         };
 
         application.StatusHistory.Add(new ApplicationStatusHistory
@@ -86,7 +104,21 @@ public class PublicApplicationService(
         });
 
         db.Applications.Add(application);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            var duplicate = await db.Applications.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.IdempotencyKeyHash == idempotencyKeyHash, cancellationToken);
+            if (duplicate is null || !string.Equals(duplicate.IdempotencyPayloadHash, payloadHash, StringComparison.Ordinal))
+            {
+                throw;
+            }
+
+            return new PublicApplicationCreatedResponse(duplicate.ReferenceCode, duplicate.Status, "Başvurunuz oluşturuldu. Devam edebilmek için e-posta adresinize gönderilen doğrulama bağlantısını kullanın.");
+        }
 
         var verificationToken = await tokenService.CreateTokenAsync(
             application.Id,
@@ -95,7 +127,7 @@ public class PublicApplicationService(
             cancellationToken);
 
         await SendVerificationEmailAsync(application, verificationToken, cancellationToken);
-        return new PublicApplicationCreatedResponse(referenceCode, application.Status, "Başvurunuz alındı. Yetkili incelemesi için e-posta doğrulaması gereklidir.");
+        return new PublicApplicationCreatedResponse(referenceCode, application.Status, "Başvurunuz oluşturuldu. Devam edebilmek için e-posta adresinize gönderilen doğrulama bağlantısını kullanın.");
     }
 
     public async Task VerifyEmailAsync(PublicTokenRequest request, CancellationToken cancellationToken)
@@ -131,7 +163,7 @@ public class PublicApplicationService(
         var application = await db.Applications.FirstOrDefaultAsync(x =>
             x.ReferenceCode == referenceCode.Trim().ToUpperInvariant()
             && x.ApplicantEmail == email.Trim().ToLowerInvariant()
-            && x.Source == ApplicationSource.PublicVisitor
+            && x.Source == ApplicationSource.ExternalApplicant
             && x.Status == ApplicationStatus.EmailVerificationPending,
             cancellationToken);
 
@@ -151,7 +183,7 @@ public class PublicApplicationService(
 
     public async Task<PublicTrackResponse> TrackAsync(PublicTrackRequest request, CancellationToken cancellationToken)
     {
-        var accessToken = await tokenService.ConsumeTokenAsync(request.ReferenceCode, request.Token, ApplicationTokenPurpose.StatusTracking, cancellationToken)
+        var accessToken = await tokenService.ValidateTokenAsync(request.ReferenceCode, request.Token, ApplicationTokenPurpose.StatusTracking, cancellationToken)
             ?? throw new InvalidOperationException("Takip bağlantısı geçersiz veya süresi dolmuş.");
 
         var application = await db.Applications.AsNoTracking()
@@ -173,12 +205,62 @@ public class PublicApplicationService(
             application.Status,
             application.AccommodationType,
             application.ApplicantFullName ?? "Başvuru sahibi",
+            MaskEmail(application.ApplicantEmail),
+            application.ApplicantRole ?? AppRoles.Ogrenci,
             application.RequestedDormitory?.Name ?? application.RequestedHousingUnit?.Name,
             application.CreatedAt,
             application.UpdatedAt,
             application.StatusHistory.OrderBy(x => x.CreatedAt)
                 .Select(x => new PublicApplicationHistoryDto(x.Status, x.Note, x.CreatedAt))
                 .ToList());
+    }
+
+    public async Task ResubmitMissingInformationAsync(PublicApplicationUpdateRequest request, CancellationToken cancellationToken)
+    {
+        var accessToken = await tokenService.ValidateTokenAsync(request.ReferenceCode, request.Token, ApplicationTokenPurpose.StatusTracking, cancellationToken)
+            ?? throw new InvalidOperationException("Takip bağlantısı geçersiz veya süresi dolmuş.");
+
+        var application = await db.Applications.FirstAsync(x => x.Id == accessToken.ApplicationId, cancellationToken);
+        if (application.Status != ApplicationStatus.MissingInformation)
+        {
+            throw new InvalidOperationException("Bu başvuru ek bilgi güncellemesine açık değil.");
+        }
+
+        var hasDocument = request.Document is { Length: > 0 };
+        if (!hasDocument && string.IsNullOrWhiteSpace(request.Note))
+        {
+            throw new InvalidOperationException("Not veya belge yüklenmelidir.");
+        }
+
+        var previousDocument = application.DocumentUrl;
+        if (hasDocument)
+        {
+            application.DocumentUrl = await documentStorage.SavePublicDocumentAsync(request.Document, cancellationToken);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Note))
+        {
+            application.ApplicantNote = request.Note.Trim();
+        }
+
+        application.Status = ApplicationStatus.Pending;
+        application.UpdatedAt = DateTime.UtcNow;
+        application.StatusHistory.Add(new ApplicationStatusHistory
+        {
+            Status = ApplicationStatus.Pending,
+            Note = hasDocument && !string.IsNullOrWhiteSpace(previousDocument)
+                ? "Ek bilgi güncellendi ve yeni belgeyle tekrar inceleme kuyruğuna alındı."
+                : "Ek bilgi güncellendi ve tekrar inceleme kuyruğuna alındı."
+        });
+
+        var trackingToken = await tokenService.CreateTokenAsync(
+            application.Id,
+            ApplicationTokenPurpose.StatusTracking,
+            TimeSpan.FromDays(options.Value.TrackingTokenDays),
+            cancellationToken);
+
+        await SendTrackingEmailAsync(application, trackingToken, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task ActivateAsync(ActivateAccountRequest request, CancellationToken cancellationToken)
@@ -247,6 +329,25 @@ public class PublicApplicationService(
         throw new InvalidOperationException("Başvuru sahibi rolü yalnızca Öğrenci veya Personel olabilir.");
     }
 
+    private static string NormalizedApplicationPayload(PublicApplicationCreateRequest request, string role)
+    {
+        return JsonSerializer.Serialize(new
+        {
+            FullName = request.FullName.Trim(),
+            Email = request.Email.Trim().ToLowerInvariant(),
+            TcNo = request.TcNo.Trim(),
+            PhoneNumber = request.PhoneNumber?.Trim() ?? string.Empty,
+            StudentStaffNo = request.StudentStaffNo?.Trim() ?? string.Empty,
+            ApplicantRole = role,
+            request.AccommodationType,
+            DormitoryId = request.AccommodationType == AccommodationType.Yurt ? request.DormitoryId : null,
+            HousingUnitId = request.AccommodationType == AccommodationType.Lojman ? request.HousingUnitId : null,
+            Note = request.Note?.Trim() ?? string.Empty,
+            DocumentName = request.Document?.FileName ?? string.Empty,
+            DocumentLength = request.Document?.Length ?? 0
+        });
+    }
+
     private async Task<string> GenerateReferenceCodeAsync(CancellationToken cancellationToken)
     {
         for (var i = 0; i < 10; i++)
@@ -275,5 +376,14 @@ public class PublicApplicationService(
         return outbox.EnqueueAsync(application.ApplicantEmail!, "Başvuru takip bağlantısı",
             $"<p>Başvuru durumunuzu güvenli bağlantıdan takip edebilirsiniz.</p><p><a href=\"{WebUtility.HtmlEncode(link)}\">Başvuruyu takip et</a></p>",
             cancellationToken);
+    }
+
+    private static string MaskEmail(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@')) return string.Empty;
+        var parts = email.Split('@', 2);
+        var name = parts[0];
+        var prefix = name.Length <= 2 ? name[..1] : name[..Math.Min(2, name.Length)];
+        return $"{prefix}{new string('*', Math.Max(3, name.Length - prefix.Length))}@{parts[1]}";
     }
 }

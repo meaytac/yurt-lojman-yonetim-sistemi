@@ -3,21 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Hesap Aktivasyonu</title>
+  <title>Hesabınızı Aktifleştirin</title>
   <link rel="stylesheet" href="/css/public.css">
 </head>
 <body>
   <header class="public-header">
-    <div class="brand"><img src="/img/mtu-amblem.png" alt="MTÜ amblemi"><span>Hesap Aktivasyonu</span></div>
+    <div class="brand"><img src="/img/mtu-amblem.png" alt="MTÜ amblemi"><span>Hesabınızı Aktifleştirin</span></div>
     <a href="/">Giriş</a>
   </header>
   <main class="public-shell">
     <section class="public-panel">
-      <h1>Şifrenizi Belirleyin</h1>
+      <h1>Hesabınızı Aktifleştirin</h1>
+      <p class="muted">Başvurunuz onaylandıysa yeni şifrenizi belirleyerek giriş hesabınızı açabilirsiniz.</p>
       <form id="activationForm" class="public-form">
         <label>Referans Kodu<input name="referenceCode" id="activationReference" required maxlength="32"></label>
         <label>Aktivasyon Tokenı<input name="token" id="activationToken" required></label>
-        <label>Yeni Şifre<input name="password" type="password" required minlength="6" maxlength="100"></label>
+        <label>Yeni Şifre
+          <span class="password-row"><input name="password" id="activationPassword" type="password" required minlength="6" maxlength="100"><button type="button" class="secondary-btn password-toggle" data-toggle-password="activationPassword">Göster</button></span>
+        </label>
+        <label>Yeni Şifre Tekrar
+          <span class="password-row"><input name="confirmPassword" id="activationConfirmPassword" type="password" required minlength="6" maxlength="100"><button type="button" class="secondary-btn password-toggle" data-toggle-password="activationConfirmPassword">Göster</button></span>
+        </label>
+        <p class="password-rules">En az 6 karakter kullanın. Şifre ve tekrar alanı aynı olmalıdır.</p>
         <button type="submit">Hesabı Aktive Et</button>
       </form>
       <p id="activationState" class="status"></p>

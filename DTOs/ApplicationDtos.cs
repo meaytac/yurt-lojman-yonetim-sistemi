@@ -47,6 +47,9 @@ public record PublicFacilityResponse(
 
 public class PublicApplicationCreateRequest
 {
+    [Required, MaxLength(128)]
+    public string IdempotencyKey { get; set; } = string.Empty;
+
     [Required, MaxLength(150)]
     public string FullName { get; set; } = string.Empty;
 
@@ -97,7 +100,20 @@ public class ActivateAccountRequest : PublicTokenRequest
 {
     [Required, MinLength(6), MaxLength(100)]
     public string Password { get; set; } = string.Empty;
+
+    [Required, Compare(nameof(Password))]
+    public string ConfirmPassword { get; set; } = string.Empty;
 }
+
+public class PublicApplicationUpdateRequest : PublicTokenRequest
+{
+    [MaxLength(1000)]
+    public string? Note { get; set; }
+
+    public IFormFile? Document { get; set; }
+}
+
+public record MissingInformationRequest([Required, MaxLength(1000)] string Reason);
 
 public record PublicApplicationHistoryDto(
     ApplicationStatus Status,
@@ -109,9 +125,16 @@ public record PublicTrackResponse(
     ApplicationStatus Status,
     AccommodationType AccommodationType,
     string ApplicantFullName,
+    string MaskedEmail,
+    string ApplicantRole,
     string? FacilityName,
     DateTime CreatedAt,
     DateTime? UpdatedAt,
     IReadOnlyList<PublicApplicationHistoryDto> History);
 
 public record PublicMessageResponse(string Message);
+
+public record ApplicationEligibilityResponse(
+    bool CanApply,
+    string ReasonCode,
+    string Message);

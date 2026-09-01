@@ -39,6 +39,11 @@ public class SecureDocumentStorage(IWebHostEnvironment environment, IOptions<Pub
             throw new InvalidOperationException("Yalnızca PDF, JPEG veya PNG belge yüklenebilir.");
         }
 
+        if (!ContentTypeMatches(extension, file.ContentType))
+        {
+            throw new InvalidOperationException("Belge MIME tipi dosya türüyle eşleşmiyor.");
+        }
+
         await using var input = file.OpenReadStream();
         var header = new byte[Math.Min(8, (int)file.Length)];
         var read = await input.ReadAsync(header.AsMemory(0, header.Length), cancellationToken);
@@ -85,5 +90,12 @@ public class SecureDocumentStorage(IWebHostEnvironment environment, IOptions<Pub
             return header.Length >= 8 && header.SequenceEqual(pngHeader);
         }
         return false;
+    }
+
+    private static bool ContentTypeMatches(string extension, string? contentType)
+    {
+        if (string.IsNullOrWhiteSpace(contentType)) return false;
+        if (extension is ".jpg" or ".jpeg" && contentType.Equals("image/pjpeg", StringComparison.OrdinalIgnoreCase)) return true;
+        return contentType.Equals(AllowedContentTypes[extension], StringComparison.OrdinalIgnoreCase);
     }
 }

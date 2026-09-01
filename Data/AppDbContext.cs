@@ -112,7 +112,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             entity.Property(x => x.CreatedAt).HasDefaultValueSql("datetime('now')");
             entity.Property(x => x.Version).IsRowVersion();
             entity.HasIndex(x => x.ReferenceCode).IsUnique();
-            entity.HasIndex(x => x.IdempotencyKeyHash);
+            entity.HasIndex(x => x.IdempotencyKeyHash).IsUnique();
             entity.HasOne(x => x.User).WithMany(x => x.Applications).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.RequestedDormitory).WithMany().HasForeignKey(x => x.RequestedDormitoryId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.RequestedHousingUnit).WithMany().HasForeignKey(x => x.RequestedHousingUnitId).OnDelete(DeleteBehavior.Restrict);

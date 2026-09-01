@@ -51,6 +51,9 @@ public class AccommodationApplication
     [MaxLength(128)]
     public string? IdempotencyKeyHash { get; set; }
 
+    [MaxLength(128)]
+    public string? IdempotencyPayloadHash { get; set; }
+
     public DateTime? EmailVerifiedAt { get; set; }
     public DateTime? DecisionAt { get; set; }
     public Guid? DecidedById { get; set; }

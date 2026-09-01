@@ -269,6 +269,8 @@ function renderApplications() {
       <td>${date(item.createdAt)}</td>
       <td>
         <button class="row-btn" onclick="openAssignModal(${item.id}, '${item.userId}', '${escapeAttr(item.fullName)}', '${item.accommodationType}')">Odaya Yerleştir</button>
+        ${item.status === 'Pending' ? `<button class="row-btn" onclick="markUnderReview(${item.id})">İncelemeye Al</button>` : ''}
+        <button class="row-btn warn" onclick="requestMissingInformation(${item.id})">Ek Bilgi İste</button>
         <button class="row-btn danger" onclick="rejectApplication(${item.id})">Reddet</button>
       </td>
     </tr>
@@ -442,12 +444,13 @@ async function submitApplicationAssign(event) {
 }
 
 async function rejectApplication(id) {
-  if (!confirm('Bu başvuruyu reddetmek istediğinize emin misiniz?')) return;
+  const reason = prompt('Ret gerekçesi');
+  if (!reason) return;
   try {
     const result = await api(`/api/yetkili/applications/${id}/reject`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ approved: false, reason: 'Yetkili panelinden reddedildi.', roomId: null, autoPlace: false, dormitoryId: null, housingUnitId: null })
+      body: JSON.stringify({ approved: false, reason, roomId: null, autoPlace: false, dormitoryId: null, housingUnitId: null })
     });
     state.applications = state.applications.filter(item => item.id !== id);
     renderApplications();
@@ -455,6 +458,37 @@ async function rejectApplication(id) {
     await loadDashboard();
   } catch (error) {
     toast(error.message || 'Başvuru reddedilemedi.', true);
+  }
+}
+
+async function markUnderReview(id) {
+  try {
+    const result = await api(`/api/yetkili/applications/${id}/under-review`, { method: 'POST' });
+    const item = state.applications.find(application => application.id === id);
+    if (item) item.status = 'UnderReview';
+    renderApplications();
+    showApplicationFeedback(result?.message || 'Başvuru incelemeye alındı.');
+    await loadDashboard();
+  } catch (error) {
+    toast(error.message || 'Başvuru incelemeye alınamadı.', true);
+  }
+}
+
+async function requestMissingInformation(id) {
+  const reason = prompt('Başvuru sahibinden istenecek ek bilgi veya belge');
+  if (!reason) return;
+  try {
+    const result = await api(`/api/yetkili/applications/${id}/missing-information`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason })
+    });
+    state.applications = state.applications.filter(item => item.id !== id);
+    renderApplications();
+    showApplicationFeedback(result?.message || 'Ek bilgi talebi iletildi.');
+    await loadDashboard();
+  } catch (error) {
+    toast(error.message || 'Ek bilgi talebi gönderilemedi.', true);
   }
 }
 
@@ -1155,6 +1189,10 @@ function toast(message, isError = false) {
 function getStatusBadge(status) {
   const map = {
     Pending: ['Beklemede', 'badge-warning'],
+    EmailVerificationPending: ['E-posta Bekliyor', 'badge-muted'],
+    UnderReview: ['İnceleniyor', 'badge-info'],
+    MissingInformation: ['Ek Bilgi Bekleniyor', 'badge-warning'],
+    ApprovedAwaitingActivation: ['Aktivasyon Bekliyor', 'badge-warning'],
     Approved: ['Onaylandı', 'badge-success'],
     Rejected: ['Reddedildi', 'badge-danger'],
     Open: ['Açık', 'badge-info'],
