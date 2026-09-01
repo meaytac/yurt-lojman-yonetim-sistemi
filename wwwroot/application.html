@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MTÜ Öğrenci Paneli</title>
+  <link rel="icon" href="/img/mtu-amblem.png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link rel="stylesheet" href="/css/admin.css?v=20260901">
 </head>
@@ -17,7 +18,7 @@
           <small>Öğrenci ve personel konaklama paneli</small>
         </div>
       </div>
-      <div class="form-grid" style="margin-top: 24px;">
+      <div class="form-grid">
         <label>E-posta
           <input type="email" id="loginEmail" autocomplete="email" placeholder="E-posta adresiniz">
         </label>
@@ -78,22 +79,24 @@
 
         <main class="student-content">
           <section id="page-profile" class="page-section active">
-            <div id="profileIncompleteBanner" class="profile-incomplete-banner">
+            <div id="profileIncompleteBanner" class="inline-feedback profile-incomplete-banner">
               <i class="fas fa-exclamation-triangle"></i>
               <span>Lütfen kişisel bilgilerinizi tamamlayın.</span>
             </div>
 
-            <div class="card-grid">
-              <article class="card">
-                <div class="card-header">
-                  <div class="card-header-left"><i class="fas fa-user-graduate"></i>Kişisel Bilgiler</div>
+            <div class="content-grid">
+              <article class="panel">
+                <div class="panel-head">
+                  <h2><i class="fas fa-user-graduate"></i> Kişisel Bilgiler</h2>
                   <span class="badge badge-success" id="personalInfoBadge">Hesabınız</span>
                 </div>
                 <div id="personalInfoDisplay">
-                  <div class="list-row"><span class="info-label">Ad Soyad</span><span class="info-value" id="displayFullName">-</span></div>
-                  <div class="list-row"><span class="info-label">Öğrenci / Personel No</span><span class="info-value" id="displayStudentId">-</span></div>
-                  <div class="list-row"><span class="info-label">Bölüm / Birim</span><span class="info-value" id="displayDepartment">-</span></div>
-                  <div class="list-row"><span class="info-label">Telefon</span><span class="info-value" id="displayPhone">-</span></div>
+                  <div class="activity-list detail-list">
+                    <div class="activity-item"><small>Ad Soyad</small><strong id="displayFullName">-</strong></div>
+                    <div class="activity-item"><small>Öğrenci / Personel No</small><strong id="displayStudentId">-</strong></div>
+                    <div class="activity-item"><small>Bölüm / Birim</small><strong id="displayDepartment">-</strong></div>
+                    <div class="activity-item"><small>Telefon</small><strong id="displayPhone">-</strong></div>
+                  </div>
                   <button class="row-btn" id="editPersonalInfoBtn" type="button"><i class="fas fa-edit"></i> Düzenle</button>
                 </div>
                 <div id="personalInfoEdit" style="display: none;">
@@ -103,11 +106,11 @@
                     <button class="primary-btn" id="fillPersonalInfoBtn" type="button"><i class="fas fa-pencil-alt"></i> Bilgileri Doldur</button>
                   </div>
                   <div id="personalInfoForm">
-                    <div class="profile-edit-form">
-                      <div class="input-group"><label>Ad Soyad</label><input type="text" id="editFullName"></div>
-                      <div class="input-group"><label>Öğrenci / Personel No</label><input type="text" id="editStudentId"></div>
-                      <div class="input-group"><label>Bölüm / Birim</label><input type="text" id="editDepartment"></div>
-                      <div class="input-group"><label>Telefon</label><input type="text" id="editPhone"></div>
+                    <div class="form-grid two">
+                      <label for="editFullName">Ad Soyad<input type="text" id="editFullName"></label>
+                      <label for="editStudentId">Öğrenci / Personel No<input type="text" id="editStudentId"></label>
+                      <label for="editDepartment">Bölüm / Birim<input type="text" id="editDepartment"></label>
+                      <label for="editPhone">Telefon<input type="text" id="editPhone"></label>
                       <div class="form-actions">
                         <button class="ghost-btn" id="cancelPersonalInfoBtn" type="button">İptal</button>
                         <button class="primary-btn" id="savePersonalInfoBtn" type="button"><i class="fas fa-save"></i> Kaydet</button>
@@ -117,9 +120,9 @@
                 </div>
               </article>
 
-              <article class="card">
-                <div class="card-header">
-                  <div class="card-header-left"><i class="fas fa-bed"></i>Konaklama Bilgisi</div>
+              <article class="panel">
+                <div class="panel-head">
+                  <h2><i class="fas fa-bed"></i> Konaklama Bilgisi</h2>
                 </div>
                 <div id="accommodationInfo" class="empty-state">
                   <i class="fas fa-spinner fa-spin"></i>
@@ -128,20 +131,22 @@
               </article>
             </div>
 
-            <article class="card">
-              <div class="card-header">
-                <div class="card-header-left"><i class="fas fa-user-cog"></i>Hesap Bilgileri</div>
+            <article class="panel">
+              <div class="panel-head">
+                <h2><i class="fas fa-user-cog"></i> Hesap Bilgileri</h2>
               </div>
               <div id="alertMessage" class="alert-message"></div>
 
               <div id="emailDisplay">
-                <div class="list-row"><span class="info-label">E-posta Adresi</span><span class="info-value" id="displayEmail">-</span></div>
+                <div class="activity-list detail-list">
+                  <div class="activity-item"><small>E-posta Adresi</small><strong id="displayEmail">-</strong></div>
+                </div>
                 <button class="row-btn" id="changeEmailBtn" type="button"><i class="fas fa-edit"></i> E-posta Değiştir</button>
               </div>
               <div id="emailEditForm" style="display: none;">
-                <div class="profile-edit-form">
-                  <div class="list-row"><span class="info-label">Mevcut E-posta</span><span class="info-value" id="currentEmailLabel">-</span></div>
-                  <div class="input-group"><label>Yeni E-posta Adresi</label><input type="email" id="profileEmail"></div>
+                <div class="form-grid">
+                  <div class="activity-item"><small>Mevcut E-posta</small><strong id="currentEmailLabel">-</strong></div>
+                  <label for="profileEmail">Yeni E-posta Adresi<input type="email" id="profileEmail"></label>
                   <div class="form-actions">
                     <button class="ghost-btn" id="cancelEmailBtn" type="button">İptal</button>
                     <button class="primary-btn" id="saveEmailBtn" type="button"><i class="fas fa-save"></i> Kaydet</button>
@@ -152,14 +157,16 @@
               <hr class="student-divider">
 
               <div id="passwordDisplay">
-                <div class="list-row"><span class="info-label">Şifre</span><span class="info-value">••••••••</span></div>
+                <div class="activity-list detail-list">
+                  <div class="activity-item"><small>Şifre</small><strong>••••••••</strong></div>
+                </div>
                 <button class="row-btn" id="changePasswordBtn" type="button"><i class="fas fa-key"></i> Şifre Yenile</button>
               </div>
               <div id="passwordEditForm" class="password-change-section">
-                <div class="profile-edit-form">
-                  <div class="input-group"><label>Mevcut Şifre</label><input type="password" id="currentPassword" autocomplete="current-password"></div>
-                  <div class="input-group"><label>Yeni Şifre</label><input type="password" id="newPassword" autocomplete="new-password"></div>
-                  <div class="input-group"><label>Yeni Şifre (Tekrar)</label><input type="password" id="confirmPassword" autocomplete="new-password"></div>
+                <div class="form-grid two">
+                  <label for="currentPassword">Mevcut Şifre<input type="password" id="currentPassword" autocomplete="current-password"></label>
+                  <label for="newPassword">Yeni Şifre<input type="password" id="newPassword" autocomplete="new-password"></label>
+                  <label for="confirmPassword" class="full">Yeni Şifre (Tekrar)<input type="password" id="confirmPassword" autocomplete="new-password"></label>
                   <div class="form-actions">
                     <button class="ghost-btn" id="cancelPasswordBtn" type="button">İptal</button>
                     <button class="primary-btn" id="savePasswordBtn" type="button"><i class="fas fa-save"></i> Şifreyi Güncelle</button>
@@ -170,88 +177,88 @@
           </section>
 
           <section id="page-borc" class="page-section">
-            <article class="card">
-              <div class="card-header"><div class="card-header-left"><i class="fas fa-list"></i>Dönem Borçları</div></div>
+            <article class="panel">
+              <div class="panel-head"><h2><i class="fas fa-list"></i> Dönem Borçları</h2></div>
               <div id="paymentList" class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Borçlar yükleniyor...</p></div>
             </article>
-            <article class="card">
-              <div class="card-header"><div class="card-header-left"><i class="fas fa-credit-card"></i>Hızlı Ödeme</div></div>
+            <article class="panel">
+              <div class="panel-head"><h2><i class="fas fa-credit-card"></i> Hızlı Ödeme</h2></div>
               <p id="quickPaymentInfo">Vadesi gelen borçlar yükleniyor...</p>
               <button id="quickPaymentButton" class="primary-btn" type="button" disabled><i class="fas fa-check"></i> Ödeme Yap</button>
             </article>
           </section>
 
           <section id="page-ariza" class="page-section">
-            <article class="card">
-              <div class="card-header"><div class="card-header-left"><i class="fas fa-tools"></i>Arıza Taleplerim</div></div>
+            <article class="panel">
+              <div class="panel-head"><h2><i class="fas fa-tools"></i> Arıza Taleplerim</h2></div>
               <div id="requestsList" class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Arıza talepleri yükleniyor...</p></div>
             </article>
-            <article class="card">
-              <div class="card-header"><div class="card-header-left"><i class="fas fa-plus-circle"></i>Yeni Arıza Kaydı</div></div>
-              <form id="requestForm" class="profile-edit-form">
-                <div class="input-group"><label>Oda numarası</label><input name="roomId" type="number" min="1" required></div>
-                <div class="input-group"><label>Kategori</label><input name="category" maxlength="80" placeholder="Örn. Elektrik" required></div>
-                <div class="input-group"><label>Açıklama</label><textarea name="description" maxlength="1000" required></textarea></div>
-                <div class="input-group"><label>Fotoğraf</label><input name="photo" type="file" accept="image/*"></div>
+            <article class="panel">
+              <div class="panel-head"><h2><i class="fas fa-plus-circle"></i> Yeni Arıza Kaydı</h2></div>
+              <form id="requestForm" class="form-grid two">
+                <label>Oda numarası<input name="roomId" type="number" min="1" required></label>
+                <label>Kategori<input name="category" maxlength="80" placeholder="Örn. Elektrik" required></label>
+                <label class="full">Açıklama<textarea name="description" maxlength="1000" required></textarea></label>
+                <label class="full">Fotoğraf<input name="photo" type="file" accept="image/*"></label>
                 <div class="form-actions"><button class="primary-btn" type="submit"><i class="fas fa-plus-circle"></i> Arıza Bildir</button></div>
               </form>
             </article>
           </section>
 
           <section id="page-basvuru" class="page-section">
-            <article class="card">
-              <div class="card-header"><div class="card-header-left"><i class="fas fa-clipboard-list"></i>Başvurularım</div></div>
+            <article class="panel">
+              <div class="panel-head"><h2><i class="fas fa-clipboard-list"></i> Başvurularım</h2></div>
               <div id="myApplications" class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Başvurular yükleniyor...</p></div>
             </article>
-            <article class="card">
-              <div class="card-header"><div class="card-header-left"><i class="fas fa-plus"></i>Yeni Başvuru</div></div>
-              <form id="applicationForm" class="profile-edit-form">
-                <div class="input-group"><label>Konaklama türü</label><select name="accommodationType"><option value="Yurt">Yurt</option><option value="Lojman">Lojman</option></select></div>
-                <div class="input-group"><label>Belge</label><input name="document" type="file"></div>
+            <article class="panel">
+              <div class="panel-head"><h2><i class="fas fa-plus"></i> Yeni Başvuru</h2></div>
+              <form id="applicationForm" class="form-grid two">
+                <label>Konaklama türü<select name="accommodationType"><option value="Yurt">Yurt</option><option value="Lojman">Lojman</option></select></label>
+                <label>Belge<input name="document" type="file"></label>
                 <div class="form-actions"><button class="primary-btn" type="submit"><i class="fas fa-file"></i> Başvuruyu Gönder</button></div>
               </form>
             </article>
           </section>
 
           <section id="page-degisim" class="page-section">
-            <article class="card">
-              <div class="card-header"><div class="card-header-left"><i class="fas fa-history"></i>Değişim Taleplerim</div></div>
+            <article class="panel">
+              <div class="panel-head"><h2><i class="fas fa-history"></i> Değişim Taleplerim</h2></div>
               <div id="roomChangeList" class="empty-state">
                 <i class="fas fa-inbox"></i>
                 <p>Henüz oda değişim talebiniz bulunmuyor.</p>
               </div>
             </article>
-            <article class="card">
-              <div class="card-header"><div class="card-header-left"><i class="fas fa-arrow-right-arrow-left"></i>Yeni Değişim Talebi</div></div>
-              <form id="roomChangeForm" class="profile-edit-form">
-                <div class="input-group"><label>Mevcut Oda</label><input name="currentRoom" type="text" placeholder="Örn. A Blok 203" required></div>
-                <div class="input-group"><label>Talep Edilen Oda / Tercih</label><input name="requestedRoom" type="text" placeholder="Örn. Sessiz kat veya B Blok" required></div>
-                <div class="input-group"><label>Gerekçe</label><textarea name="reason" maxlength="1000" placeholder="Talep gerekçenizi yazın" required></textarea></div>
+            <article class="panel">
+              <div class="panel-head"><h2><i class="fas fa-arrow-right-arrow-left"></i> Yeni Değişim Talebi</h2></div>
+              <form id="roomChangeForm" class="form-grid two">
+                <label>Mevcut Oda<input name="currentRoom" type="text" placeholder="Örn. A Blok 203" required></label>
+                <label>Talep Edilen Oda / Tercih<input name="requestedRoom" type="text" placeholder="Örn. Sessiz kat veya B Blok" required></label>
+                <label class="full">Gerekçe<textarea name="reason" maxlength="1000" placeholder="Talep gerekçenizi yazın" required></textarea></label>
                 <div class="form-actions"><button class="primary-btn" type="submit"><i class="fas fa-paper-plane"></i> Talebi Kaydet</button></div>
               </form>
             </article>
           </section>
 
           <section id="page-duyurular" class="page-section">
-            <article class="card">
-              <div class="card-header"><div class="card-header-left"><i class="fas fa-bullhorn"></i>Duyurular</div></div>
+            <article class="panel">
+              <div class="panel-head"><h2><i class="fas fa-bullhorn"></i> Duyurular</h2></div>
               <div id="announcementsList" class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Duyurular yükleniyor...</p></div>
             </article>
           </section>
 
           <section id="page-sikayet" class="page-section">
-            <article class="card">
-              <div class="card-header"><div class="card-header-left"><i class="fas fa-plus-circle"></i>Yeni Bildirim</div></div>
+            <article class="panel">
+              <div class="panel-head"><h2><i class="fas fa-plus-circle"></i> Yeni Bildirim</h2></div>
               <div id="sikayetAlert" class="alert-message"></div>
-              <div class="profile-edit-form">
-                <div class="input-group"><label>Tür</label><select id="sikayetType"><option value="sikayet">Şikayet</option><option value="oneri">Öneri</option></select></div>
-                <div class="input-group"><label>Konu</label><input type="text" id="sikayetSubject" placeholder="Konu başlığı"></div>
-                <div class="input-group"><label>Açıklama</label><textarea id="sikayetDescription" placeholder="Şikayet veya önerinizi detaylı olarak açıklayın"></textarea></div>
+              <div class="form-grid two">
+                <label for="sikayetType">Tür<select id="sikayetType"><option value="sikayet">Şikayet</option><option value="oneri">Öneri</option></select></label>
+                <label for="sikayetSubject">Konu<input type="text" id="sikayetSubject" placeholder="Konu başlığı"></label>
+                <label for="sikayetDescription" class="full">Açıklama<textarea id="sikayetDescription" placeholder="Şikayet veya önerinizi detaylı olarak açıklayın"></textarea></label>
                 <div class="form-actions"><button class="primary-btn" id="submitSikayetBtn" type="button"><i class="fas fa-paper-plane"></i> Gönder</button></div>
               </div>
             </article>
-            <article class="card">
-              <div class="card-header"><div class="card-header-left"><i class="fas fa-list"></i>Geçmiş Bildirimler</div></div>
+            <article class="panel">
+              <div class="panel-head"><h2><i class="fas fa-list"></i> Geçmiş Bildirimler</h2></div>
               <div id="sikayetList"></div>
             </article>
           </section>

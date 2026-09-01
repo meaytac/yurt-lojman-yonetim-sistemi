@@ -398,6 +398,17 @@ textarea { min-height: 100px; resize: vertical; }
   border-color: var(--danger);
   color: white;
 }
+button:disabled,
+button[disabled],
+.nav-item.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+button:disabled:hover,
+button[disabled]:hover,
+.nav-item.disabled:hover {
+  transform: none;
+}
 
 .table-wrap {
   flex: 1 1 auto;
@@ -475,6 +486,19 @@ tr:hover td { background: rgba(56, 189, 248, 0.02); }
 }
 .activity-item strong { display: block; color: var(--primary-navy); }
 .activity-item small { color: var(--text-secondary); }
+.activity-item p {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+.item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  text-align: right;
+}
 
 .pager {
   flex: 0 0 auto;
@@ -553,6 +577,7 @@ tr:hover td { background: rgba(56, 189, 248, 0.02); }
   justify-content: flex-end;
   gap: 10px;
 }
+.form-grid > .form-actions { grid-column: 1 / -1; }
 .form-actions .danger-btn { margin-right: auto; }
 .modal-list {
   margin-top: 22px;
@@ -661,23 +686,7 @@ tr:hover td { background: rgba(56, 189, 248, 0.02); }
 }
 
 body.student-body {
-  display: block;
-  align-items: initial;
-  justify-content: initial;
-  min-height: 100vh;
-  padding: 0;
   overflow: hidden;
-  background: linear-gradient(180deg, #f8fafc 0%, #eef6ff 100%);
-}
-
-body.student-body > .app-shell {
-  width: 100vw;
-  max-width: none;
-  height: 100vh;
-  min-height: 0;
-  border-radius: 0;
-  box-shadow: none;
-  background: transparent;
 }
 
 .student-body .login-screen {
@@ -692,6 +701,10 @@ body.student-body > .app-shell {
     linear-gradient(180deg, #f8fafc 0%, #eef6ff 100%);
 }
 
+.student-body .login-card .form-grid {
+  margin-top: 24px;
+}
+
 .student-body #mainApp {
   display: none;
   width: 100%;
@@ -701,16 +714,6 @@ body.student-body > .app-shell {
 
 .student-body #mainApp.active {
   display: block;
-}
-
-.student-body #appShell {
-  width: 100%;
-  height: 100vh;
-}
-
-.student-body .sidebar {
-  width: auto;
-  overflow: hidden;
 }
 
 .student-body .profile-card {
@@ -758,19 +761,6 @@ body.student-body > .app-shell {
   white-space: nowrap;
 }
 
-.student-body .student-content {
-  gap: 0;
-}
-
-.student-body .student-content .page-title {
-  display: none;
-}
-
-.student-body .student-content .page-section {
-  min-height: 0;
-  height: 100%;
-}
-
 .student-body .student-content .page-section.active {
   display: flex;
   flex-direction: column;
@@ -779,36 +769,25 @@ body.student-body > .app-shell {
   padding-right: 2px;
 }
 
-.student-body .card-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.student-body .card {
-  min-width: 0;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  padding: 20px;
-}
-
-.student-body .card-header {
-  color: var(--primary-navy);
-  font-size: 1rem;
-}
-
-.student-body .card-header i,
-.student-body .page-title i {
+.student-body .panel-head i {
   color: var(--primary-emerald);
+}
+
+.student-body .row-btn,
+.student-body .primary-btn,
+.student-body .ghost-btn {
+  position: relative;
+  z-index: 1;
 }
 
 .student-body .profile-incomplete-banner {
   flex: 0 0 auto;
   border-color: #fde68a;
-  border-radius: 12px;
   background: #fffbeb;
+  color: #92400e;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .student-body .password-change-section {
@@ -825,22 +804,6 @@ body.student-body > .app-shell {
   margin: 18px 0;
 }
 
-.student-body .profile-edit-form {
-  display: grid;
-  gap: 14px;
-}
-
-.student-body .input-group {
-  margin: 0;
-}
-
-.student-body .input-group input,
-.student-body .input-group select,
-.student-body .input-group textarea {
-  min-width: 0;
-  border-radius: 10px;
-}
-
 .student-body input[type="file"] {
   display: flex;
   align-items: center;
@@ -848,102 +811,17 @@ body.student-body > .app-shell {
   color: var(--text-secondary);
 }
 
-.student-body .btn,
-.student-body .btn-sm,
-.student-body .btn-save,
-.student-body .btn-cancel {
-  border-radius: 10px;
-}
-
-.student-body .btn-primary,
-.student-body .btn-save {
-  background: linear-gradient(135deg, var(--primary-emerald), #0ea5a4);
-  color: #ffffff;
-}
-
-.student-body .btn-outline {
-  border: 1px solid var(--border-color);
-  color: var(--primary-navy);
-}
-
-.student-body .student-list {
-  min-height: 0;
-  max-height: min(54vh, 560px);
-  overflow: auto;
-  display: grid;
-  align-content: start;
-  gap: 10px;
-}
-
-.student-body .list-row {
-  gap: 14px;
-  min-width: 0;
-  flex-wrap: wrap;
-}
-
-.student-body .ticket-card,
-.student-body .complaint-card,
-.student-body .announcement-item,
-.student-body .student-record {
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  background: #ffffff;
-}
-
-.student-body .ticket-card {
-  gap: 16px;
-  align-items: flex-start;
-  margin-bottom: 10px;
-}
-
-.student-body .ticket-card p {
-  margin: 8px 0;
-  color: var(--text-secondary);
-}
-
-.student-body .announcement-item {
-  padding: 14px;
-  margin-bottom: 10px;
-  align-items: flex-start;
-}
-
-.student-body .complaint-card {
-  margin-bottom: 10px;
-  border-left: 4px solid var(--warning);
-}
-
-.student-body .student-record {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 14px;
-}
-
-.student-body .student-record strong,
-.student-body .ticket-card strong,
-.student-body .announcement-item strong {
-  color: var(--primary-navy);
-}
-
-.student-body .student-record small,
-.student-body .ticket-card small,
-.student-body .announcement-item small {
-  display: block;
-  margin-top: 5px;
-  color: var(--text-secondary);
-}
-
-.student-body .student-record p {
-  margin: 8px 0 0;
-  color: var(--text-secondary);
-  line-height: 1.45;
-}
-
 .student-body .empty-state {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 120px;
+  padding: 18px;
   border: 1px dashed var(--border-color);
   border-radius: 12px;
   background: #ffffff;
+  color: var(--text-secondary);
+  text-align: center;
 }
 
 .student-body .empty-state i {
@@ -951,7 +829,39 @@ body.student-body > .app-shell {
 }
 
 .student-body .alert-message {
+  display: none;
   border-radius: 10px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-light);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.student-body .alert-success {
+  border-color: #a7f3d0;
+  background: #d1fae5;
+  color: #047857;
+}
+
+.student-body .alert-error {
+  border-color: #fecaca;
+  background: #fee2e2;
+  color: var(--danger);
+}
+
+.student-body .detail-list {
+  margin-bottom: 14px;
+}
+
+.student-body .detail-list .activity-item {
+  align-items: center;
+}
+
+.student-body .detail-list .activity-item small {
+  min-width: 150px;
+  font-weight: 700;
 }
 
 .student-body .modal-note {
@@ -968,17 +878,7 @@ body.student-body > .app-shell {
   width: min(520px, 100%);
 }
 
-@media (max-width: 900px) {
-  .student-body .card-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 768px) {
-  .student-body #appShell {
-    grid-template-columns: 1fr;
-  }
-
   .student-body .sidebar {
     height: 190px;
     padding: 14px;
@@ -1003,5 +903,18 @@ body.student-body > .app-shell {
 
   .student-body .profile-card {
     padding: 10px;
+  }
+
+  .student-body .detail-list .activity-item {
+    align-items: flex-start;
+  }
+
+  .student-body .detail-list .activity-item small {
+    min-width: 0;
+  }
+
+  .item-meta {
+    justify-content: flex-start;
+    text-align: left;
   }
 }

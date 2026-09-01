@@ -219,7 +219,7 @@
 
     try {
       state.payments = await api('/api/payments/mine');
-      root.className = 'student-list';
+      root.className = 'activity-list';
       setHtml(root, state.payments.length
         ? state.payments.map(renderPayment).join('')
         : empty('Kayıtlı borç bulunmuyor.'));
@@ -248,7 +248,7 @@
     if (!root) return;
     try {
       state.requests = await api('/api/requests/mine');
-      root.className = 'student-list';
+      root.className = 'activity-list';
       setHtml(root, state.requests.length
         ? state.requests.map(renderRequest).join('')
         : empty('Henüz arıza talebiniz bulunmuyor.'));
@@ -263,7 +263,7 @@
     if (!root) return;
     try {
       state.applications = await api('/api/applications/mine');
-      root.className = 'student-list';
+      root.className = 'activity-list';
       setHtml(root, state.applications.length
         ? state.applications.map(renderApplication).join('')
         : empty('Henüz başvurunuz bulunmuyor.'));
@@ -278,7 +278,7 @@
     if (!root) return;
     try {
       state.announcements = await api('/api/announcements');
-      root.className = 'student-list';
+      root.className = 'activity-list';
       setHtml(root, state.announcements.length
         ? state.announcements.map(renderAnnouncement).join('')
         : empty('Yayınlanmış duyuru bulunmuyor.'));
@@ -293,13 +293,13 @@
     if (!root) return;
     try {
       state.accommodation = await api('/api/placements/mine');
-      root.className = 'student-list';
+      root.className = 'activity-list detail-list';
       setHtml(root, `
-        <div class="list-row"><span class="info-label">Tesis</span><span class="info-value"><strong>${esc(state.accommodation.facilityName)}</strong> (${esc(state.accommodation.facilityType)})</span></div>
-        <div class="list-row"><span class="info-label">Blok</span><span class="info-value"><strong>${esc(state.accommodation.blockName)}</strong></span></div>
-        <div class="list-row"><span class="info-label">Kat</span><span class="info-value"><strong>${esc(state.accommodation.floorNumber)}</strong></span></div>
-        <div class="list-row"><span class="info-label">Oda No</span><span class="info-value"><strong>${esc(state.accommodation.roomNumber)}</strong></span></div>
-        <div class="list-row"><span class="info-label">Giriş Tarihi</span><span class="info-value"><strong>${date(state.accommodation.checkInDate)}</strong></span></div>`);
+        <div class="activity-item"><small>Tesis</small><strong>${esc(state.accommodation.facilityName)} (${esc(state.accommodation.facilityType)})</strong></div>
+        <div class="activity-item"><small>Blok</small><strong>${esc(state.accommodation.blockName)}</strong></div>
+        <div class="activity-item"><small>Kat</small><strong>${esc(state.accommodation.floorNumber)}</strong></div>
+        <div class="activity-item"><small>Oda No</small><strong>${esc(state.accommodation.roomNumber)}</strong></div>
+        <div class="activity-item"><small>Giriş Tarihi</small><strong>${date(state.accommodation.checkInDate)}</strong></div>`);
     } catch {
       state.accommodation = null;
       root.className = 'empty-state';
@@ -309,21 +309,53 @@
 
   function renderPayment(item) {
     const [label, badge] = status(item.status);
-    return `<div class="list-row"><span>${esc(item.description)}<br><small>${date(item.dueDate)}</small></span><span class="amount">${money(item.amount)}</span><span class="badge ${badge}">${label}</span></div>`;
+    return `<div class="activity-item">
+      <div>
+        <strong>${esc(item.description)}</strong>
+        <small>Son ödeme: ${date(item.dueDate)}</small>
+      </div>
+      <div class="item-meta">
+        <strong>${money(item.amount)}</strong>
+        <span class="badge ${badge}">${label}</span>
+      </div>
+    </div>`;
   }
 
   function renderRequest(item) {
     const [label, badge] = status(item.status);
-    return `<article class="ticket-card"><div><strong><i class="fas fa-wrench"></i> ${esc(item.category)}</strong><p>${esc(item.description)}</p><small>${date(item.createdAt)} - Oda ${esc(item.roomNumber || item.roomId)}</small></div><span class="badge ${badge}">${label}</span></article>`;
+    return `<article class="activity-item">
+      <div>
+        <strong>${esc(item.category)}</strong>
+        <small>Oda ${esc(item.roomNumber || item.roomId)} - ${date(item.createdAt)}</small>
+        <p>${esc(item.description)}</p>
+      </div>
+      <span class="badge ${badge}">${label}</span>
+    </article>`;
   }
 
   function renderApplication(item) {
     const [label, badge] = status(item.status);
-    return `<div class="list-row"><span>${esc(item.accommodationType)} başvurusu<br><small>${date(item.createdAt)}</small></span><strong>#${esc(item.id)}</strong><span class="badge ${badge}">${label}</span></div>`;
+    return `<div class="activity-item">
+      <div>
+        <strong>${esc(item.accommodationType)} başvurusu</strong>
+        <small>${date(item.createdAt)}</small>
+      </div>
+      <div class="item-meta">
+        <strong>#${esc(item.id)}</strong>
+        <span class="badge ${badge}">${label}</span>
+      </div>
+    </div>`;
   }
 
   function renderAnnouncement(item) {
-    return `<article class="announcement-item"><i class="fas fa-circle-info"></i><span><strong>${esc(item.title)}</strong> - ${esc(item.content)}<br><small>${date(item.createdAt)}</small></span></article>`;
+    return `<article class="activity-item">
+      <div>
+        <strong>${esc(item.title)}</strong>
+        <small>${date(item.createdAt)} - ${esc(targetRoleDisplay(item.targetRole))}</small>
+        <p>${esc(item.content)}</p>
+      </div>
+      <span class="badge ${item.isActive === false ? 'badge-muted' : 'badge-success'}">${item.isActive === false ? 'Yayın dışı' : 'Yayında'}</span>
+    </article>`;
   }
 
   async function submitRequest(event) {
@@ -536,10 +568,10 @@
       return;
     }
 
-    root.className = 'student-list';
+    root.className = 'activity-list';
     setHtml(root, state.roomChanges.map(item => {
       const [label, badge] = status(item.status);
-      return `<article class="student-record">
+      return `<article class="activity-item">
         <div>
           <strong>${esc(item.currentRoom)} -> ${esc(item.requestedRoom)}</strong>
           <small>${date(item.date)}</small>
@@ -554,20 +586,21 @@
     const root = byId('sikayetList');
     if (!root) return;
     if (!state.feedback.length) {
+      root.className = '';
       setHtml(root, empty('Henüz şikayet veya öneri bildirimi yapılmamış.'));
       return;
     }
 
+    root.className = 'activity-list';
     setHtml(root, state.feedback.map(item => {
       const typeLabel = item.type === 'sikayet' ? 'Şikayet' : 'Öneri';
-      const typeClass = item.type === 'sikayet' ? 'complaint' : 'suggestion';
       const [label, badge] = status(item.status);
-      return `<article class="complaint-card pending">
-        <div class="complaint-header">
-          <div class="complaint-title"><span class="type-badge ${typeClass}">${typeLabel}</span><span>${esc(item.subject)}</span></div>
-          <span class="complaint-date">${date(item.date)}</span>
+      return `<article class="activity-item">
+        <div>
+          <strong>${esc(item.subject)}</strong>
+          <small>${typeLabel} - ${date(item.date)}</small>
+          <p>${esc(item.description)}</p>
         </div>
-        <div class="complaint-description">${esc(item.description)}</div>
         <span class="badge ${badge}">${label}</span>
       </article>`;
     }).join(''));
@@ -752,6 +785,11 @@
     const key = normalizeRole(role);
     if (key === 'personel') return 'Personel Paneli';
     return 'Öğrenci Paneli';
+  }
+
+  function targetRoleDisplay(role) {
+    const map = { All: 'Herkes', Student: 'Öğrenci', Staff: 'Personel' };
+    return map[role] || role || 'Genel';
   }
 
   function normalizeRole(role) {
