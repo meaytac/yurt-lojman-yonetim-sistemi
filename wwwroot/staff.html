@@ -4,30 +4,139 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MTÜ Personel Operasyon Paneli</title>
+  <link rel="icon" href="/img/mtu-amblem.png">
+  <link rel="stylesheet" href="/css/admin.css">
   <link rel="stylesheet" href="/css/staff.css">
 </head>
-<body>
-  <div class="staff-shell">
+<body class="staff-body">
+  <div id="appShell" class="admin-shell staff-shell">
     <aside class="sidebar">
-      <div class="brand"><img src="/img/mtu-amblem.png" alt="MTÜ amblemi"><div><strong>MTÜ OPERASYON</strong><small id="roleLabel">Personel Paneli</small></div></div>
-      <p class="nav-caption">ÇALIŞMA ALANI</p>
-      <nav id="staffNav" class="staff-nav"></nav>
-      <button class="logout" id="logoutBtn">↩ Çıkış yap</button>
+      <div class="side-brand">
+        <img class="brand-logo mini" src="/img/mtu-amblem.png" alt="MTÜ amblemi">
+        <div>
+          <strong>PERSONEL</strong>
+          <small id="roleLabel">Personel Paneli</small>
+        </div>
+      </div>
+      <nav id="staffNav" class="side-nav" aria-label="Personel menüsü"></nav>
     </aside>
-    <div class="workspace">
-      <header class="topbar"><div><p class="eyebrow" id="welcomeLabel">GÜNLÜK OPERASYON</p><h1 id="sectionTitle">Bugünün iş akışı</h1></div><div class="user-chip"><span id="staffName"></span><small id="staffRole"></small><small id="dutyLocation" style="display:block; margin-top:4px; font-size:0.75rem; opacity:0.8;"></small></div></header>
+
+    <div class="main-area">
+      <header class="topbar">
+        <div>
+          <h1 id="sectionTitle">Operasyon Özeti</h1>
+          <p id="welcomeLabel">Günlük operasyon akışı yükleniyor...</p>
+        </div>
+        <div class="top-actions">
+          <div class="profile-chip staff-profile-chip">
+            <span id="staffName">Personel</span>
+            <small id="staffRole">Personel</small>
+            <small id="dutyLocation" class="duty-location">Görev yeri yükleniyor...</small>
+          </div>
+        </div>
+      </header>
+
       <main>
-        <section id="dashboard" class="page active"><div id="overview" class="overview"></div><div class="shift-strip"><span class="pulse"></span><div><strong>Vardiya açık</strong><small>Görevlerinizi tamamladıkça durumları güncelleyin.</small></div></div><div id="dashboardContent" class="card-grid"></div></section>
-        <section id="requests" class="page"><div class="section-head"><div><p class="eyebrow">TEKNİK İŞ EMİRLERİ</p><h2>Arıza talepleri</h2><p>Onarım süresini belirleyin, iş tamamlandığında kaydı kapatın.</p></div></div><div id="requestList" class="work-list"></div></section>
-        <section id="periodic" class="page"><div class="section-head"><div><p class="eyebrow">PLANLI KONTROL</p><h2>Periyodik bakımlar</h2><p>Yurt sistemlerinin bakım döngülerini takip edin.</p></div><button class="primary" id="addMaintenanceBtn">Bakım planla</button></div><div id="periodicList" class="work-list"></div></section>
-        <section id="assignments" class="page"><div class="section-head"><div><p class="eyebrow">YURT YÖNETİMİ</p><h2>Görevlendirmeler</h2><p>Yalnızca yurt yöneticilerinin atadığı işler, öncelik sırasına göre listelenir.</p></div></div><div id="assignmentList" class="work-list"></div></section>
-        <section id="tasks" class="page"><div class="section-head"><div><p class="eyebrow">GÜNLÜK GÖREVLER</p><h2>Temizlik ve düzenleme</h2><p>Size atanan işleri tamamlandığında işaretleyin.</p></div></div><div id="taskList" class="work-list"></div></section>
-        <section id="faultReport" class="page"><div class="form-card"><p class="eyebrow">ARIZA BİLDİRİMİ</p><h2>Görev sırasında arıza bildir</h2><p>Bu alan yalnızca gördüğünüz arızayı yurt yönetimine bildirmek içindir; buradan görev oluşturulmaz.</p><form id="faultForm" class="form-grid"><label>Arıza türü<select name="category" required><option>Elektrik</option><option>Su tesisatı</option><option>Isıtma / soğutma</option><option>Mobilya / demirbaş</option><option>Diğer</option></select></label><label>Konum<input name="location" placeholder="Örn. A Blok / Oda 204" required></label><label class="full">Arıza açıklaması<textarea name="description" placeholder="Gördüğünüz arızayı açıklayın" required></textarea></label><button class="primary" type="submit">Arızayı bildir</button></form></div></section>
+        <section id="dashboard" class="page-section active">
+          <div id="overview" class="kpi-grid"></div>
+          <div class="staff-status-strip">
+            <span class="status-pulse"></span>
+            <div>
+              <strong>Vardiya açık</strong>
+              <small>Görevlerinizi tamamladıkça durumları güncelleyin.</small>
+            </div>
+          </div>
+          <div id="dashboardContent" class="content-grid"></div>
+        </section>
+
+        <section id="requests" class="page-section">
+          <div class="toolbar">
+            <div>
+              <h2>Arıza Talepleri</h2>
+              <p>Onarım süresini belirleyin, iş tamamlandığında kaydı kapatın.</p>
+            </div>
+          </div>
+          <div id="requestList" class="activity-list staff-activity-list"></div>
+        </section>
+
+        <section id="periodic" class="page-section">
+          <div class="toolbar">
+            <div>
+              <h2>Periyodik Bakımlar</h2>
+              <p>Yurt sistemlerinin bakım döngülerini takip edin.</p>
+            </div>
+            <div class="toolbar-actions">
+              <button class="primary-btn" id="addMaintenanceBtn" type="button">Bakım Planla</button>
+            </div>
+          </div>
+          <div id="periodicList" class="activity-list staff-activity-list"></div>
+        </section>
+
+        <section id="assignments" class="page-section">
+          <div class="toolbar">
+            <div>
+              <h2>Görevlendirmeler</h2>
+              <p>Yurt yöneticilerinin atadığı işler öncelik sırasına göre listelenir.</p>
+            </div>
+          </div>
+          <div id="assignmentList" class="activity-list staff-activity-list"></div>
+        </section>
+
+        <section id="tasks" class="page-section">
+          <div class="toolbar">
+            <div>
+              <h2>Görevlerim</h2>
+              <p>Size atanan temizlik ve düzenleme işlerini takip edin.</p>
+            </div>
+          </div>
+          <div id="taskList" class="activity-list staff-activity-list"></div>
+        </section>
+
+        <section id="faultReport" class="page-section">
+          <article class="panel staff-form-panel">
+            <div class="panel-head">
+              <div>
+                <h2>Arıza Bildir</h2>
+                <small class="muted">Görev sırasında gördüğünüz arızayı yurt yönetimine iletin.</small>
+              </div>
+            </div>
+            <form id="faultForm" class="form-grid two">
+              <label>Arıza türü
+                <select name="category" required>
+                  <option>Elektrik</option>
+                  <option>Su tesisatı</option>
+                  <option>Isıtma / soğutma</option>
+                  <option>Mobilya / demirbaş</option>
+                  <option>Diğer</option>
+                </select>
+              </label>
+              <label>Konum
+                <input name="location" placeholder="Örn. A Blok / Oda 204" required>
+              </label>
+              <label class="full">Arıza açıklaması
+                <textarea name="description" placeholder="Gördüğünüz arızayı açıklayın" required></textarea>
+              </label>
+              <div class="form-actions">
+                <button class="primary-btn" type="submit">Arızayı Bildir</button>
+              </div>
+            </form>
+          </article>
+        </section>
       </main>
     </div>
   </div>
-  <div id="modalBackdrop" class="modal-backdrop"><div class="modal"><button id="closeModal" class="close">×</button><div id="modalBody"></div></div></div>
+
+  <div id="modalBackdrop" class="modal-backdrop" style="display: none;">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <header>
+        <h2 id="modalTitle">Form</h2>
+        <button class="icon-btn" id="closeModal" type="button" title="Kapat" aria-label="Kapat">×</button>
+      </header>
+      <div id="modalBody"></div>
+    </section>
+  </div>
+
   <div id="toastHost" class="toast-host"></div>
-  <script src="/js/staff.js?v=20260825"></script>
+  <script src="/js/staff.js?v=20260901"></script>
 </body>
 </html>
