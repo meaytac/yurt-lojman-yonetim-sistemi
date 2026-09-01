@@ -31,7 +31,7 @@ public class BotController(AppDbContext db, IConfiguration configuration, ILogge
     {
         var application = await db.Applications.AsNoTracking()
             .Include(x => x.User)
-            .Where(x => x.User.TcNo == tcNo)
+            .Where(x => (x.User != null && x.User.TcNo == tcNo) || x.ApplicantTcNo == tcNo)
             .OrderByDescending(x => x.CreatedAt)
             .Select(x => new { x.Status, x.AccommodationType, x.CreatedAt, x.UpdatedAt })
             .FirstOrDefaultAsync();

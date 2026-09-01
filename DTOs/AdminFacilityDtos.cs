@@ -11,7 +11,13 @@ public record AdminFacilityListItemDto(
     string CampusLocation,
     int TotalCapacity,
     bool IsActive,
-    int BuildingCount);
+    int BuildingCount,
+    bool IsPublished = false,
+    bool IsApplicationOpen = true,
+    string? PublicDescription = null,
+    string? Amenities = null,
+    string? ImageUrl = null,
+    string? ApplicationConditions = null);
 
 public record AdminRoomListItemDto(
     int Id,

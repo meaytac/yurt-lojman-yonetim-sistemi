@@ -13,6 +13,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Floor> Floors => Set<Floor>();
     public DbSet<Room> Rooms => Set<Room>();
     public DbSet<AccommodationApplication> Applications => Set<AccommodationApplication>();
+    public DbSet<ApplicationAccessToken> ApplicationAccessTokens => Set<ApplicationAccessToken>();
+    public DbSet<ApplicationStatusHistory> ApplicationStatusHistories => Set<ApplicationStatusHistory>();
+    public DbSet<EmailOutboxMessage> EmailOutboxMessages => Set<EmailOutboxMessage>();
     public DbSet<Placement> Placements => Set<Placement>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<MaintenanceRequest> Requests => Set<MaintenanceRequest>();
@@ -20,7 +23,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<CleaningTask> CleaningTasks => Set<CleaningTask>();
     public DbSet<PeriodicMaintenance> PeriodicMaintenances => Set<PeriodicMaintenance>();
     public DbSet<StaffAssignment> StaffAssignments => Set<StaffAssignment>();
-public DbSet<FaultReport> FaultReports => Set<FaultReport>();
+    public DbSet<FaultReport> FaultReports => Set<FaultReport>();
     public DbSet<UserFacilityAssignment> UserFacilityAssignments => Set<UserFacilityAssignment>();
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -104,9 +107,51 @@ public DbSet<FaultReport> FaultReports => Set<FaultReport>();
         {
             entity.ToTable("Applications");
             entity.Property(x => x.AccommodationType).HasConversion<string>();
+            entity.Property(x => x.Source).HasConversion<string>();
             entity.Property(x => x.Status).HasConversion<string>();
             entity.Property(x => x.CreatedAt).HasDefaultValueSql("datetime('now')");
-            entity.HasOne(x => x.User).WithMany(x => x.Applications).HasForeignKey(x => x.UserId);
+            entity.Property(x => x.Version).IsRowVersion();
+            entity.HasIndex(x => x.ReferenceCode).IsUnique();
+            entity.HasIndex(x => x.IdempotencyKeyHash);
+            entity.HasOne(x => x.User).WithMany(x => x.Applications).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.RequestedDormitory).WithMany().HasForeignKey(x => x.RequestedDormitoryId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.RequestedHousingUnit).WithMany().HasForeignKey(x => x.RequestedHousingUnitId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.DecidedBy).WithMany().HasForeignKey(x => x.DecidedById).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.ApprovedRoom).WithMany().HasForeignKey(x => x.ApprovedRoomId).OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(t => t.HasCheckConstraint("CK_Applications_RequestedFacility",
+                "([RequestedDormitoryId] IS NULL AND [RequestedHousingUnitId] IS NULL) OR ([RequestedDormitoryId] IS NOT NULL AND [RequestedHousingUnitId] IS NULL) OR ([RequestedDormitoryId] IS NULL AND [RequestedHousingUnitId] IS NOT NULL)"));
+        });
+
+        builder.Entity<ApplicationAccessToken>(entity =>
+        {
+            entity.Property(x => x.Purpose).HasConversion<string>();
+            entity.Property(x => x.CreatedAt).HasDefaultValueSql("datetime('now')");
+            entity.HasIndex(x => x.TokenHash).IsUnique();
+            entity.HasIndex(x => new { x.ApplicationId, x.Purpose, x.UsedAt, x.ExpiresAt });
+            entity.HasOne(x => x.Application)
+                .WithMany(x => x.AccessTokens)
+                .HasForeignKey(x => x.ApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ApplicationStatusHistory>(entity =>
+        {
+            entity.Property(x => x.Status).HasConversion<string>();
+            entity.Property(x => x.CreatedAt).HasDefaultValueSql("datetime('now')");
+            entity.HasOne(x => x.Application)
+                .WithMany(x => x.StatusHistory)
+                .HasForeignKey(x => x.ApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.ChangedBy)
+                .WithMany()
+                .HasForeignKey(x => x.ChangedById)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<EmailOutboxMessage>(entity =>
+        {
+            entity.Property(x => x.CreatedAt).HasDefaultValueSql("datetime('now')");
+            entity.HasIndex(x => new { x.SentAt, x.CreatedAt });
         });
 
         builder.Entity<Placement>(entity =>

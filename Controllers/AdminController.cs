@@ -14,7 +14,8 @@ namespace yurt_lojman_yonetim_sistemi.Controllers;
 public class AdminController(
     AppDbContext db,
     IAdminService adminService,
-    IAccommodationService accommodationService) : ControllerBase
+    IAccommodationService accommodationService,
+    IApplicationWorkflowService workflowService) : ControllerBase
 {
     private static readonly string[] ApplicantRoles = [AppRoles.Ogrenci, AppRoles.Personel];
 
@@ -132,7 +133,7 @@ public class AdminController(
         var scope = await GetFacilityScopeAsync(cancellationToken);
         var query = db.Applications.AsNoTracking()
             .Include(x => x.User)
-            .Where(x => ApplicantRoles.Contains(x.User.Role))
+            .Where(x => (x.User != null && ApplicantRoles.Contains(x.User.Role)) || x.Source == ApplicationSource.PublicVisitor)
             .Where(x => x.Status == ApplicationStatus.Pending)
             .AsQueryable();
 
@@ -141,16 +142,19 @@ public class AdminController(
             var types = new List<AccommodationType>();
             if (scope.DormitoryIds.Count > 0) types.Add(AccommodationType.Yurt);
             if (scope.HousingUnitIds.Count > 0) types.Add(AccommodationType.Lojman);
-            query = query.Where(x => types.Contains(x.AccommodationType));
+            query = query.Where(x => types.Contains(x.AccommodationType)
+                && (x.Source == ApplicationSource.RegisteredUser
+                    || (x.RequestedDormitoryId.HasValue && scope.DormitoryIds.Contains(x.RequestedDormitoryId.Value))
+                    || (x.RequestedHousingUnitId.HasValue && scope.HousingUnitIds.Contains(x.RequestedHousingUnitId.Value))));
         }
 
         return await query.OrderByDescending(x => x.CreatedAt)
             .Select(x => new AdminApplicationListItemDto(
                 x.Id,
                 x.UserId,
-                x.User.FullName,
-                x.User.TcNo,
-                x.User.StudentStaffNo,
+                x.User != null ? x.User.FullName : x.ApplicantFullName!,
+                x.User != null ? x.User.TcNo : x.ApplicantTcNo!,
+                x.User != null ? x.User.StudentStaffNo : x.ApplicantStudentStaffNo,
                 x.AccommodationType,
                 x.DocumentUrl,
                 x.Status,
@@ -163,7 +167,7 @@ public class AdminController(
     {
         var application = await db.Applications.Include(x => x.User).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (application is null) return NotFound(new { success = false, message = "Başvuru bulunamadı." });
-        if (!ApplicantRoles.Contains(application.User.Role)) return BadRequest(new { success = false, message = "Yönetici ve yetkili profilleri başvuru akışına dahil edilemez." });
+        if (application.User != null && !ApplicantRoles.Contains(application.User.Role)) return BadRequest(new { success = false, message = "Yönetici ve yetkili profilleri başvuru akışına dahil edilemez." });
         if (application.Status != ApplicationStatus.Pending) return BadRequest(new { success = false, message = "Yalnızca beklemedeki başvurular onaylanabilir." });
 
         var scope = await GetFacilityScopeAsync(cancellationToken);
@@ -193,14 +197,17 @@ public class AdminController(
 
         try
         {
-            application.Status = ApplicationStatus.Approved;
-            application.UpdatedAt = DateTime.UtcNow;
-            var placement = await accommodationService.PlaceUserAsync(application.UserId, application.AccommodationType, request.AutoPlace ? null : request.RoomId, cancellationToken, dormIds, unitIds);
+            var actorId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var placement = await workflowService.ApproveAsync(actorId, id, request with { RoomId = request.AutoPlace ? null : request.RoomId }, dormIds, unitIds, cancellationToken)
+                ?? throw new InvalidOperationException("Yerleştirme oluşturulamadı.");
             var roomNumber = await db.Rooms.AsNoTracking()
                 .Where(x => x.Id == placement.RoomId)
                 .Select(x => x.RoomNumber)
                 .FirstAsync(cancellationToken);
-            return Ok(new { success = true, message = $"Başvuru başarıyla onaylandı ve {roomNumber} numaralı odaya yerleştirildi." });
+            var message = application.Source == ApplicationSource.PublicVisitor
+                ? $"Başvuru onaylandı, {roomNumber} numaralı odaya yerleştirildi ve aktivasyon e-postası kuyruğa alındı."
+                : $"Başvuru başarıyla onaylandı ve {roomNumber} numaralı odaya yerleştirildi.";
+            return Ok(new { success = true, message });
         }
         catch (InvalidOperationException ex)
         {
@@ -213,13 +220,20 @@ public class AdminController(
     {
         var application = await db.Applications.Include(x => x.User).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (application is null) return NotFound(new { success = false, message = "Başvuru bulunamadı." });
-        if (!ApplicantRoles.Contains(application.User.Role)) return BadRequest(new { success = false, message = "Yönetici ve yetkili profilleri başvuru akışına dahil edilemez." });
+        if (application.User != null && !ApplicantRoles.Contains(application.User.Role)) return BadRequest(new { success = false, message = "Yönetici ve yetkili profilleri başvuru akışına dahil edilemez." });
         if (application.Status != ApplicationStatus.Pending) return BadRequest(new { success = false, message = "Yalnızca beklemedeki başvurular reddedilebilir." });
 
-        application.Status = ApplicationStatus.Rejected;
-        application.UpdatedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
-        return Ok(new { success = true, message = "Başvuru reddedildi ve bekleyen başvurular listesinden kaldırıldı." });
+        try
+        {
+            var actorId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var scope = await GetFacilityScopeAsync(cancellationToken);
+            await workflowService.RejectAsync(actorId, id, request, scope?.DormitoryIds, scope?.HousingUnitIds, cancellationToken);
+            return Ok(new { success = true, message = "Başvuru reddedildi ve bekleyen başvurular listesinden kaldırıldı." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
     }
 
     private async Task<(IReadOnlyList<int>? DormitoryIds, IReadOnlyList<int>? HousingUnitIds, IActionResult? Result)> ResolveAssignmentScopeAsync(

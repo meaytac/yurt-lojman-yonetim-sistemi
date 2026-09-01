@@ -261,7 +261,7 @@ function renderFacilities() {
       <td>${escapeHtml(item.campusLocation)}</td>
       <td>${item.totalCapacity}</td>
       <td>${item.buildingCount ?? 0}</td>
-      <td>${getStatusBadge(item.isActive ? 'Hizmet Veriyor' : 'Pasif')}</td>
+      <td>${getStatusBadge(item.isActive ? 'Hizmet Veriyor' : 'Pasif')} ${item.isPublished ? getStatusBadge('Yayında') : ''}</td>
       <td>
         <button class="row-btn" onclick="editFacility('${item.type}', ${item.id})">Düzenle</button>
         <button class="row-btn danger" onclick="deleteFacility('${item.type}', ${item.id})">Sil</button>
@@ -460,9 +460,15 @@ function facilityForm(item = null, type = 'Yurt') {
     html: `<form id="facilityForm" class="form-grid">
       <label>Tür<select name="type" ${item ? 'disabled' : ''}><option value="Yurt" ${type === 'Yurt' ? 'selected' : ''}>Yurt</option><option value="Lojman" ${type === 'Lojman' ? 'selected' : ''}>Lojman</option></select></label>
       <label>Durum<select name="isActive"><option value="true" ${item?.isActive !== false ? 'selected' : ''}>Aktif</option><option value="false" ${item?.isActive === false ? 'selected' : ''}>Pasif</option></select></label>
+      <label>Yayın<select name="isPublished"><option value="false" ${item?.isPublished !== true ? 'selected' : ''}>Kapalı</option><option value="true" ${item?.isPublished === true ? 'selected' : ''}>Yayında</option></select></label>
+      <label>Başvuru<select name="isApplicationOpen"><option value="true" ${item?.isApplicationOpen !== false ? 'selected' : ''}>Açık</option><option value="false" ${item?.isApplicationOpen === false ? 'selected' : ''}>Kapalı</option></select></label>
       <label class="full">Ad<input name="name" value="${escapeAttr(item?.name)}" required maxlength="120"></label>
       <label class="full">Kampüs<input name="campusLocation" value="${escapeAttr(item?.campusLocation)}" required maxlength="180"></label>
       <label>Kapasite<input name="totalCapacity" type="number" min="0" value="${item?.totalCapacity ?? 0}" required></label>
+      <label class="full">Ziyaretçi Açıklaması<textarea name="publicDescription" maxlength="1000">${escapeHtml(item?.publicDescription || '')}</textarea></label>
+      <label class="full">Olanaklar<textarea name="amenities" maxlength="1000">${escapeHtml(item?.amenities || '')}</textarea></label>
+      <label class="full">Görsel URL<input name="imageUrl" value="${escapeAttr(item?.imageUrl)}" maxlength="500"></label>
+      <label class="full">Başvuru Koşulları<textarea name="applicationConditions" maxlength="1000">${escapeHtml(item?.applicationConditions || '')}</textarea></label>
       <div class="form-actions full">
         ${item ? '<button class="danger-btn" id="deleteFacilityFromModal" type="button">Sil</button>' : ''}
         <button class="primary-btn" type="submit">Kaydet</button>
@@ -487,7 +493,13 @@ async function submitFacility(event, item) {
     name: data.name,
     campusLocation: data.campusLocation,
     totalCapacity: Number(data.totalCapacity),
-    isActive: data.isActive === 'true'
+    isActive: data.isActive === 'true',
+    isPublished: data.isPublished === 'true',
+    isApplicationOpen: data.isApplicationOpen === 'true',
+    publicDescription: data.publicDescription,
+    amenities: data.amenities,
+    imageUrl: data.imageUrl,
+    applicationConditions: data.applicationConditions
   });
   if (!result) return;
   upsertByCompositeKey(state.facilities, result, existing => existing.type === result.type && existing.id === result.id);

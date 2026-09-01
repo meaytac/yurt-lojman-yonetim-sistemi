@@ -27,7 +27,8 @@ public class AuthController(UserManager<AppUser> userManager, ITokenService toke
             TcNo = request.TcNo,
             StudentStaffNo = request.StudentStaffNo,
             PhoneNumber = request.PhoneNumber,
-            Role = request.Role
+            Role = request.Role,
+            EmailConfirmed = true
         };
 
         var result = await userManager.CreateAsync(user, request.Password);
@@ -66,6 +67,11 @@ public class AuthController(UserManager<AppUser> userManager, ITokenService toke
         if (user is null || !await userManager.CheckPasswordAsync(user, request.Password))
         {
             return Unauthorized("E-posta veya sifre hatali.");
+        }
+
+        if (!user.EmailConfirmed)
+        {
+            return Unauthorized("Hesap aktivasyonu tamamlanmamış.");
         }
 
         if (await userManager.IsLockedOutAsync(user))

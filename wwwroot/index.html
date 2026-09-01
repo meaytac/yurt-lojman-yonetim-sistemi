@@ -47,8 +47,10 @@
               <input type="checkbox" id="rememberMe">
               <span>Beni Hatırla</span>
             </label>
+            <a href="/track-application.html">Başvuru takip</a>
           </div>
           <button type="submit" class="btn-primary">Giriş Yap</button>
+          <a class="btn-secondary public-apply-link" href="/visitor.html">Misafir Başvurusu Oluştur</a>
           <p id="loginState" class="login-message"></p>
         </form>
       </section>
@@ -75,15 +77,7 @@
     </div>
   </footer>
 
-  <script src="/js/app.js?v=20260825"></script>
-  <script>
-    document.getElementById('loginForm').addEventListener('submit', function (e) {
-      e.preventDefault();
-      login();
-    });
-    loadDashboard();
-    loadAnnouncements();
-  </script>
+  <script src="/js/app.js?v=20260901"></script>
 </body>
 
 </html>

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Başvuru Takip</title>
+  <link rel="stylesheet" href="/css/public.css">
+</head>
+<body>
+  <header class="public-header">
+    <div class="brand"><img src="/img/mtu-amblem.png" alt="MTÜ amblemi"><span>Başvuru Takip</span></div>
+    <a href="/visitor.html">Yeni Başvuru</a>
+  </header>
+  <main class="public-shell">
+    <section class="public-panel">
+      <h1>Başvuru Durumu</h1>
+      <form id="trackForm" class="public-form">
+        <label>Referans Kodu<input name="referenceCode" id="trackReference" required maxlength="32"></label>
+        <label>Takip Tokenı<input name="token" id="trackToken" required></label>
+        <button type="submit">Durumu Görüntüle</button>
+      </form>
+      <p id="trackState" class="status"></p>
+      <div id="trackResult"></div>
+    </section>
+  </main>
+  <script src="/js/public-common.js?v=20260901"></script>
+  <script src="/js/application-tracking.js?v=20260901"></script>
+</body>
+</html>

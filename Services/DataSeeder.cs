@@ -529,11 +529,11 @@ public static class DataSeeder
         if (!await db.Applications.AnyAsync(x => x.UserId == users.Student1.Id))
         {
             db.Applications.AddRange(
-                new AccommodationApplication { UserId = users.Student1.Id, AccommodationType = AccommodationType.Yurt, DocumentUrl = "/uploads/demo/ogrenci-belgesi-ayse.pdf", Status = ApplicationStatus.Pending, CreatedAt = DateTime.UtcNow.AddDays(-3) },
-                new AccommodationApplication { UserId = users.Student2.Id, AccommodationType = AccommodationType.Yurt, DocumentUrl = "/uploads/demo/ogrenci-belgesi-mehmet.pdf", Status = ApplicationStatus.Approved, CreatedAt = DateTime.UtcNow.AddDays(-5), UpdatedAt = DateTime.UtcNow.AddDays(-2) },
-                new AccommodationApplication { UserId = users.Staff1.Id, AccommodationType = AccommodationType.Lojman, DocumentUrl = "/uploads/demo/personel-gorev-yeri.pdf", Status = ApplicationStatus.Pending, CreatedAt = DateTime.UtcNow.AddDays(-2) },
-                new AccommodationApplication { UserId = users.Staff2.Id, AccommodationType = AccommodationType.Lojman, DocumentUrl = "/uploads/demo/personel-belgesi.pdf", Status = ApplicationStatus.Rejected, CreatedAt = DateTime.UtcNow.AddDays(-8), UpdatedAt = DateTime.UtcNow.AddDays(-6) },
-                new AccommodationApplication { UserId = users.Student3.Id, AccommodationType = AccommodationType.Yurt, DocumentUrl = "/uploads/demo/ogrenci-belgesi-zeynep.pdf", Status = ApplicationStatus.Pending, CreatedAt = DateTime.UtcNow.AddDays(-1) });
+                new AccommodationApplication { UserId = users.Student1.Id, Source = ApplicationSource.RegisteredUser, ReferenceCode = "SEED000001", AccommodationType = AccommodationType.Yurt, DocumentUrl = "/uploads/demo/ogrenci-belgesi-ayse.pdf", Status = ApplicationStatus.Pending, CreatedAt = DateTime.UtcNow.AddDays(-3) },
+                new AccommodationApplication { UserId = users.Student2.Id, Source = ApplicationSource.RegisteredUser, ReferenceCode = "SEED000002", AccommodationType = AccommodationType.Yurt, DocumentUrl = "/uploads/demo/ogrenci-belgesi-mehmet.pdf", Status = ApplicationStatus.Approved, CreatedAt = DateTime.UtcNow.AddDays(-5), UpdatedAt = DateTime.UtcNow.AddDays(-2) },
+                new AccommodationApplication { UserId = users.Staff1.Id, Source = ApplicationSource.RegisteredUser, ReferenceCode = "SEED000003", AccommodationType = AccommodationType.Lojman, DocumentUrl = "/uploads/demo/personel-gorev-yeri.pdf", Status = ApplicationStatus.Pending, CreatedAt = DateTime.UtcNow.AddDays(-2) },
+                new AccommodationApplication { UserId = users.Staff2.Id, Source = ApplicationSource.RegisteredUser, ReferenceCode = "SEED000004", AccommodationType = AccommodationType.Lojman, DocumentUrl = "/uploads/demo/personel-belgesi.pdf", Status = ApplicationStatus.Rejected, CreatedAt = DateTime.UtcNow.AddDays(-8), UpdatedAt = DateTime.UtcNow.AddDays(-6) },
+                new AccommodationApplication { UserId = users.Student3.Id, Source = ApplicationSource.RegisteredUser, ReferenceCode = "SEED000005", AccommodationType = AccommodationType.Yurt, DocumentUrl = "/uploads/demo/ogrenci-belgesi-zeynep.pdf", Status = ApplicationStatus.Pending, CreatedAt = DateTime.UtcNow.AddDays(-1) });
         }
 
         await db.SaveChangesAsync();

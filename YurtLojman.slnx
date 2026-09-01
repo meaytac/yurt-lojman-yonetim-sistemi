@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/YurtLojman.Tests/YurtLojman.Tests.csproj" />
+  </Folder>
+  <Project Path="yurt-lojman-yonetim-sistemi.csproj" />
+</Solution>

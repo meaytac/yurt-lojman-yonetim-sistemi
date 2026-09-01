@@ -4,7 +4,7 @@ namespace yurt_lojman_yonetim_sistemi.DTOs;
 
 public record AdminApplicationListItemDto(
     int Id,
-    Guid UserId,
+    Guid? UserId,
     string FullName,
     string TcNo,
     string? StudentStaffNo,

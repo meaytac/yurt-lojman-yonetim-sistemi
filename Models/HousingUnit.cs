@@ -19,5 +19,21 @@ public class HousingUnit
 
     public bool IsActive { get; set; } = true;
 
+    public bool IsPublished { get; set; } = false;
+
+    public bool IsApplicationOpen { get; set; } = true;
+
+    [MaxLength(1000)]
+    public string? PublicDescription { get; set; }
+
+    [MaxLength(1000)]
+    public string? Amenities { get; set; }
+
+    [MaxLength(500)]
+    public string? ImageUrl { get; set; }
+
+    [MaxLength(1000)]
+    public string? ApplicationConditions { get; set; }
+
     public ICollection<Building> Buildings { get; set; } = [];
 }

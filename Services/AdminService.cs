@@ -51,13 +51,13 @@ public interface IAdminService
 
             var recentApplications = await db.Applications.AsNoTracking()
                 .Include(x => x.User)
-                .Where(x => ApplicantRoles.Contains(x.User.Role))
+                .Where(x => (x.User != null && ApplicantRoles.Contains(x.User.Role)) || x.Source == ApplicationSource.PublicVisitor)
                 .Where(x => scope == null
                     || (scope.DormitoryIds.Count > 0 && x.AccommodationType == AccommodationType.Yurt)
                     || (scope.HousingUnitIds.Count > 0 && x.AccommodationType == AccommodationType.Lojman))
                 .OrderByDescending(x => x.CreatedAt)
                 .Take(5)
-                .Select(x => new AdminRecentApplicationDto(x.Id, x.UserId, x.User.FullName, x.User.TcNo, x.AccommodationType, x.Status, x.CreatedAt))
+                .Select(x => new AdminRecentApplicationDto(x.Id, x.UserId, x.User != null ? x.User.FullName : x.ApplicantFullName!, x.User != null ? x.User.TcNo : x.ApplicantTcNo!, x.AccommodationType, x.Status, x.CreatedAt))
                 .ToListAsync(cancellationToken);
 
             var recentRequests = await db.Requests.AsNoTracking()
@@ -95,7 +95,7 @@ public interface IAdminService
                 MaintenanceRoomCount: await rooms.CountAsync(x => x.Status == RoomStatus.Maintenance, cancellationToken),
                 OccupancyRate: totalCapacity == 0 ? 0 : Math.Round((decimal)currentOccupancy / totalCapacity * 100, 2),
                 PendingApplicationCount: await db.Applications.AsNoTracking()
-                    .Where(x => ApplicantRoles.Contains(x.User.Role))
+                    .Where(x => (x.User != null && ApplicantRoles.Contains(x.User.Role)) || x.Source == ApplicationSource.PublicVisitor)
                     .Where(x => scope == null
                         || (scope.DormitoryIds.Count > 0 && x.AccommodationType == AccommodationType.Yurt)
                         || (scope.HousingUnitIds.Count > 0 && x.AccommodationType == AccommodationType.Lojman))
@@ -115,12 +115,12 @@ public interface IAdminService
         {
             var dormitories = await db.Dormitories.AsNoTracking()
                 .Where(x => scope == null || scope.DormitoryIds.Contains(x.Id))
-                .Select(x => new AdminFacilityListItemDto(x.Id, x.Name, x.Type, x.CampusLocation, x.TotalCapacity, x.IsActive, x.Buildings.Count))
+                .Select(x => new AdminFacilityListItemDto(x.Id, x.Name, x.Type, x.CampusLocation, x.TotalCapacity, x.IsActive, x.Buildings.Count, x.IsPublished, x.IsApplicationOpen, x.PublicDescription, x.Amenities, x.ImageUrl, x.ApplicationConditions))
                 .ToListAsync(cancellationToken);
 
             var housingUnits = await db.HousingUnits.AsNoTracking()
                 .Where(x => scope == null || scope.HousingUnitIds.Contains(x.Id))
-                .Select(x => new AdminFacilityListItemDto(x.Id, x.Name, x.Type, x.CampusLocation, x.TotalCapacity, x.IsActive, x.Buildings.Count))
+                .Select(x => new AdminFacilityListItemDto(x.Id, x.Name, x.Type, x.CampusLocation, x.TotalCapacity, x.IsActive, x.Buildings.Count, x.IsPublished, x.IsApplicationOpen, x.PublicDescription, x.Amenities, x.ImageUrl, x.ApplicationConditions))
                 .ToListAsync(cancellationToken);
 
             return dormitories.Concat(housingUnits).OrderBy(x => x.Type).ThenBy(x => x.Name).ToList();

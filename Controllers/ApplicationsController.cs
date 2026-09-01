@@ -1,7 +1,7 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 using yurt_lojman_yonetim_sistemi.Data;
 using yurt_lojman_yonetim_sistemi.DTOs;
 using yurt_lojman_yonetim_sistemi.Models;
@@ -12,7 +12,7 @@ namespace yurt_lojman_yonetim_sistemi.Controllers;
 [ApiController]
 [Route("api/applications")]
 [Authorize]
-public class ApplicationsController(AppDbContext db, IFileStorageService fileStorage, IAccommodationService accommodationService) : ControllerBase
+public class ApplicationsController(AppDbContext db, IFileStorageService fileStorage, IApplicationWorkflowService workflowService) : ControllerBase
 {
     private static readonly string[] ApplicantRoles = [AppRoles.Ogrenci, AppRoles.Personel];
 
@@ -22,10 +22,10 @@ public class ApplicationsController(AppDbContext db, IFileStorageService fileSto
     {
         return db.Applications.AsNoTracking()
             .Include(x => x.User)
-            .Where(x => ApplicantRoles.Contains(x.User.Role))
+            .Where(x => x.User != null && ApplicantRoles.Contains(x.User.Role))
             .Where(x => x.Status == ApplicationStatus.Pending)
             .OrderByDescending(x => x.CreatedAt)
-            .Select(x => new ApplicationResponse(x.Id, x.UserId, x.User.FullName, x.AccommodationType, x.DocumentUrl, x.Status, x.CreatedAt, x.UpdatedAt))
+            .Select(x => new ApplicationResponse(x.Id, x.UserId, x.User!.FullName, x.AccommodationType, x.DocumentUrl, x.Status, x.CreatedAt, x.UpdatedAt))
             .ToListAsync();
     }
 
@@ -37,7 +37,7 @@ public class ApplicationsController(AppDbContext db, IFileStorageService fileSto
             .Include(x => x.User)
             .Where(x => x.UserId == userId)
             .OrderByDescending(x => x.CreatedAt)
-            .Select(x => new ApplicationResponse(x.Id, x.UserId, x.User.FullName, x.AccommodationType, x.DocumentUrl, x.Status, x.CreatedAt, x.UpdatedAt))
+            .Select(x => new ApplicationResponse(x.Id, x.UserId, x.User!.FullName, x.AccommodationType, x.DocumentUrl, x.Status, x.CreatedAt, x.UpdatedAt))
             .ToListAsync();
     }
 
@@ -47,20 +47,24 @@ public class ApplicationsController(AppDbContext db, IFileStorageService fileSto
         var userId = CurrentUserId();
         var user = await db.Users.FindAsync([userId], cancellationToken);
         if (user is null) return Unauthorized();
-        if (!ApplicantRoles.Contains(user.Role)) return BadRequest("Yonetici ve yetkili profilleri basvuru olusturamaz.");
+        if (!ApplicantRoles.Contains(user.Role)) return BadRequest("Yönetici ve yetkili profilleri başvuru oluşturamaz.");
 
         var documentUrl = await fileStorage.SaveAsync(request.Document, "documents", cancellationToken) ?? request.DocumentUrl;
         var application = new AccommodationApplication
         {
             UserId = userId,
+            User = user,
+            Source = ApplicationSource.RegisteredUser,
             AccommodationType = request.AccommodationType,
             DocumentUrl = documentUrl,
-            Status = ApplicationStatus.Pending
+            Status = ApplicationStatus.Pending,
+            ReferenceCode = $"RG{DateTime.UtcNow:yyMMdd}{Random.Shared.Next(100000, 999999)}"
         };
+        application.StatusHistory.Add(new ApplicationStatusHistory { Status = ApplicationStatus.Pending, Note = "Kayıtlı kullanıcı başvurusu oluşturuldu." });
 
         db.Applications.Add(application);
         await db.SaveChangesAsync(cancellationToken);
-        return Ok(new ApplicationResponse(application.Id, application.UserId, user!.FullName, application.AccommodationType, application.DocumentUrl, application.Status, application.CreatedAt, application.UpdatedAt));
+        return Ok(new ApplicationResponse(application.Id, application.UserId, user.FullName, application.AccommodationType, application.DocumentUrl, application.Status, application.CreatedAt, application.UpdatedAt));
     }
 
     [HttpPost("{id:int}/decision")]
@@ -69,18 +73,16 @@ public class ApplicationsController(AppDbContext db, IFileStorageService fileSto
     {
         var application = await db.Applications.Include(x => x.User).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (application is null) return NotFound();
-        if (!ApplicantRoles.Contains(application.User.Role)) return BadRequest("Yonetici ve yetkili profilleri basvuru akışına dahil edilemez.");
+        if (application.User is null || !ApplicantRoles.Contains(application.User.Role)) return BadRequest("Yönetici ve yetkili profilleri başvuru akışına dahil edilemez.");
 
-        application.Status = request.Approved ? ApplicationStatus.Approved : ApplicationStatus.Rejected;
-        application.UpdatedAt = DateTime.UtcNow;
-
-        if (request.Approved && (request.AutoPlace || request.RoomId.HasValue))
+        var actorId = CurrentUserId();
+        if (request.Approved)
         {
-            await accommodationService.PlaceUserAsync(application.UserId, application.AccommodationType, request.RoomId, cancellationToken);
+            await workflowService.ApproveAsync(actorId, id, request, null, null, cancellationToken);
         }
         else
         {
-            await db.SaveChangesAsync(cancellationToken);
+            await workflowService.RejectAsync(actorId, id, request, null, null, cancellationToken);
         }
 
         return NoContent();

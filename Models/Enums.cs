@@ -18,7 +18,25 @@ public enum ApplicationStatus
 {
     Pending = 1,
     Approved = 2,
-    Rejected = 3
+    Rejected = 3,
+    EmailVerificationPending = 4,
+    UnderReview = 5,
+    MissingInformation = 6,
+    ApprovedAwaitingActivation = 7,
+    Cancelled = 8
+}
+
+public enum ApplicationSource
+{
+    RegisteredUser = 1,
+    PublicVisitor = 2
+}
+
+public enum ApplicationTokenPurpose
+{
+    EmailVerification = 1,
+    StatusTracking = 2,
+    AccountActivation = 3
 }
 
 public enum PaymentStatus

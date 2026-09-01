@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using yurt_lojman_yonetim_sistemi.Data;
 using yurt_lojman_yonetim_sistemi.Models;
 using yurt_lojman_yonetim_sistemi.Services;
@@ -11,14 +14,20 @@ using yurt_lojman_yonetim_sistemi.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
+builder.Services.Configure<PublicApplicationOptions>(builder.Configuration.GetSection("PublicApplications"));
+builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
-var useDemoDatabase = builder.Configuration.GetValue("DemoMode", true);
+var useDemoDatabase = builder.Environment.IsEnvironment("Testing") || builder.Configuration.GetValue("DemoMode", true);
+var demoDatabaseName = builder.Environment.IsEnvironment("Testing")
+    ? $"YurtLojmanTestDb-{Guid.NewGuid():N}"
+    : "YurtLojmanDemoDb";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     if (useDemoDatabase)
     {
-        options.UseInMemoryDatabase("YurtLojmanDemoDb");
+        options.UseInMemoryDatabase(demoDatabaseName)
+            .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning));
     }
     else
     {
@@ -63,10 +72,38 @@ builder.Services.AddScoped<IAccommodationService, AccommodationService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IYetkiliService, YetkiliService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+builder.Services.AddScoped<IApplicationTokenService, ApplicationTokenService>();
+builder.Services.AddScoped<ISecureDocumentStorage, SecureDocumentStorage>();
+builder.Services.AddScoped<IEmailOutboxService, EmailOutboxService>();
+builder.Services.AddScoped<IEmailSender, LoggingEmailSender>();
+builder.Services.AddScoped<IPublicApplicationService, PublicApplicationService>();
+builder.Services.AddScoped<IApplicationWorkflowService, ApplicationWorkflowService>();
+builder.Services.AddHostedService<EmailOutboxWorker>();
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("PublicApplications", limiter =>
+    {
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.PermitLimit = builder.Configuration.GetValue("PublicApplications:RateLimitPerMinute", 20);
+        limiter.QueueLimit = 0;
+        limiter.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+    });
+});
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("DefaultCors", policy =>
-        policy.AllowAnyHeader().AllowAnyMethod().AllowCredentials().SetIsOriginAllowed(_ => true));
+    {
+        var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+        policy.AllowAnyHeader().AllowAnyMethod();
+        if (origins.Length > 0)
+        {
+            policy.WithOrigins(origins).AllowCredentials();
+        }
+        else
+        {
+            policy.AllowAnyOrigin();
+        }
+    });
 });
 
 builder.Services.AddControllers()
@@ -103,6 +140,7 @@ if (app.Environment.IsDevelopment())
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseCors("DefaultCors");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
@@ -123,3 +161,5 @@ using (var scope = app.Services.CreateScope())
 await DataSeeder.SeedDemoAsync(app.Services);
 
 app.Run();
+
+public partial class Program;

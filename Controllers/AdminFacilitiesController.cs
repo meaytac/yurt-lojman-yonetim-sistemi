@@ -52,6 +52,7 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
         }
 
         var entity = new Dormitory { Name = request.Name, Type = AccommodationType.Yurt, CampusLocation = request.CampusLocation, TotalCapacity = request.TotalCapacity, IsActive = request.IsActive };
+        ApplyFacilityMetadata(entity, request);
         db.Dormitories.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
         return CreatedAtAction(nameof(GetDormitories), new { id = entity.Id }, entity);
@@ -68,6 +69,7 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
         entity.CampusLocation = request.CampusLocation;
         entity.TotalCapacity = request.TotalCapacity;
         entity.IsActive = request.IsActive;
+        ApplyFacilityMetadata(entity, request);
         await db.SaveChangesAsync();
         return NoContent();
     }
@@ -96,6 +98,7 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
         }
 
         var entity = new HousingUnit { Name = request.Name, Type = AccommodationType.Lojman, CampusLocation = request.CampusLocation, TotalCapacity = request.TotalCapacity, IsActive = request.IsActive };
+        ApplyFacilityMetadata(entity, request);
         db.HousingUnits.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
         return CreatedAtAction(nameof(GetHousingUnits), new { id = entity.Id }, entity);
@@ -112,6 +115,7 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
         entity.CampusLocation = request.CampusLocation;
         entity.TotalCapacity = request.TotalCapacity;
         entity.IsActive = request.IsActive;
+        ApplyFacilityMetadata(entity, request);
         await db.SaveChangesAsync();
         return NoContent();
     }
@@ -131,6 +135,7 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
         {
             if (await db.Dormitories.AnyAsync(x => x.Name == request.Name, cancellationToken)) return ConflictError("Bu ada sahip bir yurt zaten kayıtlı.");
             var entity = new Dormitory { Name = request.Name, Type = AccommodationType.Yurt, CampusLocation = request.CampusLocation, TotalCapacity = request.TotalCapacity, IsActive = request.IsActive };
+            ApplyFacilityMetadata(entity, request);
             db.Dormitories.Add(entity);
             await db.SaveChangesAsync(cancellationToken);
             return Ok(ToFacilityDto(entity, 0));
@@ -138,6 +143,7 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
 
         if (await db.HousingUnits.AnyAsync(x => x.Name == request.Name, cancellationToken)) return ConflictError("Bu ada sahip bir lojman zaten kayıtlı.");
         var housing = new HousingUnit { Name = request.Name, Type = AccommodationType.Lojman, CampusLocation = request.CampusLocation, TotalCapacity = request.TotalCapacity, IsActive = request.IsActive };
+        ApplyFacilityMetadata(housing, request);
         db.HousingUnits.Add(housing);
         await db.SaveChangesAsync(cancellationToken);
         return Ok(ToFacilityDto(housing, 0));
@@ -159,6 +165,7 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
             entity.CampusLocation = request.CampusLocation;
             entity.TotalCapacity = request.TotalCapacity;
             entity.IsActive = request.IsActive;
+            ApplyFacilityMetadata(entity, request);
             await db.SaveChangesAsync(cancellationToken);
             var buildingCount = await db.Buildings.CountAsync(x => x.DormitoryId == id, cancellationToken);
             return Ok(ToFacilityDto(entity, buildingCount));
@@ -171,6 +178,7 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
         housing.CampusLocation = request.CampusLocation;
         housing.TotalCapacity = request.TotalCapacity;
         housing.IsActive = request.IsActive;
+        ApplyFacilityMetadata(housing, request);
         await db.SaveChangesAsync(cancellationToken);
         var count = await db.Buildings.CountAsync(x => x.HousingUnitId == id, cancellationToken);
         return Ok(ToFacilityDto(housing, count));
@@ -406,10 +414,50 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
     }
 
     private static AdminFacilityListItemDto ToFacilityDto(Dormitory entity, int buildingCount)
-        => new(entity.Id, entity.Name, entity.Type, entity.CampusLocation, entity.TotalCapacity, entity.IsActive, buildingCount);
+        => new(entity.Id, entity.Name, entity.Type, entity.CampusLocation, entity.TotalCapacity, entity.IsActive, buildingCount, entity.IsPublished, entity.IsApplicationOpen, entity.PublicDescription, entity.Amenities, entity.ImageUrl, entity.ApplicationConditions);
 
     private static AdminFacilityListItemDto ToFacilityDto(HousingUnit entity, int buildingCount)
-        => new(entity.Id, entity.Name, entity.Type, entity.CampusLocation, entity.TotalCapacity, entity.IsActive, buildingCount);
+        => new(entity.Id, entity.Name, entity.Type, entity.CampusLocation, entity.TotalCapacity, entity.IsActive, buildingCount, entity.IsPublished, entity.IsApplicationOpen, entity.PublicDescription, entity.Amenities, entity.ImageUrl, entity.ApplicationConditions);
+
+    private static void ApplyFacilityMetadata(Dormitory entity, FacilityRequest request)
+    {
+        entity.IsPublished = request.IsPublished;
+        entity.IsApplicationOpen = request.IsApplicationOpen;
+        entity.PublicDescription = request.PublicDescription;
+        entity.Amenities = request.Amenities;
+        entity.ImageUrl = request.ImageUrl;
+        entity.ApplicationConditions = request.ApplicationConditions;
+    }
+
+    private static void ApplyFacilityMetadata(HousingUnit entity, FacilityRequest request)
+    {
+        entity.IsPublished = request.IsPublished;
+        entity.IsApplicationOpen = request.IsApplicationOpen;
+        entity.PublicDescription = request.PublicDescription;
+        entity.Amenities = request.Amenities;
+        entity.ImageUrl = request.ImageUrl;
+        entity.ApplicationConditions = request.ApplicationConditions;
+    }
+
+    private static void ApplyFacilityMetadata(Dormitory entity, FacilityMutationRequest request)
+    {
+        entity.IsPublished = request.IsPublished;
+        entity.IsApplicationOpen = request.IsApplicationOpen;
+        entity.PublicDescription = request.PublicDescription;
+        entity.Amenities = request.Amenities;
+        entity.ImageUrl = request.ImageUrl;
+        entity.ApplicationConditions = request.ApplicationConditions;
+    }
+
+    private static void ApplyFacilityMetadata(HousingUnit entity, FacilityMutationRequest request)
+    {
+        entity.IsPublished = request.IsPublished;
+        entity.IsApplicationOpen = request.IsApplicationOpen;
+        entity.PublicDescription = request.PublicDescription;
+        entity.Amenities = request.Amenities;
+        entity.ImageUrl = request.ImageUrl;
+        entity.ApplicationConditions = request.ApplicationConditions;
+    }
 
     private async Task<AdminRoomListItemDto> ToRoomDetailAsync(int roomId, CancellationToken cancellationToken)
         => await db.Rooms.AsNoTracking()

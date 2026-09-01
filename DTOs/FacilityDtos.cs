@@ -7,14 +7,26 @@ public record FacilityRequest(
     [Required, MaxLength(120)] string Name,
     [Required, MaxLength(180)] string CampusLocation,
     [Range(0, int.MaxValue)] int TotalCapacity,
-    bool IsActive);
+    bool IsActive,
+    bool IsPublished = false,
+    bool IsApplicationOpen = true,
+    [MaxLength(1000)] string? PublicDescription = null,
+    [MaxLength(1000)] string? Amenities = null,
+    [MaxLength(500)] string? ImageUrl = null,
+    [MaxLength(1000)] string? ApplicationConditions = null);
 
 public record FacilityMutationRequest(
     [Required] AccommodationType Type,
     [Required, MaxLength(120)] string Name,
     [Required, MaxLength(180)] string CampusLocation,
     [Range(0, int.MaxValue)] int TotalCapacity,
-    bool IsActive);
+    bool IsActive,
+    bool IsPublished = false,
+    bool IsApplicationOpen = true,
+    [MaxLength(1000)] string? PublicDescription = null,
+    [MaxLength(1000)] string? Amenities = null,
+    [MaxLength(500)] string? ImageUrl = null,
+    [MaxLength(1000)] string? ApplicationConditions = null);
 
 public record BuildingRequest(int? DormitoryId, int? HousingUnitId, [Required, MaxLength(50)] string BlockName);
 

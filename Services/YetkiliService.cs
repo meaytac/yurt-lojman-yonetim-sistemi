@@ -33,7 +33,7 @@ public interface IYetkiliService
     Task<IReadOnlyList<UserFacilityAssignmentDto>> GetScopedFacilityAssignmentsAsync(Guid yetkiliId, CancellationToken cancellationToken);
 }
 
-public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, IAccommodationService accommodationService) : IYetkiliService
+public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, IAccommodationService accommodationService, IApplicationWorkflowService workflowService) : IYetkiliService
 {
     private static readonly string[] ApplicantRoles = [AppRoles.Ogrenci, AppRoles.Personel];
 
@@ -162,12 +162,12 @@ public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, I
 
         var dormitories = await db.Dormitories.AsNoTracking()
             .Where(x => scope.DormitoryIds.Contains(x.Id))
-            .Select(x => new AdminFacilityListItemDto(x.Id, x.Name, x.Type, x.CampusLocation, x.TotalCapacity, x.IsActive, x.Buildings.Count))
+            .Select(x => new AdminFacilityListItemDto(x.Id, x.Name, x.Type, x.CampusLocation, x.TotalCapacity, x.IsActive, x.Buildings.Count, x.IsPublished, x.IsApplicationOpen, x.PublicDescription, x.Amenities, x.ImageUrl, x.ApplicationConditions))
             .ToListAsync(cancellationToken);
 
         var housingUnits = await db.HousingUnits.AsNoTracking()
             .Where(x => scope.HousingUnitIds.Contains(x.Id))
-            .Select(x => new AdminFacilityListItemDto(x.Id, x.Name, x.Type, x.CampusLocation, x.TotalCapacity, x.IsActive, x.Buildings.Count))
+            .Select(x => new AdminFacilityListItemDto(x.Id, x.Name, x.Type, x.CampusLocation, x.TotalCapacity, x.IsActive, x.Buildings.Count, x.IsPublished, x.IsApplicationOpen, x.PublicDescription, x.Amenities, x.ImageUrl, x.ApplicationConditions))
             .ToListAsync(cancellationToken);
 
         return dormitories.Concat(housingUnits).OrderBy(x => x.Type).ThenBy(x => x.Name).ToList();
@@ -185,12 +185,12 @@ public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, I
 
         var recentApplications = await db.Applications.AsNoTracking()
             .Include(x => x.User)
-            .Where(x => ApplicantRoles.Contains(x.User.Role))
+            .Where(x => (x.User != null && ApplicantRoles.Contains(x.User.Role)) || x.Source == ApplicationSource.PublicVisitor)
             .Where(x => assignedTypes.Contains(x.AccommodationType))
             .Where(x => x.Status == ApplicationStatus.Pending)
             .OrderByDescending(x => x.CreatedAt)
             .Take(5)
-            .Select(x => new AdminRecentApplicationDto(x.Id, x.UserId, x.User.FullName, x.User.TcNo, x.AccommodationType, x.Status, x.CreatedAt))
+            .Select(x => new AdminRecentApplicationDto(x.Id, x.UserId, x.User != null ? x.User.FullName : x.ApplicantFullName!, x.User != null ? x.User.TcNo : x.ApplicantTcNo!, x.AccommodationType, x.Status, x.CreatedAt))
             .ToListAsync(cancellationToken);
 
         return new AdminDashboardStatsDto(
@@ -205,7 +205,7 @@ public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, I
             OccupancyRate: totalCapacity == 0 ? 0 : Math.Round((decimal)currentOccupancy / totalCapacity * 100, 2),
             PendingApplicationCount: await db.Applications.AsNoTracking()
                 .Include(x => x.User)
-                .Where(x => ApplicantRoles.Contains(x.User.Role))
+                .Where(x => (x.User != null && ApplicantRoles.Contains(x.User.Role)) || x.Source == ApplicationSource.PublicVisitor)
                 .Where(x => assignedTypes.Contains(x.AccommodationType))
                 .CountAsync(x => x.Status == ApplicationStatus.Pending, cancellationToken),
             OpenRequestCount: await db.Requests.AsNoTracking()
@@ -416,16 +416,19 @@ public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, I
 
         return await db.Applications.AsNoTracking()
             .Include(x => x.User)
-            .Where(x => ApplicantRoles.Contains(x.User.Role))
+            .Where(x => (x.User != null && ApplicantRoles.Contains(x.User.Role)) || x.Source == ApplicationSource.PublicVisitor)
             .Where(x => x.Status == ApplicationStatus.Pending)
             .Where(x => assignedTypes.Contains(x.AccommodationType))
+            .Where(x => x.Source == ApplicationSource.RegisteredUser
+                || (x.RequestedDormitoryId.HasValue && scope.DormitoryIds.Contains(x.RequestedDormitoryId.Value))
+                || (x.RequestedHousingUnitId.HasValue && scope.HousingUnitIds.Contains(x.RequestedHousingUnitId.Value)))
             .OrderByDescending(x => x.CreatedAt)
             .Select(x => new AdminApplicationListItemDto(
                 x.Id,
                 x.UserId,
-                x.User.FullName,
-                x.User.TcNo,
-                x.User.StudentStaffNo,
+                x.User != null ? x.User.FullName : x.ApplicantFullName!,
+                x.User != null ? x.User.TcNo : x.ApplicantTcNo!,
+                x.User != null ? x.User.StudentStaffNo : x.ApplicantStudentStaffNo,
                 x.AccommodationType,
                 x.DocumentUrl,
                 x.Status,
@@ -437,7 +440,7 @@ public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, I
     {
         var application = await db.Applications.Include(x => x.User).FirstOrDefaultAsync(x => x.Id == applicationId, cancellationToken)
             ?? throw new KeyNotFoundException("Başvuru bulunamadı.");
-        if (!ApplicantRoles.Contains(application.User.Role))
+        if (application.User != null && !ApplicantRoles.Contains(application.User.Role))
         {
             throw new InvalidOperationException("Yönetici ve yetkili profilleri başvuru akışına dahil edilemez.");
         }
@@ -450,16 +453,15 @@ public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, I
         var scope = await GetAssignedFacilityScopeAsync(yetkiliId, cancellationToken);
         var (roomId, dormitoryIds, housingUnitIds) = await ResolvePlacementTargetAsync(scope, application.AccommodationType, request, cancellationToken);
 
-        application.Status = ApplicationStatus.Approved;
-        application.UpdatedAt = DateTime.UtcNow;
-        return await accommodationService.PlaceUserAsync(application.UserId, application.AccommodationType, roomId, cancellationToken, dormitoryIds, housingUnitIds);
+        return await workflowService.ApproveAsync(yetkiliId, applicationId, request with { RoomId = roomId }, dormitoryIds, housingUnitIds, cancellationToken)
+            ?? throw new InvalidOperationException("Yerleştirme oluşturulamadı.");
     }
 
     public async Task RejectApplicationAsync(Guid yetkiliId, int applicationId, ApplicationDecisionRequest request, CancellationToken cancellationToken)
     {
         var application = await db.Applications.Include(x => x.User).FirstOrDefaultAsync(x => x.Id == applicationId, cancellationToken)
             ?? throw new KeyNotFoundException("Başvuru bulunamadı.");
-        if (!ApplicantRoles.Contains(application.User.Role))
+        if (application.User != null && !ApplicantRoles.Contains(application.User.Role))
         {
             throw new InvalidOperationException("Yönetici ve yetkili profilleri başvuru akışına dahil edilemez.");
         }
@@ -475,9 +477,7 @@ public class YetkiliService(AppDbContext db, UserManager<AppUser> userManager, I
             throw new InvalidOperationException("Bu başvuru size atanmış tesis kapsamına girmiyor.");
         }
 
-        application.Status = ApplicationStatus.Rejected;
-        application.UpdatedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
+        await workflowService.RejectAsync(yetkiliId, applicationId, request, scope.DormitoryIds, scope.HousingUnitIds, cancellationToken);
     }
 
     private async Task<(int? RoomId, IReadOnlyList<int>? DormitoryIds, IReadOnlyList<int>? HousingUnitIds)> ResolvePlacementTargetAsync(

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Misafir Başvurusu</title>
+  <link rel="stylesheet" href="/css/public.css">
+</head>
+<body>
+  <header class="public-header">
+    <div class="brand">
+      <img src="/img/mtu-amblem.png" alt="MTÜ amblemi">
+      <span>MTÜ Yurt ve Lojman</span>
+    </div>
+    <nav class="link-row">
+      <a href="/track-application.html">Başvuru Takip</a>
+      <a href="/">Giriş</a>
+    </nav>
+  </header>
+  <main class="public-shell">
+    <section class="intro">
+      <h1>Misafir Başvurusu</h1>
+      <p>Yayınlanmış yurt ve lojmanları inceleyip başvurunuzu e-posta doğrulamasıyla güvenli şekilde iletin.</p>
+    </section>
+    <section class="public-grid">
+      <div class="facility-list" id="facilityList"></div>
+      <section class="public-panel">
+        <form id="visitorApplicationForm" class="public-form" enctype="multipart/form-data">
+          <input type="hidden" name="accommodationType" id="accommodationType">
+          <input type="hidden" name="dormitoryId" id="dormitoryId">
+          <input type="hidden" name="housingUnitId" id="housingUnitId">
+          <div class="form-row">
+            <label>Ad Soyad<input name="fullName" required maxlength="150"></label>
+            <label>E-posta<input name="email" type="email" required maxlength="256"></label>
+          </div>
+          <div class="form-row">
+            <label>TC Kimlik No<input name="tcNo" required minlength="11" maxlength="11" inputmode="numeric"></label>
+            <label>Telefon<input name="phoneNumber" maxlength="30"></label>
+          </div>
+          <div class="form-row">
+            <label>Rol<select name="applicantRole"><option value="Ogrenci">Öğrenci</option><option value="Personel">Personel</option></select></label>
+            <label>Öğrenci/Personel No<input name="studentStaffNo" maxlength="30"></label>
+          </div>
+          <label>Belge<input name="document" type="file" accept="application/pdf,image/jpeg,image/png"></label>
+          <label>Not<textarea name="note" maxlength="1000"></textarea></label>
+          <button type="submit">Başvuruyu Gönder</button>
+          <p id="visitorState" class="status"></p>
+        </form>
+      </section>
+    </section>
+  </main>
+  <script src="/js/public-common.js?v=20260901"></script>
+  <script src="/js/visitor.js?v=20260901"></script>
+</body>
+</html>

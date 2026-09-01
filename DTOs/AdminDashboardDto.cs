@@ -20,7 +20,7 @@ public record AdminDashboardStatsDto(
 
 public record AdminRecentApplicationDto(
     int Id,
-    Guid UserId,
+    Guid? UserId,
     string FullName,
     string TcNo,
     AccommodationType AccommodationType,

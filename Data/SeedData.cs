@@ -281,6 +281,8 @@ public static class SeedData
         return Enumerable.Range(0, 200).Select(index => new AccommodationApplication
         {
             UserId = applicants[index % applicants.Count].Id,
+            Source = ApplicationSource.RegisteredUser,
+            ReferenceCode = $"DEMO{index + 1:000000}",
             AccommodationType = index % 5 == 0 ? AccommodationType.Lojman : AccommodationType.Yurt,
             DocumentUrl = $"/uploads/demo/belge-{index + 1:000}.pdf",
             Status = (ApplicationStatus)(index % 3 + 1),
