@@ -215,11 +215,20 @@
 
           <section id="page-degisim" class="page-section">
             <article class="card">
-              <div class="card-header"><div class="card-header-left"><i class="fas fa-history"></i>Oda Değişimi</div></div>
-              <div class="empty-state">
-                <i class="fas fa-door-open"></i>
-                <p>Oda değişim talebi altyapısı yönetici onay akışıyla birlikte ayrıca etkinleştirilecektir.</p>
+              <div class="card-header"><div class="card-header-left"><i class="fas fa-history"></i>Değişim Taleplerim</div></div>
+              <div id="roomChangeList" class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <p>Henüz oda değişim talebiniz bulunmuyor.</p>
               </div>
+            </article>
+            <article class="card">
+              <div class="card-header"><div class="card-header-left"><i class="fas fa-arrow-right-arrow-left"></i>Yeni Değişim Talebi</div></div>
+              <form id="roomChangeForm" class="profile-edit-form">
+                <div class="input-group"><label>Mevcut Oda</label><input name="currentRoom" type="text" placeholder="Örn. A Blok 203" required></div>
+                <div class="input-group"><label>Talep Edilen Oda / Tercih</label><input name="requestedRoom" type="text" placeholder="Örn. Sessiz kat veya B Blok" required></div>
+                <div class="input-group"><label>Gerekçe</label><textarea name="reason" maxlength="1000" placeholder="Talep gerekçenizi yazın" required></textarea></div>
+                <div class="form-actions"><button class="primary-btn" type="submit"><i class="fas fa-paper-plane"></i> Talebi Kaydet</button></div>
+              </form>
             </article>
           </section>
 
@@ -251,6 +260,15 @@
     </div>
   </div>
 
+  <div id="modalBackdrop" class="modal-backdrop" style="display: none;">
+    <section class="modal">
+      <header>
+        <h2 id="modalTitle">İşlem</h2>
+        <button id="closeModal" class="icon-btn" type="button" title="Kapat">×</button>
+      </header>
+      <div id="modalBody"></div>
+    </section>
+  </div>
   <div id="toastHost" class="toast-host"></div>
   <script src="/js/student.js?v=20260901"></script>
 </body>

@@ -776,6 +776,7 @@ body.student-body > .app-shell {
   flex-direction: column;
   gap: 16px;
   overflow: auto;
+  padding-right: 2px;
 }
 
 .student-body .card-grid {
@@ -840,6 +841,13 @@ body.student-body > .app-shell {
   border-radius: 10px;
 }
 
+.student-body input[type="file"] {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  color: var(--text-secondary);
+}
+
 .student-body .btn,
 .student-body .btn-sm,
 .student-body .btn-save,
@@ -862,6 +870,9 @@ body.student-body > .app-shell {
   min-height: 0;
   max-height: min(54vh, 560px);
   overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 10px;
 }
 
 .student-body .list-row {
@@ -872,7 +883,8 @@ body.student-body > .app-shell {
 
 .student-body .ticket-card,
 .student-body .complaint-card,
-.student-body .announcement-item {
+.student-body .announcement-item,
+.student-body .student-record {
   border: 1px solid var(--border-color);
   border-radius: 12px;
   background: #ffffff;
@@ -900,6 +912,34 @@ body.student-body > .app-shell {
   border-left: 4px solid var(--warning);
 }
 
+.student-body .student-record {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px;
+}
+
+.student-body .student-record strong,
+.student-body .ticket-card strong,
+.student-body .announcement-item strong {
+  color: var(--primary-navy);
+}
+
+.student-body .student-record small,
+.student-body .ticket-card small,
+.student-body .announcement-item small {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-secondary);
+}
+
+.student-body .student-record p {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
 .student-body .empty-state {
   border: 1px dashed var(--border-color);
   border-radius: 12px;
@@ -921,6 +961,10 @@ body.student-body > .app-shell {
 }
 
 .student-body .student-password-modal {
+  width: min(520px, 100%);
+}
+
+.student-body .modal-backdrop .modal.student-password-modal {
   width: min(520px, 100%);
 }
 

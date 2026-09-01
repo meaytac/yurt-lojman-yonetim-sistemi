@@ -17,7 +17,8 @@
     applications: [],
     announcements: [],
     accommodation: null,
-    feedback: []
+    feedback: [],
+    roomChanges: []
   };
 
   document.addEventListener('DOMContentLoaded', init);
@@ -28,6 +29,12 @@
     bindProfileActions();
     bindForms();
     bindById('logoutBtn', 'click', logout);
+    bindById('closeModal', 'click', closeModal);
+    bindById('modalBackdrop', 'click', event => {
+      if (event.target?.id === 'modalBackdrop' && byId('modalBackdrop')?.dataset.locked !== 'true') {
+        closeModal(true);
+      }
+    });
 
     if (!state.token) {
       showLogin();
@@ -113,6 +120,7 @@
   function bindForms() {
     bindById('requestForm', 'submit', submitRequest);
     bindById('applicationForm', 'submit', submitApplication);
+    bindById('roomChangeForm', 'submit', submitRoomChange);
     bindById('quickPaymentButton', 'click', payLatestDue);
   }
 
@@ -170,12 +178,15 @@
     setValue('editPhone', phone === '-' ? '' : phone);
     setValue('profileEmail', email === '-' ? '' : email);
     setText('personalInfoBadge', 'Hesabınız');
-    byId('personalInfoBadge')?.classList.add('approved');
+    const personalInfoBadge = byId('personalInfoBadge');
+    if (personalInfoBadge) personalInfoBadge.className = 'badge badge-success';
     byId('personalInfoDisplay')?.style.setProperty('display', 'block');
     byId('personalInfoEdit')?.style.setProperty('display', 'none');
 
     state.feedback = readJson(feedbackStorageKey()) || [];
+    state.roomChanges = readJson(roomChangeStorageKey()) || [];
     renderFeedback();
+    renderRoomChanges();
   }
 
   function switchPage(pageId = 'profile') {
@@ -209,9 +220,9 @@
     try {
       state.payments = await api('/api/payments/mine');
       root.className = 'student-list';
-      root.innerHTML = state.payments.length
+      setHtml(root, state.payments.length
         ? state.payments.map(renderPayment).join('')
-        : empty('Kayıtlı borç bulunmuyor.');
+        : empty('Kayıtlı borç bulunmuyor.'));
 
       const latestDue = state.payments
         .filter(item => String(item.status).toLowerCase() !== 'paid' && new Date(item.dueDate) <= new Date())
@@ -225,7 +236,7 @@
         if (quickPaymentButton) quickPaymentButton.disabled = true;
       }
     } catch (error) {
-      root.innerHTML = empty(error.message);
+      setHtml(root, empty(error.message));
       if (quickPaymentInfo) quickPaymentInfo.textContent = 'Borç bilgisi yüklenemedi.';
       if (quickPaymentButton) quickPaymentButton.disabled = true;
       if (showErrors) toast(error.message || 'Borçlar yüklenemedi.', true);
@@ -238,11 +249,11 @@
     try {
       state.requests = await api('/api/requests/mine');
       root.className = 'student-list';
-      root.innerHTML = state.requests.length
+      setHtml(root, state.requests.length
         ? state.requests.map(renderRequest).join('')
-        : empty('Henüz arıza talebiniz bulunmuyor.');
+        : empty('Henüz arıza talebiniz bulunmuyor.'));
     } catch (error) {
-      root.innerHTML = empty(error.message);
+      setHtml(root, empty(error.message));
       if (showErrors) toast(error.message || 'Arıza talepleri yüklenemedi.', true);
     }
   }
@@ -253,11 +264,11 @@
     try {
       state.applications = await api('/api/applications/mine');
       root.className = 'student-list';
-      root.innerHTML = state.applications.length
+      setHtml(root, state.applications.length
         ? state.applications.map(renderApplication).join('')
-        : empty('Henüz başvurunuz bulunmuyor.');
+        : empty('Henüz başvurunuz bulunmuyor.'));
     } catch (error) {
-      root.innerHTML = empty(error.message);
+      setHtml(root, empty(error.message));
       if (showErrors) toast(error.message || 'Başvurular yüklenemedi.', true);
     }
   }
@@ -268,11 +279,11 @@
     try {
       state.announcements = await api('/api/announcements');
       root.className = 'student-list';
-      root.innerHTML = state.announcements.length
+      setHtml(root, state.announcements.length
         ? state.announcements.map(renderAnnouncement).join('')
-        : empty('Yayınlanmış duyuru bulunmuyor.');
+        : empty('Yayınlanmış duyuru bulunmuyor.'));
     } catch (error) {
-      root.innerHTML = empty(error.message);
+      setHtml(root, empty(error.message));
       if (showErrors) toast(error.message || 'Duyurular yüklenemedi.', true);
     }
   }
@@ -283,16 +294,16 @@
     try {
       state.accommodation = await api('/api/placements/mine');
       root.className = 'student-list';
-      root.innerHTML = `
+      setHtml(root, `
         <div class="list-row"><span class="info-label">Tesis</span><span class="info-value"><strong>${esc(state.accommodation.facilityName)}</strong> (${esc(state.accommodation.facilityType)})</span></div>
         <div class="list-row"><span class="info-label">Blok</span><span class="info-value"><strong>${esc(state.accommodation.blockName)}</strong></span></div>
         <div class="list-row"><span class="info-label">Kat</span><span class="info-value"><strong>${esc(state.accommodation.floorNumber)}</strong></span></div>
         <div class="list-row"><span class="info-label">Oda No</span><span class="info-value"><strong>${esc(state.accommodation.roomNumber)}</strong></span></div>
-        <div class="list-row"><span class="info-label">Giriş Tarihi</span><span class="info-value"><strong>${date(state.accommodation.checkInDate)}</strong></span></div>`;
+        <div class="list-row"><span class="info-label">Giriş Tarihi</span><span class="info-value"><strong>${date(state.accommodation.checkInDate)}</strong></span></div>`);
     } catch {
       state.accommodation = null;
       root.className = 'empty-state';
-      root.innerHTML = '<i class="fas fa-info-circle"></i><p>Henüz bir odaya yerleştirilmemişsiniz.</p>';
+      setHtml(root, '<i class="fas fa-info-circle"></i><p>Henüz bir odaya yerleştirilmemişsiniz.</p>');
     }
   }
 
@@ -490,15 +501,64 @@
     toast('Bildiriminiz kaydedildi.');
   }
 
+  function submitRoomChange(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = Object.fromEntries(new FormData(form).entries());
+    const currentRoom = String(data.currentRoom || '').trim();
+    const requestedRoom = String(data.requestedRoom || '').trim();
+    const reason = String(data.reason || '').trim();
+    if (!currentRoom || !requestedRoom || reason.length < 10) {
+      toast('Oda değişimi için tüm alanları ve en az 10 karakterlik gerekçeyi doldurun.', true);
+      return;
+    }
+
+    state.roomChanges.unshift({
+      id: Date.now(),
+      currentRoom,
+      requestedRoom,
+      reason,
+      date: new Date().toISOString(),
+      status: 'pending'
+    });
+    localStorage.setItem(roomChangeStorageKey(), JSON.stringify(state.roomChanges));
+    form.reset();
+    renderRoomChanges();
+    toast('Oda değişim talebiniz kaydedildi.');
+  }
+
+  function renderRoomChanges() {
+    const root = byId('roomChangeList');
+    if (!root) return;
+    if (!state.roomChanges.length) {
+      root.className = 'empty-state';
+      setHtml(root, '<i class="fas fa-inbox"></i><p>Henüz oda değişim talebiniz bulunmuyor.</p>');
+      return;
+    }
+
+    root.className = 'student-list';
+    setHtml(root, state.roomChanges.map(item => {
+      const [label, badge] = status(item.status);
+      return `<article class="student-record">
+        <div>
+          <strong>${esc(item.currentRoom)} -> ${esc(item.requestedRoom)}</strong>
+          <small>${date(item.date)}</small>
+          <p>${esc(item.reason)}</p>
+        </div>
+        <span class="badge ${badge}">${label}</span>
+      </article>`;
+    }).join(''));
+  }
+
   function renderFeedback() {
     const root = byId('sikayetList');
     if (!root) return;
     if (!state.feedback.length) {
-      root.innerHTML = empty('Henüz şikayet veya öneri bildirimi yapılmamış.');
+      setHtml(root, empty('Henüz şikayet veya öneri bildirimi yapılmamış.'));
       return;
     }
 
-    root.innerHTML = state.feedback.map(item => {
+    setHtml(root, state.feedback.map(item => {
       const typeLabel = item.type === 'sikayet' ? 'Şikayet' : 'Öneri';
       const typeClass = item.type === 'sikayet' ? 'complaint' : 'suggestion';
       const [label, badge] = status(item.status);
@@ -510,7 +570,7 @@
         <div class="complaint-description">${esc(item.description)}</div>
         <span class="badge ${badge}">${label}</span>
       </article>`;
-    }).join('');
+    }).join(''));
   }
 
   async function checkMustChangePassword() {
@@ -523,28 +583,16 @@
   }
 
   function showForceChangePasswordModal() {
-    if (byId('forceChangeModal')) return;
-    const modal = document.createElement('div');
-    modal.id = 'forceChangeModal';
-    modal.className = 'modal-backdrop show';
-    modal.innerHTML = `
-      <section class="modal student-password-modal">
-        <header>
-          <h2>İlk Giriş - Şifre Değiştirme Zorunluluğu</h2>
-        </header>
-        <div id="modalBody">
-          <p class="modal-note">Güvenliğiniz için atanan ilk şifrenizi değiştirmeniz gerekmektedir.</p>
-          <form id="forceChangeForm" class="form-grid">
-            <label>Mevcut Şifre<input type="password" name="currentPassword" required autocomplete="current-password"></label>
-            <label>Yeni Şifre<input type="password" name="newPassword" required minlength="6" autocomplete="new-password"></label>
-            <label>Yeni Şifre (Tekrar)<input type="password" name="confirmPassword" required autocomplete="new-password"></label>
-            <div class="form-actions">
-              <button class="primary-btn" type="submit">Şifreyi Değiştir ve Devam Et</button>
-            </div>
-          </form>
+    openModal('İlk Giriş - Şifre Değiştirme Zorunluluğu', `
+      <p class="modal-note">Güvenliğiniz için atanan ilk şifrenizi değiştirmeniz gerekmektedir.</p>
+      <form id="forceChangeForm" class="form-grid">
+        <label>Mevcut Şifre<input type="password" name="currentPassword" required autocomplete="current-password"></label>
+        <label>Yeni Şifre<input type="password" name="newPassword" required minlength="6" autocomplete="new-password"></label>
+        <label>Yeni Şifre (Tekrar)<input type="password" name="confirmPassword" required autocomplete="new-password"></label>
+        <div class="form-actions">
+          <button class="primary-btn" type="submit">Şifreyi Değiştir ve Devam Et</button>
         </div>
-      </section>`;
-    document.body.appendChild(modal);
+      </form>`, { locked: true, modalClass: 'student-password-modal' });
     bindById('forceChangeForm', 'submit', async event => {
       event.preventDefault();
       const form = event.currentTarget;
@@ -559,7 +607,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ currentPassword: data.currentPassword, newPassword: data.newPassword })
         });
-        modal.remove();
+        closeModal();
         toast('Şifreniz başarıyla değiştirildi.');
       } catch (error) {
         toast(error.message || 'Şifre değiştirilemedi.', true);
@@ -610,9 +658,41 @@
     if (element) element.textContent = value ?? '';
   }
 
+  function setHtml(target, value) {
+    const element = typeof target === 'string' ? byId(target) : target;
+    if (element) element.innerHTML = value ?? '';
+  }
+
   function setValue(id, value) {
     const element = byId(id);
     if (element) element.value = value ?? '';
+  }
+
+  function openModal(title, html, options = {}) {
+    const backdrop = byId('modalBackdrop');
+    const dialog = backdrop?.querySelector('.modal');
+    if (!backdrop || !dialog) return;
+    setText('modalTitle', title);
+    setHtml('modalBody', html);
+    dialog.className = `modal ${options.modalClass || ''}`.trim();
+    backdrop.dataset.locked = options.locked ? 'true' : 'false';
+    backdrop.style.display = 'grid';
+    requestAnimationFrame(() => backdrop.classList.add('show'));
+    byId('closeModal')?.toggleAttribute('hidden', Boolean(options.locked));
+  }
+
+  function closeModal(force = false) {
+    const backdrop = byId('modalBackdrop');
+    const dialog = backdrop?.querySelector('.modal');
+    if (!backdrop || (!force && backdrop.dataset.locked === 'true')) return;
+    backdrop.classList.remove('show');
+    window.setTimeout(() => {
+      backdrop.style.display = 'none';
+      setHtml('modalBody', '');
+      if (dialog) dialog.className = 'modal';
+      byId('closeModal')?.removeAttribute('hidden');
+      backdrop.dataset.locked = 'false';
+    }, 180);
   }
 
   function valueOf(id) {
@@ -680,6 +760,10 @@
 
   function feedbackStorageKey() {
     return `studentFeedback:${state.currentUser.userId || state.currentUser.email || 'local'}`;
+  }
+
+  function roomChangeStorageKey() {
+    return `studentRoomChanges:${state.currentUser.userId || state.currentUser.email || 'local'}`;
   }
 
   function readJson(key) {
