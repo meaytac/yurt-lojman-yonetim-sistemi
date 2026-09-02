@@ -49,27 +49,6 @@ public class PublicController(IPublicApplicationService publicApplications) : Co
         }
     }
 
-    [HttpPost("applications/verify-email")]
-    public async Task<IActionResult> VerifyEmail(PublicTokenRequest request, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await publicApplications.VerifyEmailAsync(request, cancellationToken);
-            return Ok(new PublicMessageResponse("E-posta doğrulandı. Başvurunuz inceleme kuyruğuna alındı."));
-        }
-        catch (InvalidOperationException)
-        {
-            return BadRequest(new PublicMessageResponse("İşlem gerçekleştirilemedi. Bağlantı geçersiz veya süresi dolmuş olabilir."));
-        }
-    }
-
-    [HttpPost("applications/resend-verification")]
-    public async Task<IActionResult> ResendVerification([FromBody] ResendVerificationRequest request, CancellationToken cancellationToken)
-    {
-        await publicApplications.ResendVerificationAsync(request.ReferenceCode, request.Email, cancellationToken);
-        return Ok(new PublicMessageResponse("Bilgiler eşleşirse doğrulama e-postası yeniden gönderilecektir."));
-    }
-
     [HttpPost("applications/track")]
     public async Task<ActionResult<PublicTrackResponse>> Track(PublicTrackRequest request, CancellationToken cancellationToken)
     {
@@ -114,5 +93,3 @@ public class PublicController(IPublicApplicationService publicApplications) : Co
         }
     }
 }
-
-public record ResendVerificationRequest(string ReferenceCode, string Email);

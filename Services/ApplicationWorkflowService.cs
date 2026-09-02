@@ -38,11 +38,6 @@ public class ApplicationWorkflowService(
             throw new InvalidOperationException("Yalnızca inceleme bekleyen başvurular onaylanabilir.");
         }
 
-        if (application.Source == ApplicationSource.ExternalApplicant && application.EmailVerifiedAt is null)
-        {
-            throw new InvalidOperationException("E-posta doğrulanmadan başvuru onaylanamaz.");
-        }
-
         EnsureApplicationInScope(application, dormitoryScope, housingUnitScope);
         application.User ??= await CreateLockedPublicUserAsync(application, cancellationToken);
 

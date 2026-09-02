@@ -1696,7 +1696,6 @@ function toast(message, isError = false) {
 function getStatusBadge(status) {
   const map = {
     Pending: ['Beklemede', 'badge-warning'],
-    EmailVerificationPending: ['E-posta Bekliyor', 'badge-muted'],
     UnderReview: ['İnceleniyor', 'badge-info'],
     MissingInformation: ['Ek Bilgi Bekleniyor', 'badge-warning'],
     ApprovedAwaitingActivation: ['Aktivasyon Bekliyor', 'badge-warning'],
@@ -1744,7 +1743,6 @@ function roomDisplayStatus(status) {
 
 function applicationStatusDisplay(status) {
   const map = {
-    EmailVerificationPending: 'E-posta Doğrulaması Bekleniyor',
     Pending: 'Bekleyen',
     UnderReview: 'İnceleniyor',
     MissingInformation: 'Ek Bilgi Bekleniyor',

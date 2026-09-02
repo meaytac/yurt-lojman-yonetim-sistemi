@@ -104,7 +104,6 @@ public class ApplicationsController(AppDbContext db, IFileStorageService fileSto
     {
         var blockedStatuses = new[]
         {
-            ApplicationStatus.EmailVerificationPending,
             ApplicationStatus.Pending,
             ApplicationStatus.UnderReview,
             ApplicationStatus.MissingInformation,

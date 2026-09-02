@@ -1,25 +1,3 @@
-async function verifyApplicationFromQuery() {
-  const state = document.getElementById('verifyState');
-  if (!state) return;
-  const referenceCode = queryValue('ref');
-  const token = securityCodeFromQuery();
-  if (!referenceCode || !token) {
-    setStatus(state, 'Doğrulama bağlantısı eksik veya geçersiz.', 'error');
-    return;
-  }
-
-  try {
-    const data = await publicApi('/api/public/applications/verify-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ referenceCode, token })
-    });
-    setStatus(state, data.message, 'success');
-  } catch (error) {
-    setStatus(state, error.message, 'error');
-  }
-}
-
 async function trackApplication(event) {
   event.preventDefault();
   const state = document.getElementById('trackState');
@@ -79,8 +57,7 @@ async function submitMissingInformation(event) {
 
 function applicationStatusText(status) {
   const map = {
-    EmailVerificationPending: 'E-posta doğrulaması bekleniyor',
-    Pending: 'İnceleme kuyruğunda',
+    Pending: 'Yetkili onayı bekleniyor',
     UnderReview: 'İnceleniyor',
     MissingInformation: 'Ek bilgi gerekiyor',
     ApprovedAwaitingActivation: 'Onaylandı, hesap aktivasyonu bekleniyor',
@@ -97,7 +74,6 @@ function roleText(role) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  verifyApplicationFromQuery();
   hydrateTrackingForm();
   document.getElementById('trackForm')?.addEventListener('submit', trackApplication);
   document.getElementById('missingInfoForm')?.addEventListener('submit', submitMissingInformation);

@@ -2,7 +2,6 @@ namespace yurt_lojman_yonetim_sistemi.Services;
 
 public class PublicApplicationOptions
 {
-    public int VerificationTokenHours { get; set; } = 24;
     public int TrackingTokenDays { get; set; } = 30;
     public int ActivationTokenHours { get; set; } = 48;
     public int MaxDocumentMegabytes { get; set; } = 5;

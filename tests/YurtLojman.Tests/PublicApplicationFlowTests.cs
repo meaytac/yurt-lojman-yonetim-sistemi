@@ -34,7 +34,7 @@ public class PublicApplicationFlowTests
     }
 
     [Fact]
-    public async Task Public_application_waits_for_email_verification_without_creating_user()
+    public async Task Public_application_is_pending_without_creating_user()
     {
         await using var factory = CreateFactory();
         var dormitoryId = await SeedFacilityAsync(factory);
@@ -49,33 +49,21 @@ public class PublicApplicationFlowTests
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var application = await db.Applications.SingleAsync(x => x.ReferenceCode == reference);
 
-        Assert.Equal(ApplicationStatus.EmailVerificationPending, application.Status);
+        Assert.Equal(ApplicationStatus.Pending, application.Status);
         Assert.Null(application.UserId);
         Assert.False(await db.Users.AnyAsync(x => x.Email == "basvuru@example.test"));
         var accessTokens = await db.ApplicationAccessTokens.Where(x => x.ApplicationId == application.Id).ToListAsync();
-        Assert.Equal(2, accessTokens.Count);
-        Assert.Contains(accessTokens, x => x.Purpose == ApplicationTokenPurpose.EmailVerification);
+        Assert.Single(accessTokens);
         Assert.Contains(accessTokens, x => x.Purpose == ApplicationTokenPurpose.StatusTracking);
-        Assert.Single(await db.EmailOutboxMessages.Where(x => x.ToEmail == "basvuru@example.test").ToListAsync());
-    }
+        Assert.Empty(await db.EmailOutboxMessages.Where(x => x.ToEmail == "basvuru@example.test").ToListAsync());
 
-    [Fact]
-    public async Task Public_application_create_returns_security_code_that_tracks_application()
-    {
-        await using var factory = CreateFactory();
-        var dormitoryId = await SeedFacilityAsync(factory);
-        var client = factory.CreateClient();
-
-        var createResponse = await CreateApplicationAsync(client, dormitoryId);
-        createResponse.EnsureSuccessStatusCode();
-        var created = await JsonDocument.ParseAsync(await createResponse.Content.ReadAsStreamAsync());
-        var reference = created.RootElement.GetProperty("referenceCode").GetString()!;
-        var securityCode = created.RootElement.GetProperty("securityCode").GetString();
-
-        Assert.False(string.IsNullOrWhiteSpace(securityCode));
-        var track = await client.PostAsJsonAsync("/api/public/applications/track", new { referenceCode = reference, token = securityCode });
-
-        track.EnsureSuccessStatusCode();
+        await AuthenticateAdminAsync(client);
+        var adminApplicationsResponse = await client.GetAsync("/api/admin/applications");
+        adminApplicationsResponse.EnsureSuccessStatusCode();
+        var adminApplications = await JsonDocument.ParseAsync(await adminApplicationsResponse.Content.ReadAsStreamAsync());
+        Assert.Contains(adminApplications.RootElement.EnumerateArray(), x =>
+            x.GetProperty("id").GetInt32() == application.Id
+            && x.GetProperty("status").GetString() == nameof(ApplicationStatus.Pending));
     }
 
     [Fact]
@@ -114,7 +102,7 @@ public class PublicApplicationFlowTests
     }
 
     [Fact]
-    public async Task Email_verification_moves_application_to_pending_and_token_is_single_use()
+    public async Task Public_application_create_returns_security_code_that_tracks_application()
     {
         await using var factory = CreateFactory();
         var dormitoryId = await SeedFacilityAsync(factory);
@@ -124,22 +112,21 @@ public class PublicApplicationFlowTests
         createResponse.EnsureSuccessStatusCode();
         var created = await JsonDocument.ParseAsync(await createResponse.Content.ReadAsStreamAsync());
         var reference = created.RootElement.GetProperty("referenceCode").GetString()!;
-        var token = await ExtractLatestTokenAsync(factory, reference);
+        var securityCode = created.RootElement.GetProperty("securityCode").GetString();
 
-        var verify = await client.PostAsJsonAsync("/api/public/applications/verify-email", new { referenceCode = reference, token });
-        verify.EnsureSuccessStatusCode();
+        Assert.False(string.IsNullOrWhiteSpace(securityCode));
+        var track = await client.PostAsJsonAsync("/api/public/applications/track", new { referenceCode = reference, token = securityCode });
+
+        track.EnsureSuccessStatusCode();
 
         using (var scope = factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var application = await db.Applications.Include(x => x.StatusHistory).SingleAsync(x => x.ReferenceCode == reference);
             Assert.Equal(ApplicationStatus.Pending, application.Status);
-            Assert.NotNull(application.EmailVerifiedAt);
-            Assert.Contains(application.StatusHistory, x => x.Status == ApplicationStatus.Pending);
+            Assert.Null(application.EmailVerifiedAt);
+            Assert.Contains(application.StatusHistory, x => x.Status == ApplicationStatus.Pending && x.Note == "Yetkili onayı bekleniyor.");
         }
-
-        var secondUse = await client.PostAsJsonAsync("/api/public/applications/verify-email", new { referenceCode = reference, token });
-        Assert.Equal(HttpStatusCode.BadRequest, secondUse.StatusCode);
     }
 
     [Fact]
@@ -230,9 +217,7 @@ public class PublicApplicationFlowTests
         createResponse.EnsureSuccessStatusCode();
         var created = await JsonDocument.ParseAsync(await createResponse.Content.ReadAsStreamAsync());
         var reference = created.RootElement.GetProperty("referenceCode").GetString()!;
-        var verifyToken = await ExtractLatestTokenAsync(factory, reference);
-        (await client.PostAsJsonAsync("/api/public/applications/verify-email", new { referenceCode = reference, token = verifyToken })).EnsureSuccessStatusCode();
-        var trackingToken = await ExtractLatestTokenAsync(factory, reference);
+        var trackingToken = created.RootElement.GetProperty("securityCode").GetString()!;
 
         var first = await client.PostAsJsonAsync("/api/public/applications/track", new { referenceCode = reference, token = trackingToken });
         var second = await client.PostAsJsonAsync("/api/public/applications/track", new { referenceCode = reference, token = trackingToken });
@@ -279,7 +264,7 @@ public class PublicApplicationFlowTests
     }
 
     [Fact]
-    public async Task Approval_requires_verified_email_for_external_application()
+    public async Task Approval_creates_locked_student_account_and_activation_email()
     {
         await using var factory = CreateFactory();
         var dormitoryId = await SeedFacilityAsync(factory);
@@ -289,34 +274,6 @@ public class PublicApplicationFlowTests
         createResponse.EnsureSuccessStatusCode();
         var created = await JsonDocument.ParseAsync(await createResponse.Content.ReadAsStreamAsync());
         var reference = created.RootElement.GetProperty("referenceCode").GetString()!;
-
-        using var scope = factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var workflow = scope.ServiceProvider.GetRequiredService<IApplicationWorkflowService>();
-        var applicationId = await db.Applications.Where(x => x.ReferenceCode == reference).Select(x => x.Id).SingleAsync();
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() => workflow.ApproveAsync(
-            Guid.NewGuid(),
-            applicationId,
-            new ApplicationDecisionRequest(true, null, null, true, dormitoryId, null),
-            [dormitoryId],
-            null,
-            CancellationToken.None));
-    }
-
-    [Fact]
-    public async Task Approval_creates_locked_student_account_and_activation_email_only_after_verification()
-    {
-        await using var factory = CreateFactory();
-        var dormitoryId = await SeedFacilityAsync(factory);
-        await SeedRoomAsync(factory, dormitoryId);
-        var client = factory.CreateClient();
-        var createResponse = await CreateApplicationAsync(client, dormitoryId);
-        createResponse.EnsureSuccessStatusCode();
-        var created = await JsonDocument.ParseAsync(await createResponse.Content.ReadAsStreamAsync());
-        var reference = created.RootElement.GetProperty("referenceCode").GetString()!;
-        var verifyToken = await ExtractLatestTokenAsync(factory, reference);
-        (await client.PostAsJsonAsync("/api/public/applications/verify-email", new { referenceCode = reference, token = verifyToken })).EnsureSuccessStatusCode();
 
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -351,8 +308,6 @@ public class PublicApplicationFlowTests
         createResponse.EnsureSuccessStatusCode();
         var created = await JsonDocument.ParseAsync(await createResponse.Content.ReadAsStreamAsync());
         var reference = created.RootElement.GetProperty("referenceCode").GetString()!;
-        var verifyToken = await ExtractLatestTokenAsync(factory, reference);
-        (await client.PostAsJsonAsync("/api/public/applications/verify-email", new { referenceCode = reference, token = verifyToken })).EnsureSuccessStatusCode();
 
         using (var scope = factory.Services.CreateScope())
         {

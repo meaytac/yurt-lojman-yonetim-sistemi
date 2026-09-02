@@ -14,8 +14,6 @@ public interface IPublicApplicationService
     Task<IReadOnlyList<PublicFacilityResponse>> GetFacilitiesAsync(CancellationToken cancellationToken);
     Task<PublicFacilityResponse> GetFacilityAsync(AccommodationType type, int id, CancellationToken cancellationToken);
     Task<PublicApplicationCreatedResponse> CreateAsync(PublicApplicationCreateRequest request, CancellationToken cancellationToken);
-    Task VerifyEmailAsync(PublicTokenRequest request, CancellationToken cancellationToken);
-    Task ResendVerificationAsync(string referenceCode, string email, CancellationToken cancellationToken);
     Task<PublicTrackResponse> TrackAsync(PublicTrackRequest request, CancellationToken cancellationToken);
     Task ResubmitMissingInformationAsync(PublicApplicationUpdateRequest request, CancellationToken cancellationToken);
     Task ActivateAsync(ActivateAccountRequest request, CancellationToken cancellationToken);
@@ -71,7 +69,7 @@ public class PublicApplicationService(
                 throw new IdempotencyConflictException("Aynı işlem anahtarı farklı başvuru bilgileriyle kullanılamaz.");
             }
 
-            return new PublicApplicationCreatedResponse(existing.ReferenceCode, existing.Status, "Başvurunuz oluşturuldu. Devam edebilmek için e-posta adresinize gönderilen doğrulama bağlantısını kullanın.");
+            return new PublicApplicationCreatedResponse(existing.ReferenceCode, existing.Status, "Başvurunuz oluşturuldu. Başvurunuz yetkili onayına gönderildi.");
         }
 
         var documentKey = await documentStorage.SavePublicDocumentAsync(request.Document, cancellationToken);
@@ -80,7 +78,7 @@ public class PublicApplicationService(
         var application = new AccommodationApplication
         {
             Source = ApplicationSource.ExternalApplicant,
-            Status = ApplicationStatus.EmailVerificationPending,
+            Status = ApplicationStatus.Pending,
             ReferenceCode = referenceCode,
             AccommodationType = request.AccommodationType,
             ApplicantFullName = request.FullName.Trim(),
@@ -99,8 +97,8 @@ public class PublicApplicationService(
 
         application.StatusHistory.Add(new ApplicationStatusHistory
         {
-            Status = ApplicationStatus.EmailVerificationPending,
-            Note = "E-posta doğrulaması bekleniyor."
+            Status = ApplicationStatus.Pending,
+            Note = "Yetkili onayı bekleniyor."
         });
 
         db.Applications.Add(application);
@@ -117,40 +115,7 @@ public class PublicApplicationService(
                 throw;
             }
 
-            return new PublicApplicationCreatedResponse(duplicate.ReferenceCode, duplicate.Status, "Başvurunuz oluşturuldu. Devam edebilmek için e-posta adresinize gönderilen doğrulama bağlantısını kullanın.");
-        }
-
-        var verificationToken = await tokenService.CreateTokenAsync(
-            application.Id,
-            ApplicationTokenPurpose.EmailVerification,
-            TimeSpan.FromHours(options.Value.VerificationTokenHours),
-            cancellationToken);
-        var trackingToken = await tokenService.CreateTokenAsync(
-            application.Id,
-            ApplicationTokenPurpose.StatusTracking,
-            TimeSpan.FromDays(options.Value.TrackingTokenDays),
-            cancellationToken);
-
-        await SendVerificationEmailAsync(application, verificationToken, cancellationToken);
-        return new PublicApplicationCreatedResponse(referenceCode, application.Status, "Başvurunuz oluşturuldu. Devam edebilmek için e-posta adresinize gönderilen doğrulama bağlantısını kullanın.", trackingToken);
-    }
-
-    public async Task VerifyEmailAsync(PublicTokenRequest request, CancellationToken cancellationToken)
-    {
-        var accessToken = await tokenService.ConsumeTokenAsync(request.ReferenceCode, request.Token, ApplicationTokenPurpose.EmailVerification, cancellationToken)
-            ?? throw new InvalidOperationException("Doğrulama bağlantısı geçersiz veya süresi dolmuş.");
-
-        var application = accessToken.Application;
-        if (application.Status == ApplicationStatus.EmailVerificationPending)
-        {
-            application.EmailVerifiedAt = DateTime.UtcNow;
-            application.Status = ApplicationStatus.Pending;
-            application.UpdatedAt = DateTime.UtcNow;
-            application.StatusHistory.Add(new ApplicationStatusHistory
-            {
-                Status = ApplicationStatus.Pending,
-                Note = "E-posta doğrulandı ve başvuru inceleme kuyruğuna alındı."
-            });
+            return new PublicApplicationCreatedResponse(duplicate.ReferenceCode, duplicate.Status, "Başvurunuz oluşturuldu. Başvurunuz yetkili onayına gönderildi.");
         }
 
         var trackingToken = await tokenService.CreateTokenAsync(
@@ -159,31 +124,7 @@ public class PublicApplicationService(
             TimeSpan.FromDays(options.Value.TrackingTokenDays),
             cancellationToken);
 
-        await SendTrackingEmailAsync(application, trackingToken, cancellationToken);
-        await db.SaveChangesAsync(cancellationToken);
-    }
-
-    public async Task ResendVerificationAsync(string referenceCode, string email, CancellationToken cancellationToken)
-    {
-        var application = await db.Applications.FirstOrDefaultAsync(x =>
-            x.ReferenceCode == referenceCode.Trim().ToUpperInvariant()
-            && x.ApplicantEmail == email.Trim().ToLowerInvariant()
-            && x.Source == ApplicationSource.ExternalApplicant
-            && x.Status == ApplicationStatus.EmailVerificationPending,
-            cancellationToken);
-
-        if (application is null)
-        {
-            return;
-        }
-
-        var verificationToken = await tokenService.CreateTokenAsync(
-            application.Id,
-            ApplicationTokenPurpose.EmailVerification,
-            TimeSpan.FromHours(options.Value.VerificationTokenHours),
-            cancellationToken);
-
-        await SendVerificationEmailAsync(application, verificationToken, cancellationToken);
+        return new PublicApplicationCreatedResponse(referenceCode, application.Status, "Başvurunuz oluşturuldu. Başvurunuz yetkili onayına gönderildi.", trackingToken);
     }
 
     public async Task<PublicTrackResponse> TrackAsync(PublicTrackRequest request, CancellationToken cancellationToken)
@@ -366,14 +307,6 @@ public class PublicApplicationService(
         }
 
         throw new InvalidOperationException("Başvuru referansı üretilemedi.");
-    }
-
-    private Task SendVerificationEmailAsync(AccommodationApplication application, string rawToken, CancellationToken cancellationToken)
-    {
-        var link = $"{options.Value.PublicBaseUrl.TrimEnd('/')}/verify-application.html?ref={WebUtility.UrlEncode(application.ReferenceCode)}&token={WebUtility.UrlEncode(rawToken)}";
-        return outbox.EnqueueAsync(application.ApplicantEmail!, "Başvuru e-posta doğrulaması",
-            $"<p>Başvurunuzu incelemeye alabilmemiz için e-posta adresinizi doğrulayın.</p><p><a href=\"{WebUtility.HtmlEncode(link)}\">Başvuruyu doğrula</a></p><p>Referans kodunuz: <strong>{WebUtility.HtmlEncode(application.ReferenceCode)}</strong></p>",
-            cancellationToken);
     }
 
     private Task SendTrackingEmailAsync(AccommodationApplication application, string rawToken, CancellationToken cancellationToken)
