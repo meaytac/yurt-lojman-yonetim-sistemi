@@ -2,7 +2,7 @@ async function verifyApplicationFromQuery() {
   const state = document.getElementById('verifyState');
   if (!state) return;
   const referenceCode = queryValue('ref');
-  const token = queryValue('token');
+  const token = securityCodeFromQuery();
   if (!referenceCode || !token) {
     setStatus(state, 'Doğrulama bağlantısı eksik veya geçersiz.', 'error');
     return;
@@ -98,9 +98,15 @@ function roleText(role) {
 document.addEventListener('DOMContentLoaded', () => {
   verifyApplicationFromQuery();
   const ref = queryValue('ref');
-  const token = queryValue('token');
-  if (ref) document.getElementById('trackReference')?.setAttribute('value', ref);
-  if (token) document.getElementById('trackToken')?.setAttribute('value', token);
+  const securityCode = securityCodeFromQuery();
+  const referenceInput = document.getElementById('trackReference');
+  const codeInput = document.getElementById('trackToken');
+  if (ref && referenceInput) referenceInput.value = ref;
+  if (securityCode && codeInput) codeInput.value = securityCode;
   document.getElementById('trackForm')?.addEventListener('submit', trackApplication);
   document.getElementById('missingInfoForm')?.addEventListener('submit', submitMissingInformation);
 });
+
+function securityCodeFromQuery() {
+  return queryValue('code') || queryValue('token');
+}

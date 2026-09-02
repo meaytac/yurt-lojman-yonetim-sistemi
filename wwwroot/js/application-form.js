@@ -178,7 +178,7 @@
       const formData = helpers.buildApplicationFormData(form, state.selected, state.idempotencyKey);
       const data = await publicApi('/api/public/applications', { method: 'POST', body: formData });
       state.lastReference = data.referenceCode;
-      showSuccess(data.referenceCode);
+      showSuccess(data.referenceCode, data.securityCode || data.trackingToken || data.token || '');
       setMode('success');
       refreshIdempotencyKey();
     } catch (error) {
@@ -191,9 +191,12 @@
     }
   }
 
-  function showSuccess(referenceCode) {
+  function showSuccess(referenceCode, securityCode = '') {
     byId('applicationReferenceCode').textContent = referenceCode || '';
-    byId('goTrackButton').href = `/track-application.html?ref=${encodeURIComponent(referenceCode || '')}`;
+    const params = new URLSearchParams();
+    if (referenceCode) params.set('ref', referenceCode);
+    if (securityCode) params.set('code', securityCode);
+    byId('goTrackButton').href = `/track-application.html${params.toString() ? `?${params}` : ''}`;
     const result = byId('applicationResultPanel');
     result.hidden = false;
     result.focus();
