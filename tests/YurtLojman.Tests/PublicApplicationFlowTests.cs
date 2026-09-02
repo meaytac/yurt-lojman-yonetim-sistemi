@@ -52,8 +52,30 @@ public class PublicApplicationFlowTests
         Assert.Equal(ApplicationStatus.EmailVerificationPending, application.Status);
         Assert.Null(application.UserId);
         Assert.False(await db.Users.AnyAsync(x => x.Email == "basvuru@example.test"));
-        Assert.Single(await db.ApplicationAccessTokens.Where(x => x.ApplicationId == application.Id).ToListAsync());
+        var accessTokens = await db.ApplicationAccessTokens.Where(x => x.ApplicationId == application.Id).ToListAsync();
+        Assert.Equal(2, accessTokens.Count);
+        Assert.Contains(accessTokens, x => x.Purpose == ApplicationTokenPurpose.EmailVerification);
+        Assert.Contains(accessTokens, x => x.Purpose == ApplicationTokenPurpose.StatusTracking);
         Assert.Single(await db.EmailOutboxMessages.Where(x => x.ToEmail == "basvuru@example.test").ToListAsync());
+    }
+
+    [Fact]
+    public async Task Public_application_create_returns_security_code_that_tracks_application()
+    {
+        await using var factory = CreateFactory();
+        var dormitoryId = await SeedFacilityAsync(factory);
+        var client = factory.CreateClient();
+
+        var createResponse = await CreateApplicationAsync(client, dormitoryId);
+        createResponse.EnsureSuccessStatusCode();
+        var created = await JsonDocument.ParseAsync(await createResponse.Content.ReadAsStreamAsync());
+        var reference = created.RootElement.GetProperty("referenceCode").GetString()!;
+        var securityCode = created.RootElement.GetProperty("securityCode").GetString();
+
+        Assert.False(string.IsNullOrWhiteSpace(securityCode));
+        var track = await client.PostAsJsonAsync("/api/public/applications/track", new { referenceCode = reference, token = securityCode });
+
+        track.EnsureSuccessStatusCode();
     }
 
     [Fact]

@@ -125,9 +125,14 @@ public class PublicApplicationService(
             ApplicationTokenPurpose.EmailVerification,
             TimeSpan.FromHours(options.Value.VerificationTokenHours),
             cancellationToken);
+        var trackingToken = await tokenService.CreateTokenAsync(
+            application.Id,
+            ApplicationTokenPurpose.StatusTracking,
+            TimeSpan.FromDays(options.Value.TrackingTokenDays),
+            cancellationToken);
 
         await SendVerificationEmailAsync(application, verificationToken, cancellationToken);
-        return new PublicApplicationCreatedResponse(referenceCode, application.Status, "Başvurunuz oluşturuldu. Devam edebilmek için e-posta adresinize gönderilen doğrulama bağlantısını kullanın.");
+        return new PublicApplicationCreatedResponse(referenceCode, application.Status, "Başvurunuz oluşturuldu. Devam edebilmek için e-posta adresinize gönderilen doğrulama bağlantısını kullanın.", trackingToken);
     }
 
     public async Task VerifyEmailAsync(PublicTokenRequest request, CancellationToken cancellationToken)

@@ -178,7 +178,9 @@
       const formData = helpers.buildApplicationFormData(form, state.selected, state.idempotencyKey);
       const data = await publicApi('/api/public/applications', { method: 'POST', body: formData });
       state.lastReference = data.referenceCode;
-      showSuccess(data.referenceCode, data.securityCode || data.trackingToken || data.token || '');
+      const securityCode = data.securityCode || '';
+      rememberSecurityCode(data.referenceCode, securityCode);
+      showSuccess(data.referenceCode, securityCode);
       setMode('success');
       refreshIdempotencyKey();
     } catch (error) {
@@ -201,6 +203,15 @@
     result.hidden = false;
     result.focus();
     setStatus('', '');
+  }
+
+  function rememberSecurityCode(referenceCode, securityCode) {
+    if (!referenceCode || !securityCode) return;
+    try {
+      sessionStorage.setItem(`publicApplicationSecurityCode:${referenceCode}`, securityCode);
+    } catch {
+      // sessionStorage can be unavailable in restrictive browser modes.
+    }
   }
 
   async function copyReference() {

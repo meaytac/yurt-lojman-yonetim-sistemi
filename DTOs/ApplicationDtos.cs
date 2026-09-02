@@ -86,7 +86,8 @@ public class PublicApplicationCreateRequest
 public record PublicApplicationCreatedResponse(
     string ReferenceCode,
     ApplicationStatus Status,
-    string Message);
+    string Message,
+    string? SecurityCode = null);
 
 public class PublicTokenRequest
 {

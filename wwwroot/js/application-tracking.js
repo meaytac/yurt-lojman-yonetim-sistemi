@@ -35,6 +35,7 @@ async function trackApplication(event) {
         token: form.get('token')
       })
     });
+    rememberSecurityCode(form.get('referenceCode'), form.get('token'));
     const statusText = applicationStatusText(data.status);
     setStatus(state, `${data.referenceCode} başvurusu: ${statusText}`, 'success');
     result.innerHTML = `
@@ -97,16 +98,58 @@ function roleText(role) {
 
 document.addEventListener('DOMContentLoaded', () => {
   verifyApplicationFromQuery();
-  const ref = queryValue('ref');
-  const securityCode = securityCodeFromQuery();
-  const referenceInput = document.getElementById('trackReference');
-  const codeInput = document.getElementById('trackToken');
-  if (ref && referenceInput) referenceInput.value = ref;
-  if (securityCode && codeInput) codeInput.value = securityCode;
+  hydrateTrackingForm();
   document.getElementById('trackForm')?.addEventListener('submit', trackApplication);
   document.getElementById('missingInfoForm')?.addEventListener('submit', submitMissingInformation);
 });
 
 function securityCodeFromQuery() {
   return queryValue('code') || queryValue('token');
+}
+
+function hydrateTrackingForm() {
+  if (!document.getElementById('trackForm')) return;
+  const ref = queryValue('ref');
+  const securityCode = readSecurityCode(ref);
+  const referenceInput = document.getElementById('trackReference');
+  const codeInput = document.getElementById('trackToken');
+  if (ref && referenceInput) referenceInput.value = ref;
+  if (securityCode && codeInput) codeInput.value = securityCode;
+}
+
+function readSecurityCode(referenceCode) {
+  const fromQuery = securityCodeFromQuery();
+  if (fromQuery) {
+    rememberSecurityCode(referenceCode, fromQuery);
+    removeSensitiveQueryParams();
+    return fromQuery;
+  }
+
+  if (!referenceCode) return '';
+  try {
+    return sessionStorage.getItem(securityCodeStorageKey(referenceCode)) || '';
+  } catch {
+    return '';
+  }
+}
+
+function rememberSecurityCode(referenceCode, securityCode) {
+  if (!referenceCode || !securityCode) return;
+  try {
+    sessionStorage.setItem(securityCodeStorageKey(referenceCode), securityCode);
+  } catch {
+    // sessionStorage can be unavailable in restrictive browser modes.
+  }
+}
+
+function securityCodeStorageKey(referenceCode) {
+  return `publicApplicationSecurityCode:${referenceCode}`;
+}
+
+function removeSensitiveQueryParams() {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has('code') && !url.searchParams.has('token')) return;
+  url.searchParams.delete('code');
+  url.searchParams.delete('token');
+  history.replaceState(history.state, document.title, `${url.pathname}${url.search}${url.hash}`);
 }
