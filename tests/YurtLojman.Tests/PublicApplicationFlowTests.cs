@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
@@ -171,6 +172,7 @@ public class PublicApplicationFlowTests
         await using var factory = CreateFactory();
         var dormitoryId = await SeedFacilityAsync(factory);
         var client = factory.CreateClient();
+        await AuthenticateAdminAsync(client);
 
         var first = await client.PostAsJsonAsync("/api/admin/buildings", new { dormitoryId, housingUnitId = (int?)null, blockName = "A Blok" });
         first.EnsureSuccessStatusCode();
@@ -440,6 +442,15 @@ public class PublicApplicationFlowTests
     {
         using var form = NewApplicationForm(dormitoryId, idempotencyKey ?? Guid.NewGuid().ToString("N"), fullName);
         return await client.PostAsync("/api/public/applications", form);
+    }
+
+    private static async Task AuthenticateAdminAsync(HttpClient client)
+    {
+        var response = await client.PostAsJsonAsync("/api/auth/login", new { email = "admin@ozal.edu.tr", password = "Demo123!" });
+        response.EnsureSuccessStatusCode();
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var token = json.RootElement.GetProperty("token").GetString();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
 
     private static MultipartFormDataContent NewApplicationForm(int dormitoryId, string idempotencyKey, string fullName = "Başvuru Adayı")

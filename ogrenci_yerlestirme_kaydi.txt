@@ -72,3 +72,6 @@
 2026-09-02 00:12;hande.kucuk@ozal.edu.tr;Hande Küçük;MTÜ Akademik Personel Lojmanı;L Blok;Kat 2;Oda L207
 2026-09-02 00:12;serife.korkmaz@ozal.edu.tr;Şerife Korkmaz;MTÜ Erkek Öğrenci Yurdu;A Blok;Kat 2;Oda 207
 2026-09-02 00:12;cihan.kocak@ozal.edu.tr;Cihan Koçak;MTÜ Kız Öğrenci Yurdu;B Blok;Kat 2;Oda 206
+2026-09-02 00:31;hande.kucuk@ozal.edu.tr;Hande Küçük;MTÜ Erkek Öğrenci Yurdu;B Blok;Kat 2;Oda 208
+2026-09-02 00:31;serife.korkmaz@ozal.edu.tr;Şerife Korkmaz;MTÜ Akademik Personel Lojmanı;L Blok;Kat 2;Oda L206
+2026-09-02 00:31;cihan.kocak@ozal.edu.tr;Cihan Koçak;MTÜ Erkek Öğrenci Yurdu;A Blok;Kat 2;Oda 207

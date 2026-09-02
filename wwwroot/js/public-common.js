@@ -85,7 +85,7 @@ function mapValidationErrors(errors) {
 
 function canonicalFieldName(field) {
   const clean = String(field || '').split('.').pop();
-  if (clean.toLocaleLowerCase('tr-TR') === 'traceid') return '';
+  if (clean.toLowerCase() === 'traceid') return '';
   const exact = Object.keys(publicFieldLabels).find(key => key.toLocaleLowerCase('tr-TR') === clean.toLocaleLowerCase('tr-TR'));
   return exact || clean;
 }
