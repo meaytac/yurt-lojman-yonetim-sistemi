@@ -1,0 +1,29 @@
+{
+  "name": "yurt-lojman-yonetim-sistemi",
+  "version": "1.0.0",
+  "description": "ASP.NET Core Web API, Entity Framework Core Code-First, ASP.NET Core Identity, JWT, Swagger, vanilla HTML/CSS/JS frontend ve WhatsApp Cloud API webhook uyumlu bot endpointleri iceren temel projedir.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meaytac/yurt-lojman-yonetim-sistemi.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/meaytac/yurt-lojman-yonetim-sistemi/issues"
+  },
+  "homepage": "https://github.com/meaytac/yurt-lojman-yonetim-sistemi#readme",
+  "dependencies": {
+    "qrcode-terminal": "^0.12.0",
+    "sqlite3": "^6.0.1",
+    "whatsapp-web.js": "^1.34.7"
+  }
+}

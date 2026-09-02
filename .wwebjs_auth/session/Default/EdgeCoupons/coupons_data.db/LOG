@@ -1,0 +1,6 @@
+2026/09/02-13:54:16.283 775c Reusing MANIFEST C:\Yeni klasör (2)\yurt-lojman-yonetim-sistemi\.wwebjs_auth\session\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
+2026/09/02-13:54:16.286 775c Recovering log #4
+2026/09/02-13:54:16.289 775c Reusing old log C:\Yeni klasör (2)\yurt-lojman-yonetim-sistemi\.wwebjs_auth\session\Default\EdgeCoupons/coupons_data.db/000004.log 
+2026/09/02-13:54:16.507 3a14 Level-0 table #8: started
+2026/09/02-13:54:16.512 3a14 Level-0 table #8: 683376 bytes OK
+2026/09/02-13:54:16.514 3a14 Delete type=0 #4

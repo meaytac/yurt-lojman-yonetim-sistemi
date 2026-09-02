@@ -1,0 +1,5 @@
+2026/09/02-13:50:57.215 607c Creating DB C:\Yeni klasör (2)\yurt-lojman-yonetim-sistemi\.wwebjs_auth\session\Default\EdgeCoupons/coupons_data.db since it was missing.
+2026/09/02-13:50:57.233 607c Reusing MANIFEST C:\Yeni klasör (2)\yurt-lojman-yonetim-sistemi\.wwebjs_auth\session\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
+2026/09/02-13:50:57.423 3808 Level-0 table #5: started
+2026/09/02-13:50:57.433 3808 Level-0 table #5: 683273 bytes OK
+2026/09/02-13:50:57.436 3808 Delete type=0 #3
