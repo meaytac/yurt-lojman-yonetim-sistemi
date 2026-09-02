@@ -1049,13 +1049,20 @@ function targetRoleDisplay(role) {
   return map[role] || role;
 }
 
+function buildAnnouncementTargetOptions(selectedFacilityId = '') {
+  const facilities = (state.assignedFacilities || []).slice().sort((a, b) => String(a.name).localeCompare(String(b.name), 'tr-TR'));
+  const selectedValue = selectedFacilityId ?? '';
+  const list = facilities.map(facility => `<option value="${facility.id}" ${String(facility.id) === String(selectedValue) ? 'selected' : ''}>${escapeHtml(facility.name)}</option>`).join('');
+  return `<option value="">Tümünü Seç</option>${list}`;
+}
+
 function renderAnnouncements() {
   const page = paginateItems(state.announcements, 'announcements');
   document.getElementById('announcementRows').innerHTML = emptyTable(page.items, item => `
     <tr>
       <td><strong>${escapeHtml(item.title)}</strong></td>
       <td class="desc-cell">${escapeHtml(item.content)}</td>
-      <td>${escapeHtml(targetRoleDisplay(item.targetRole))}</td>
+      <td>${escapeHtml(item.targetFacilityName || targetRoleDisplay(item.targetRole))}</td>
       <td>${date(item.createdAt)}</td>
       <td>${item.isActive ? '<span class="badge badge-success">Yayında</span>' : '<span class="badge badge-muted">Yayın dışı</span>'}</td>
       <td>
@@ -1072,12 +1079,7 @@ function announcementForm() {
     html: `<form id="announcementForm" class="form-grid">
       <label class="full">Başlık<input name="title" required maxlength="180" placeholder="Duyuru başlığı"></label>
       <label class="full">İçerik<textarea name="content" required maxlength="4000" placeholder="Duyuru içeriği"></textarea></label>
-      <label>Hedef<select name="targetRole">
-        <option value="All">Herkes</option>
-        <option value="Student">Öğrenciler</option>
-        <option value="Staff">Personel</option>
-      </select></label>
-      <label>Durum<select name="isActive"><option value="true" selected>Yayında</option><option value="false">Yayın dışı</option></select></label>
+      <label>Hedef<select name="targetFacilityId">${buildAnnouncementTargetOptions()}</select></label>
       <button class="primary-btn full" type="submit">Duyuruyu Yayınla</button>
     </form>`,
     bind: () => document.getElementById('announcementForm').addEventListener('submit', submitAnnouncement)
@@ -1087,6 +1089,8 @@ function announcementForm() {
 async function submitAnnouncement(event) {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  const facilityId = data.targetFacilityId ? Number(data.targetFacilityId) : null;
+  const facilityName = facilityId ? (state.assignedFacilities.find(f => f.id === facilityId)?.name || 'Tümünü Seç') : 'Tümünü Seç';
   try {
     await api('/api/announcements', {
       method: 'POST',
@@ -1094,12 +1098,14 @@ async function submitAnnouncement(event) {
       body: JSON.stringify({
         title: data.title,
         content: data.content,
-        targetRole: data.targetRole,
-        isActive: data.isActive === 'true'
+        targetRole: 'All',
+        targetFacilityId: facilityId,
+        targetFacilityName: facilityName,
+        isActive: true
       })
     });
     closeModalIfOpen();
-    toast('Duyuru yayınlandı. Öğrenciler anında görebilir.');
+    toast('Duyuru yayınlandı.');
     await loadAnnouncements();
   } catch (error) {
     toast(error.message || 'Duyuru yayınlanamadı.', true);
@@ -1116,7 +1122,9 @@ async function unpublishAnnouncement(id) {
       body: JSON.stringify({
         title: item.title,
         content: item.content,
-        targetRole: item.targetRole,
+        targetRole: item.targetRole || 'All',
+        targetFacilityId: item.targetFacilityId ?? null,
+        targetFacilityName: item.targetFacilityName || 'Tümünü Seç',
         isActive: false
       })
     });

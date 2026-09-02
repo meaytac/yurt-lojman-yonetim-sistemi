@@ -13,6 +13,12 @@ public class Announcement
     public string Content { get; set; } = string.Empty;
 
     public AnnouncementTargetRole TargetRole { get; set; } = AnnouncementTargetRole.All;
+
+    public int? TargetFacilityId { get; set; }
+
+    [MaxLength(180)]
+    public string TargetFacilityName { get; set; } = "Tüm Tesisler";
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public bool IsActive { get; set; } = true;
 }

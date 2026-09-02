@@ -80,7 +80,7 @@ public class BotController(AppDbContext db, IConfiguration configuration, ILogge
             .Where(x => x.IsActive)
             .OrderByDescending(x => x.CreatedAt)
             .Take(10)
-            .Select(x => new AnnouncementResponse(x.Id, x.Title, x.Content, x.TargetRole, x.CreatedAt, x.IsActive))
+            .Select(x => new AnnouncementResponse(x.Id, x.Title, x.Content, x.TargetRole, x.TargetFacilityId, x.TargetFacilityName, x.CreatedAt, x.IsActive))
             .ToListAsync();
     }
 }

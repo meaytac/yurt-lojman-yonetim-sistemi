@@ -4,7 +4,9 @@ const {
   campusOptions,
   filterFacilities,
   selectedIsVisible,
-  modalActions
+  modalActions,
+  validateApplicationForm,
+  buildApplicationFormData
 } = require('../wwwroot/js/application-form-state.js');
 
 const facilities = [
@@ -84,3 +86,95 @@ test('error actions keep form retryable without result actions', () => {
   assert.equal(actions.showCopy, false);
   assert.equal(actions.showTrack, false);
 });
+
+test('application payload uses backend field names for dormitory applications', () => {
+  const formData = buildApplicationFormData(fakeForm({ AccommodationType: 'Yurt' }), { id: 17, type: 'Yurt' }, 'idem-1');
+  const keys = Array.from(formData.keys());
+
+  assert.equal(formData.get('FullName'), 'Ayşe Yılmaz');
+  assert.equal(formData.get('Email'), 'ayse@example.test');
+  assert.equal(formData.get('TcNo'), '12345678901');
+  assert.equal(formData.get('PhoneNumber'), '+905551112233');
+  assert.equal(formData.get('StudentStaffNo'), 'OGR-42');
+  assert.equal(formData.get('ApplicantRole'), 'Ogrenci');
+  assert.equal(formData.get('AccommodationType'), 'Yurt');
+  assert.equal(formData.get('DormitoryId'), '17');
+  assert.equal(keys.includes('HousingUnitId'), false);
+  assert.equal(formData.get('ApplicantNote'), 'Sessiz oda tercihi');
+  assert.equal(formData.get('IdempotencyKey'), 'idem-1');
+  assert.equal(formData.get('Consent'), 'true');
+  assert.equal(keys.includes('Document'), true);
+});
+
+test('application payload sends only housing unit id for housing applications', () => {
+  const formData = buildApplicationFormData(fakeForm({ AccommodationType: 'Lojman', ApplicantRole: 'Personel' }), { id: 23, type: 'Lojman' }, 'idem-2');
+  const keys = Array.from(formData.keys());
+
+  assert.equal(formData.get('ApplicantRole'), 'Personel');
+  assert.equal(formData.get('AccommodationType'), 'Lojman');
+  assert.equal(formData.get('HousingUnitId'), '23');
+  assert.equal(keys.includes('DormitoryId'), false);
+});
+
+test('frontend validation returns short Turkish field errors without duplicates', () => {
+  const errors = validateApplicationForm(fakeForm({
+    FullName: ' ',
+    Email: 'yanlis',
+    PhoneNumber: ' ',
+    TcNo: '123',
+    StudentStaffNo: '',
+    Consent: false
+  }), null);
+
+  assert.deepEqual(errors, {
+    FullName: 'Ad soyad alanını doldurun.',
+    Email: 'Geçerli bir e-posta adresi girin.',
+    PhoneNumber: 'Telefon numaranızı girin.',
+    TcNo: 'T.C. Kimlik Numarası 11 rakam olmalıdır.',
+    StudentStaffNo: 'Öğrenci/Personel numaranızı girin.',
+    Facility: 'Başvurmak istediğiniz tesisi seçin.',
+    Consent: 'Başvuru bilgilerinin doğruluğunu onaylayın.'
+  });
+});
+
+test('valid filled fields do not create required validation errors', () => {
+  const errors = validateApplicationForm(fakeForm(), { id: 17, type: 'Yurt' });
+  assert.deepEqual(errors, {});
+});
+
+function fakeForm(overrides = {}) {
+  const file = new Blob(['%PDF-1.4'], { type: 'application/pdf' });
+  file.name = 'belge.pdf';
+  file.size = file.size || 8;
+
+  const values = {
+    FullName: ' Ayşe Yılmaz ',
+    Email: 'ayse@example.test',
+    TcNo: '123 456 789 01',
+    PhoneNumber: '+90 (555) 111-22-33',
+    StudentStaffNo: ' OGR-42 ',
+    ApplicantRole: 'Ogrenci',
+    AccommodationType: 'Yurt',
+    ApplicantNote: ' Sessiz oda tercihi ',
+    IdempotencyKey: 'from-form',
+    Consent: true,
+    Document: file,
+    ...overrides
+  };
+
+  return {
+    elements: {
+      FullName: { value: values.FullName },
+      Email: { value: values.Email },
+      TcNo: { value: values.TcNo },
+      PhoneNumber: { value: values.PhoneNumber },
+      StudentStaffNo: { value: values.StudentStaffNo },
+      ApplicantRole: { value: values.ApplicantRole },
+      AccommodationType: { value: values.AccommodationType },
+      ApplicantNote: { value: values.ApplicantNote },
+      IdempotencyKey: { value: values.IdempotencyKey },
+      Consent: { checked: values.Consent },
+      Document: { files: values.Document ? [values.Document] : [] }
+    }
+  };
+}

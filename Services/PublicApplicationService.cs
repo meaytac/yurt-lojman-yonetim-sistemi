@@ -89,7 +89,7 @@ public class PublicApplicationService(
             ApplicantPhoneNumber = request.PhoneNumber?.Trim(),
             ApplicantStudentStaffNo = request.StudentStaffNo?.Trim(),
             ApplicantRole = role,
-            ApplicantNote = request.Note?.Trim(),
+            ApplicantNote = request.ApplicantNote?.Trim(),
             RequestedDormitoryId = request.DormitoryId,
             RequestedHousingUnitId = request.HousingUnitId,
             DocumentUrl = documentKey,
@@ -342,7 +342,8 @@ public class PublicApplicationService(
             request.AccommodationType,
             DormitoryId = request.AccommodationType == AccommodationType.Yurt ? request.DormitoryId : null,
             HousingUnitId = request.AccommodationType == AccommodationType.Lojman ? request.HousingUnitId : null,
-            Note = request.Note?.Trim() ?? string.Empty,
+            ApplicantNote = request.ApplicantNote?.Trim() ?? string.Empty,
+            request.Consent,
             DocumentName = request.Document?.FileName ?? string.Empty,
             DocumentLength = request.Document?.Length ?? 0
         });

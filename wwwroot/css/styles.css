@@ -199,6 +199,14 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
 }
 
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"],
+.application-facility-list[aria-invalid="true"] {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+}
+
 input:disabled,
 select:disabled,
 textarea:disabled {
@@ -336,7 +344,7 @@ textarea:disabled {
 
 .application-modal-body {
   overflow: auto;
-  padding: 22px 22px 92px;
+  padding: 22px;
   display: grid;
   gap: 18px;
 }
@@ -384,11 +392,18 @@ textarea:disabled {
   gap: 14px;
 }
 
+.application-step label {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
 .application-facility-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-top: 14px;
+  border-radius: var(--radius-md);
 }
 
 .application-facility {
@@ -418,6 +433,7 @@ textarea:disabled {
   border: 1px dashed var(--border-color);
   border-radius: var(--radius-md);
   background: var(--bg-light);
+  white-space: pre-line;
 }
 
 .application-empty-state {
@@ -460,18 +476,71 @@ textarea:disabled {
   letter-spacing: 0;
 }
 
+.field-error {
+  min-height: 18px;
+  color: #dc2626;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.input-help {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.file-picker {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  position: relative;
+}
+
+.file-picker input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.file-picker-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--primary-emerald);
+  border-radius: var(--radius-md);
+  color: var(--primary-emerald);
+  font-weight: 700;
+  background: var(--bg-white);
+}
+
+.file-picker-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-picker:focus-within .file-picker-button {
+  border-color: var(--primary-emerald);
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+}
+
 .declaration {
   align-items: flex-start;
 }
 
 .application-modal-footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
-  margin: 0 -22px -92px;
-  padding: 14px 22px;
+  position: static;
+  margin-top: 6px;
+  padding: 20px 0 4px;
   border-top: 1px solid var(--border-color);
-  background: var(--bg-white);
+  background: transparent;
 }
 
 .application-modal-actions {

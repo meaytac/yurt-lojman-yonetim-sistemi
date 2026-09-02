@@ -88,7 +88,7 @@
         <button class="modal-close" id="closeApplicationModal" type="button" aria-label="Kapat">×</button>
       </header>
       <form id="preRegistrationApplicationForm" class="application-modal-body" enctype="multipart/form-data">
-        <input type="hidden" name="idempotencyKey" id="applicationIdempotencyKey">
+        <input type="hidden" name="IdempotencyKey" id="applicationIdempotencyKey">
         <ol class="application-steps" aria-label="Başvuru adımları">
           <li class="active">Başvuru sahibi</li>
           <li>Tesis seçimi</li>
@@ -98,28 +98,45 @@
         <fieldset class="application-step">
           <legend>Adım 1 — Başvuru sahibi</legend>
           <div class="form-grid two">
-            <label>Başvuru türü
-              <select name="applicantRole" id="applicantRole" required>
+            <label for="applicantRole">Başvuru türü
+              <select name="ApplicantRole" id="applicantRole" required aria-describedby="applicantRoleError">
                 <option value="Ogrenci">Öğrenci</option>
                 <option value="Personel">Personel</option>
               </select>
+              <small id="applicantRoleError" class="field-error" aria-live="polite"></small>
             </label>
-            <label>Ad Soyad<input name="fullName" required maxlength="150" autocomplete="name"></label>
-            <label>E-posta<input name="email" type="email" required maxlength="256" autocomplete="email"></label>
-            <label>Telefon<input name="phoneNumber" maxlength="30" autocomplete="tel"></label>
-            <label>T.C. Kimlik Numarası<input name="tcNo" required minlength="11" maxlength="11" inputmode="numeric"></label>
-            <label>Öğrenci/Personel Numarası<input name="studentStaffNo" maxlength="30"></label>
+            <label for="applicationFullName">Ad Soyad
+              <input name="FullName" id="applicationFullName" required maxlength="150" autocomplete="name" aria-describedby="applicationFullNameError">
+              <small id="applicationFullNameError" class="field-error" aria-live="polite"></small>
+            </label>
+            <label for="applicationEmail">E-posta
+              <input name="Email" id="applicationEmail" type="email" required maxlength="256" autocomplete="email" aria-describedby="applicationEmailError">
+              <small id="applicationEmailError" class="field-error" aria-live="polite"></small>
+            </label>
+            <label for="applicationPhoneNumber">Telefon
+              <input name="PhoneNumber" id="applicationPhoneNumber" maxlength="30" autocomplete="tel" aria-describedby="applicationPhoneNumberError">
+              <small id="applicationPhoneNumberError" class="field-error" aria-live="polite"></small>
+            </label>
+            <label for="applicationTcNo">T.C. Kimlik Numarası
+              <input name="TcNo" id="applicationTcNo" required minlength="11" maxlength="11" inputmode="numeric" aria-describedby="applicationTcNoError">
+              <small id="applicationTcNoError" class="field-error" aria-live="polite"></small>
+            </label>
+            <label for="applicationStudentStaffNo">Öğrenci/Personel Numarası
+              <input name="StudentStaffNo" id="applicationStudentStaffNo" maxlength="30" aria-describedby="applicationStudentStaffNoError">
+              <small id="applicationStudentStaffNoError" class="field-error" aria-live="polite"></small>
+            </label>
           </div>
         </fieldset>
 
         <fieldset class="application-step">
           <legend>Adım 2 — Tesis seçimi</legend>
           <div class="form-grid two">
-            <label>Konaklama türü
-              <select name="accommodationType" id="applicationAccommodationType" required>
+            <label for="applicationAccommodationType">Konaklama türü
+              <select name="AccommodationType" id="applicationAccommodationType" required aria-describedby="applicationAccommodationTypeError">
                 <option value="Yurt">Yurt</option>
                 <option value="Lojman">Lojman</option>
               </select>
+              <small id="applicationAccommodationTypeError" class="field-error" aria-live="polite"></small>
             </label>
             <label for="campusSelect">Kampüs
               <select id="campusSelect" disabled>
@@ -127,22 +144,33 @@
               </select>
             </label>
           </div>
-          <input type="hidden" name="dormitoryId" id="applicationDormitoryId">
-          <input type="hidden" name="housingUnitId" id="applicationHousingUnitId">
-          <div id="applicationFacilityList" class="application-facility-list" aria-live="polite"></div>
+          <input type="hidden" name="DormitoryId" id="applicationDormitoryId">
+          <input type="hidden" name="HousingUnitId" id="applicationHousingUnitId">
+          <div id="applicationFacilityList" class="application-facility-list" aria-live="polite" aria-describedby="applicationFacilityError"></div>
+          <small id="applicationFacilityError" class="field-error" aria-live="polite"></small>
           <div id="selectedFacilitySummary" class="selected-facility-summary">Tesis seçilmedi.</div>
         </fieldset>
 
         <fieldset class="application-step">
           <legend>Adım 3 — Belge ve açıklama</legend>
-          <label>Öğrenci belgesi veya personel görev belgesi
-            <input name="document" type="file" accept="application/pdf,image/jpeg,image/png">
+          <label for="applicationDocument">Öğrenci belgesi veya personel görev belgesi
+            <span class="file-picker">
+              <input name="Document" id="applicationDocument" type="file" accept="application/pdf,image/jpeg,image/png" aria-describedby="applicationDocumentHelp applicationDocumentError">
+              <span class="file-picker-button">Dosya Seç</span>
+              <span class="file-picker-name" id="applicationDocumentName">Dosya seçilmedi</span>
+            </span>
+            <small id="applicationDocumentHelp" class="input-help">PDF, JPG veya PNG; en fazla 8 MB.</small>
+            <small id="applicationDocumentError" class="field-error" aria-live="polite"></small>
           </label>
-          <label>Açıklama<textarea name="note" maxlength="1000"></textarea></label>
+          <label for="applicationApplicantNote">Açıklama
+            <textarea name="ApplicantNote" id="applicationApplicantNote" maxlength="1000" aria-describedby="applicationApplicantNoteError"></textarea>
+            <small id="applicationApplicantNoteError" class="field-error" aria-live="polite"></small>
+          </label>
           <label class="checkbox-label declaration">
-            <input name="declarationAccepted" type="checkbox" required>
+            <input name="Consent" id="applicationConsent" type="checkbox" required aria-describedby="applicationConsentError">
             <span>Başvuru bilgilerimin doğru olduğunu ve aydınlatma/gizlilik bilgilendirmesini okuduğumu onaylıyorum.</span>
           </label>
+          <small id="applicationConsentError" class="field-error" aria-live="polite"></small>
           <div id="applicationSummary" class="selected-facility-summary"></div>
         </fieldset>
 
@@ -151,6 +179,8 @@
           <p>E-posta adresinize gönderilen doğrulama bağlantısını kullanarak başvurunuzu inceleme kuyruğuna alabilirsiniz.</p>
           <strong id="applicationReferenceCode"></strong>
         </section>
+
+        <p id="applicationModalState" class="login-message" aria-live="polite"></p>
 
         <div class="application-modal-footer">
           <div class="application-modal-actions">
@@ -161,7 +191,6 @@
             <button class="btn-secondary result-action" id="closeApplicationResult" type="button" hidden>Kapat</button>
           </div>
         </div>
-        <p id="applicationModalState" class="login-message" aria-live="polite"></p>
       </form>
     </section>
   </div>

@@ -47,37 +47,40 @@ public record PublicFacilityResponse(
 
 public class PublicApplicationCreateRequest
 {
-    [Required, MaxLength(128)]
+    [Required(ErrorMessage = "İşlem anahtarı eksik."), MaxLength(128)]
     public string IdempotencyKey { get; set; } = string.Empty;
 
-    [Required, MaxLength(150)]
+    [Required(ErrorMessage = "Ad soyad alanı zorunludur."), MaxLength(150)]
     public string FullName { get; set; } = string.Empty;
 
-    [Required, EmailAddress, MaxLength(256)]
+    [Required(ErrorMessage = "E-posta adresi zorunludur."), EmailAddress(ErrorMessage = "Geçerli bir e-posta adresi girin."), MaxLength(256)]
     public string Email { get; set; } = string.Empty;
 
-    [Required, StringLength(11, MinimumLength = 11)]
+    [Required(ErrorMessage = "T.C. Kimlik Numarası zorunludur."), RegularExpression(@"^\d{11}$", ErrorMessage = "T.C. Kimlik Numarası 11 rakam olmalıdır.")]
     public string TcNo { get; set; } = string.Empty;
 
-    [MaxLength(30)]
-    public string? PhoneNumber { get; set; }
+    [Required(ErrorMessage = "Telefon numarası zorunludur."), MaxLength(30)]
+    public string PhoneNumber { get; set; } = string.Empty;
 
-    [MaxLength(30)]
-    public string? StudentStaffNo { get; set; }
+    [Required(ErrorMessage = "Öğrenci/Personel numarası zorunludur."), MaxLength(30)]
+    public string StudentStaffNo { get; set; } = string.Empty;
 
-    [Required, MaxLength(30)]
+    [Required(ErrorMessage = "Başvuru türü zorunludur."), MaxLength(30)]
     public string ApplicantRole { get; set; } = AppRoles.Ogrenci;
 
-    [Required]
+    [Required(ErrorMessage = "Konaklama türü zorunludur.")]
     public AccommodationType AccommodationType { get; set; }
 
     public int? DormitoryId { get; set; }
     public int? HousingUnitId { get; set; }
 
     [MaxLength(1000)]
-    public string? Note { get; set; }
+    public string? ApplicantNote { get; set; }
 
     public IFormFile? Document { get; set; }
+
+    [Range(typeof(bool), "true", "true", ErrorMessage = "Başvuru bilgilerinin doğruluğunu onaylayın.")]
+    public bool Consent { get; set; }
 }
 
 public record PublicApplicationCreatedResponse(

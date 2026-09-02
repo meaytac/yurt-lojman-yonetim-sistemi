@@ -554,8 +554,31 @@ async function submitBuilding(event, item = null) {
     toast('Önce bağlı tesis seçin.', true);
     return;
   }
+
   const [kind, id] = data.facility.split('-');
-  const payload = { dormitoryId: kind === 'd' ? Number(id) : null, housingUnitId: kind === 'h' ? Number(id) : null, blockName: data.blockName };
+  const payload = {
+    dormitoryId: kind === 'd' ? Number(id) : null,
+    housingUnitId: kind === 'h' ? Number(id) : null,
+    blockName: String(data.blockName ?? '').trim()
+  };
+
+  if (!payload.blockName) {
+    toast('Blok adı zorunludur.', true);
+    return;
+  }
+
+  const duplicate = (state.buildings || []).some(building => {
+    if (item && building.id === item.id) return false;
+    if (payload.dormitoryId != null) return building.dormitoryId === payload.dormitoryId && String(building.blockName || '').trim().toLocaleLowerCase('tr-TR') === payload.blockName.toLocaleLowerCase('tr-TR');
+    if (payload.housingUnitId != null) return building.housingUnitId === payload.housingUnitId && String(building.blockName || '').trim().toLocaleLowerCase('tr-TR') === payload.blockName.toLocaleLowerCase('tr-TR');
+    return false;
+  });
+
+  if (duplicate) {
+    toast('Aynı tesiste aynı isimde başka bir blok mevcut. Lütfen farklı bir blok adı seçin.', true);
+    return;
+  }
+
   const result = await saveEntity(item ? `/api/admin/buildings/${item.id}` : '/api/admin/buildings', item ? 'PUT' : 'POST', payload);
   if (!result) return;
   upsertById(state.buildings, result);
@@ -1295,6 +1318,13 @@ function announcementTargetDisplay(role) {
   return map[role] || role;
 }
 
+function buildAnnouncementTargetOptions(selectedFacilityId = '') {
+  const facilities = (state.facilities || []).slice().sort((a, b) => String(a.name).localeCompare(String(b.name), 'tr-TR'));
+  const selectedValue = selectedFacilityId ?? '';
+  const list = facilities.map(facility => `<option value="${facility.id}" ${String(facility.id) === String(selectedValue) ? 'selected' : ''}>${escapeHtml(facility.name)}</option>`).join('');
+  return `<option value="">Tümünü Seç</option>${list}`;
+}
+
 function renderAnnouncements() {
   const rowsHost = byId('announcementRowsAdmin');
   if (!rowsHost) return;
@@ -1304,7 +1334,7 @@ function renderAnnouncements() {
     <tr>
       <td><strong>${escapeHtml(item.title)}</strong></td>
       <td class="desc-cell">${escapeHtml(item.content)}</td>
-      <td>${escapeHtml(announcementTargetDisplay(item.targetRole))}</td>
+      <td>${escapeHtml(item.targetFacilityName || announcementTargetDisplay(item.targetRole))}</td>
       <td>${date(item.createdAt)}</td>
       <td>${item.isActive ? '<span class="badge badge-success">Yayında</span>' : '<span class="badge badge-muted">Yayın dışı</span>'}</td>
       <td>
@@ -1321,12 +1351,7 @@ function announcementFormAdmin() {
     html: `<form id="announcementFormAdmin" class="form-grid">
       <label class="full">Başlık<input name="title" required maxlength="180" placeholder="Duyuru başlığı"></label>
       <label class="full">İçerik<textarea name="content" required maxlength="4000" placeholder="Duyuru içeriği"></textarea></label>
-      <label>Hedef<select name="targetRole">
-        <option value="All">Herkes</option>
-        <option value="Student">Öğrenciler</option>
-        <option value="Staff">Personel</option>
-      </select></label>
-      <label>Durum<select name="isActive"><option value="true" selected>Yayında</option><option value="false">Yayın dışı</option></select></label>
+      <label>Hedef<select name="targetFacilityId">${buildAnnouncementTargetOptions()}</select></label>
       <button class="primary-btn full" type="submit">Duyuruyu Yayınla</button>
     </form>`,
     bind: () => bindById('announcementFormAdmin', 'submit', submitAnnouncementAdmin)
@@ -1336,6 +1361,8 @@ function announcementFormAdmin() {
 async function submitAnnouncementAdmin(event) {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  const facilityId = data.targetFacilityId ? Number(data.targetFacilityId) : null;
+  const facilityName = facilityId ? (state.facilities.find(f => f.id === facilityId && (f.type === 'Yurt' || f.type === 'Lojman'))?.name || 'Tümünü Seç') : 'Tümünü Seç';
   try {
     await api('/api/announcements', {
       method: 'POST',
@@ -1343,8 +1370,10 @@ async function submitAnnouncementAdmin(event) {
       body: JSON.stringify({
         title: data.title,
         content: data.content,
-        targetRole: data.targetRole,
-        isActive: data.isActive === 'true'
+        targetRole: 'All',
+        targetFacilityId: facilityId,
+        targetFacilityName: facilityName,
+        isActive: true
       })
     });
     closeModalIfOpen();
@@ -1362,7 +1391,7 @@ async function unpublishAnnouncement(id) {
     await api(`/api/announcements/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: item.title, content: item.content, targetRole: item.targetRole, isActive: false })
+      body: JSON.stringify({ title: item.title, content: item.content, targetRole: item.targetRole || 'All', targetFacilityId: item.targetFacilityId ?? null, targetFacilityName: item.targetFacilityName || 'Tümünü Seç', isActive: false })
     });
     toast('Duyuru yayından kaldırıldı.');
     await loadAnnouncements();

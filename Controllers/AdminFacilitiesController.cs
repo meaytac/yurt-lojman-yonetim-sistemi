@@ -223,7 +223,18 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
             return BadRequestError("Seçilen lojman bulunamadı.");
         }
 
-        var entity = new Building { DormitoryId = request.DormitoryId, HousingUnitId = request.HousingUnitId, BlockName = request.BlockName };
+        var blockName = request.BlockName.Trim();
+        if (request.DormitoryId.HasValue && await db.Buildings.AnyAsync(x => x.DormitoryId == request.DormitoryId.Value && x.BlockName == blockName))
+        {
+            return ConflictError("Aynı tesiste aynı isimde başka bir blok mevcut. Lütfen farklı bir blok adı seçin.");
+        }
+
+        if (request.HousingUnitId.HasValue && await db.Buildings.AnyAsync(x => x.HousingUnitId == request.HousingUnitId.Value && x.BlockName == blockName))
+        {
+            return ConflictError("Aynı tesiste aynı isimde başka bir blok mevcut. Lütfen farklı bir blok adı seçin.");
+        }
+
+        var entity = new Building { DormitoryId = request.DormitoryId, HousingUnitId = request.HousingUnitId, BlockName = blockName };
         db.Buildings.Add(entity);
         await db.SaveChangesAsync();
         return Ok(entity);
@@ -238,9 +249,17 @@ public class AdminFacilitiesController(AppDbContext db, IAccommodationService ac
         if (request.HousingUnitId.HasValue && !await db.HousingUnits.AnyAsync(x => x.Id == request.HousingUnitId.Value)) return BadRequestError("Seçilen lojman bulunamadı.");
         var entity = await db.Buildings.FindAsync(id);
         if (entity is null) return NotFoundError("Blok bulunamadı.");
+
+        var nextBlockName = request.BlockName.Trim();
+        var hasDuplicate = await db.Buildings.AnyAsync(x => x.Id != id && ((request.DormitoryId.HasValue && x.DormitoryId == request.DormitoryId.Value && x.BlockName == nextBlockName) || (request.HousingUnitId.HasValue && x.HousingUnitId == request.HousingUnitId.Value && x.BlockName == nextBlockName)));
+        if (hasDuplicate)
+        {
+            return ConflictError("Aynı tesiste aynı isimde başka bir blok mevcut. Lütfen farklı bir blok adı seçin.");
+        }
+
         entity.DormitoryId = request.DormitoryId;
         entity.HousingUnitId = request.HousingUnitId;
-        entity.BlockName = request.BlockName;
+        entity.BlockName = nextBlockName;
         await db.SaveChangesAsync();
         return Ok(entity);
     }

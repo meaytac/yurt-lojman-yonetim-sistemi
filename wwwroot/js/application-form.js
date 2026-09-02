@@ -31,6 +31,9 @@
     byId('applicationAccommodationType')?.addEventListener('change', handleTypeChange);
     byId('campusSelect')?.addEventListener('change', handleCampusChange);
     byId('copyReferenceButton')?.addEventListener('click', copyReference);
+    byId('applicationDocument')?.addEventListener('change', updateDocumentName);
+    document.querySelectorAll('#preRegistrationApplicationForm input, #preRegistrationApplicationForm select, #preRegistrationApplicationForm textarea')
+      .forEach(input => input.addEventListener('input', () => clearFieldError(fieldNameForElement(input))));
   }
 
   async function openModal(event) {
@@ -151,6 +154,7 @@
     byId('applicationHousingUnitId').value = state.selected?.type === 'Lojman' ? state.selected.id : '';
     renderFacilities();
     updateSelectedSummary();
+    clearFieldError('Facility');
     setStatus('', '');
   }
 
@@ -158,25 +162,32 @@
     event.preventDefault();
     if (state.mode === 'submitting') return;
     const form = event.currentTarget;
-    if (!state.selected) {
-      byId('applicationFacilityList')?.setAttribute('aria-invalid', 'true');
-      setStatus('Lütfen başvurmak istediğiniz tesisi seçin.', 'error');
+    clearFieldErrors();
+    const fieldErrors = helpers.validateApplicationForm(form, state.selected);
+    if (Object.keys(fieldErrors).length) {
+      applyFieldErrors(fieldErrors);
+      setStatus('Başvuru gönderilemedi. Lütfen işaretli alanları kontrol edin.', 'error');
+      focusFirstError(fieldErrors);
       return;
     }
 
-    byId('applicationFacilityList')?.removeAttribute('aria-invalid');
     setMode('submitting');
     setStatus('', '');
 
     try {
-      const data = await publicApi('/api/public/applications', { method: 'POST', body: new FormData(form) });
+      const formData = helpers.buildApplicationFormData(form, state.selected, state.idempotencyKey);
+      const data = await publicApi('/api/public/applications', { method: 'POST', body: formData });
       state.lastReference = data.referenceCode;
       showSuccess(data.referenceCode);
       setMode('success');
       refreshIdempotencyKey();
     } catch (error) {
       setMode('error');
-      setStatus(error.message, 'error');
+      if (error.fieldErrors && Object.keys(error.fieldErrors).length) {
+        applyFieldErrors(error.fieldErrors);
+        focusFirstError(error.fieldErrors);
+      }
+      setStatus(error.message || 'Başvuru gönderilemedi. Lütfen bilgileri kontrol edin.', 'error');
     }
   }
 
@@ -219,9 +230,15 @@
       return;
     }
 
-    const text = `${state.selected.name} · ${String(state.selected.campusLocation || '').trim()} · ${state.selected.type} · ${Number(state.selected.totalCapacity || 0)} kapasite · ${Number(state.selected.availableCapacity || 0)} müsait. Koşullar: ${state.selected.applicationConditions || 'Belirtilmemiş.'}`;
-    summary.textContent = text;
-    output.textContent = `Başvuru özeti: ${text}`;
+    const lines = [
+      `Seçilen tesis: ${state.selected.name}`,
+      `Kampüs: ${String(state.selected.campusLocation || '').trim()}`,
+      `Konaklama türü: ${state.selected.type}`,
+      `Müsaitlik: ${Number(state.selected.availableCapacity || 0)}`
+    ];
+    const conditions = state.selected.applicationConditions ? `Koşullar: ${state.selected.applicationConditions}` : 'Koşullar: Belirtilmemiş.';
+    summary.textContent = [...lines, conditions].join('\n');
+    output.textContent = lines.join('\n');
   }
 
   function setMode(mode) {
@@ -254,7 +271,8 @@
     state.lastReference = '';
     state.facilities = [];
     clearFacilityIds();
-    byId('applicationFacilityList')?.removeAttribute('aria-invalid');
+    clearFieldErrors();
+    updateDocumentName();
     byId('applicationReferenceCode').textContent = '';
     setStatus('', '');
     refreshIdempotencyKey();
@@ -270,6 +288,8 @@
     state.facilities = [];
     state.lastReference = '';
     clearFacilityIds();
+    clearFieldErrors();
+    updateDocumentName();
     refreshIdempotencyKey();
     setMode('idle');
   }
@@ -303,6 +323,88 @@
     state.idempotencyKey = crypto.randomUUID();
     const input = byId('applicationIdempotencyKey');
     if (input) input.value = state.idempotencyKey;
+  }
+
+  function updateDocumentName() {
+    const file = byId('applicationDocument')?.files?.[0];
+    const name = byId('applicationDocumentName');
+    if (name) name.textContent = file?.name || 'Dosya seçilmedi';
+    clearFieldError('Document');
+  }
+
+  const fieldElements = {
+    FullName: 'applicationFullName',
+    Email: 'applicationEmail',
+    TcNo: 'applicationTcNo',
+    PhoneNumber: 'applicationPhoneNumber',
+    StudentStaffNo: 'applicationStudentStaffNo',
+    ApplicantRole: 'applicantRole',
+    AccommodationType: 'applicationAccommodationType',
+    Document: 'applicationDocument',
+    ApplicantNote: 'applicationApplicantNote',
+    Consent: 'applicationConsent',
+    Facility: 'applicationFacilityList',
+    DormitoryId: 'applicationFacilityList',
+    HousingUnitId: 'applicationFacilityList'
+  };
+
+  const fieldErrorElements = {
+    FullName: 'applicationFullNameError',
+    Email: 'applicationEmailError',
+    TcNo: 'applicationTcNoError',
+    PhoneNumber: 'applicationPhoneNumberError',
+    StudentStaffNo: 'applicationStudentStaffNoError',
+    ApplicantRole: 'applicantRoleError',
+    AccommodationType: 'applicationAccommodationTypeError',
+    Document: 'applicationDocumentError',
+    ApplicantNote: 'applicationApplicantNoteError',
+    Consent: 'applicationConsentError',
+    Facility: 'applicationFacilityError',
+    DormitoryId: 'applicationFacilityError',
+    HousingUnitId: 'applicationFacilityError'
+  };
+
+  function applyFieldErrors(fieldErrors) {
+    Object.entries(fieldErrors).forEach(([field, message]) => {
+      const targetField = fieldElements[field] ? field : canonicalFacilityField(field);
+      const input = byId(fieldElements[targetField]);
+      const error = byId(fieldErrorElements[targetField]);
+      if (input) input.setAttribute('aria-invalid', 'true');
+      if (error) error.textContent = message;
+    });
+  }
+
+  function clearFieldErrors() {
+    Object.values(fieldElements).forEach(id => byId(id)?.removeAttribute('aria-invalid'));
+    Object.values(fieldErrorElements).forEach(id => {
+      const error = byId(id);
+      if (error) error.textContent = '';
+    });
+  }
+
+  function clearFieldError(field) {
+    const targetField = canonicalFacilityField(field);
+    byId(fieldElements[targetField])?.removeAttribute('aria-invalid');
+    const error = byId(fieldErrorElements[targetField]);
+    if (error) error.textContent = '';
+  }
+
+  function fieldNameForElement(element) {
+    if (!element) return '';
+    if (element.id === 'applicationDormitoryId' || element.id === 'applicationHousingUnitId') return 'Facility';
+    return element.name || '';
+  }
+
+  function canonicalFacilityField(field) {
+    return field === 'DormitoryId' || field === 'HousingUnitId' ? 'Facility' : field;
+  }
+
+  function focusFirstError(fieldErrors) {
+    const order = ['ApplicantRole', 'FullName', 'Email', 'PhoneNumber', 'TcNo', 'StudentStaffNo', 'AccommodationType', 'Facility', 'Document', 'ApplicantNote', 'Consent'];
+    const first = order.find(field => fieldErrors[field] || (field === 'Facility' && (fieldErrors.DormitoryId || fieldErrors.HousingUnitId)));
+    const element = byId(fieldElements[first]);
+    element?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    element?.focus?.({ preventScroll: true });
   }
 
   function handleKeydown(event) {

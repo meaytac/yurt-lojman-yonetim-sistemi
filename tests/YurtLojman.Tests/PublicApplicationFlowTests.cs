@@ -56,6 +56,41 @@ public class PublicApplicationFlowTests
     }
 
     [Fact]
+    public async Task Public_application_validation_uses_basic_turkish_messages()
+    {
+        await using var factory = CreateFactory();
+        var dormitoryId = await SeedFacilityAsync(factory);
+        var client = factory.CreateClient();
+
+        using var form = new MultipartFormDataContent
+        {
+            { new StringContent(Guid.NewGuid().ToString("N")), "IdempotencyKey" },
+            { new StringContent(string.Empty), "FullName" },
+            { new StringContent("gecersiz"), "Email" },
+            { new StringContent("123"), "TcNo" },
+            { new StringContent(string.Empty), "PhoneNumber" },
+            { new StringContent(string.Empty), "StudentStaffNo" },
+            { new StringContent("Ogrenci"), "ApplicantRole" },
+            { new StringContent("Yurt"), "AccommodationType" },
+            { new StringContent(dormitoryId.ToString()), "DormitoryId" },
+            { new StringContent("false"), "Consent" }
+        };
+
+        var response = await client.PostAsync("/api/public/applications", form);
+        var json = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("Ad soyad alanı zorunludur.", json);
+        Assert.Contains("Geçerli bir e-posta adresi girin.", json);
+        Assert.Contains("T.C. Kimlik Numarası 11 rakam olmalıdır.", json);
+        Assert.Contains("Telefon numarası zorunludur.", json);
+        Assert.Contains("Öğrenci/Personel numarası zorunludur.", json);
+        Assert.Contains("Başvuru bilgilerinin doğruluğunu onaylayın.", json);
+        Assert.DoesNotContain("The FullName field is required", json);
+        Assert.DoesNotContain("minimum length", json);
+    }
+
+    [Fact]
     public async Task Email_verification_moves_application_to_pending_and_token_is_single_use()
     {
         await using var factory = CreateFactory();
@@ -131,6 +166,21 @@ public class PublicApplicationFlowTests
     }
 
     [Fact]
+    public async Task Building_name_must_be_unique_within_the_same_facility()
+    {
+        await using var factory = CreateFactory();
+        var dormitoryId = await SeedFacilityAsync(factory);
+        var client = factory.CreateClient();
+
+        var first = await client.PostAsJsonAsync("/api/admin/buildings", new { dormitoryId, housingUnitId = (int?)null, blockName = "A Blok" });
+        first.EnsureSuccessStatusCode();
+
+        var second = await client.PostAsJsonAsync("/api/admin/buildings", new { dormitoryId, housingUnitId = (int?)null, blockName = "A Blok" });
+
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+    }
+
+    [Fact]
     public async Task Document_mime_type_must_match_allowed_file_type()
     {
         await using var factory = CreateFactory();
@@ -140,7 +190,7 @@ public class PublicApplicationFlowTests
         using var form = NewApplicationForm(dormitoryId, Guid.NewGuid().ToString("N"));
         var file = new ByteArrayContent("%PDF-1.4 test"u8.ToArray());
         file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/plain");
-        form.Add(file, "document", "test.pdf");
+        form.Add(file, "Document", "test.pdf");
         var response = await client.PostAsync("/api/public/applications", form);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -190,9 +240,9 @@ public class PublicApplicationFlowTests
         var trackingToken = await CreateTrackingTokenAsync(factory, reference);
         using var form = new MultipartFormDataContent
         {
-            { new StringContent(reference), "referenceCode" },
-            { new StringContent(trackingToken), "token" },
-            { new StringContent("Yeni belge eklendi."), "note" }
+            { new StringContent(reference), "ReferenceCode" },
+            { new StringContent(trackingToken), "Token" },
+            { new StringContent("Yeni belge eklendi."), "Note" }
         };
         var response = await client.PostAsync("/api/public/applications/update-missing-information", form);
 
@@ -395,13 +445,16 @@ public class PublicApplicationFlowTests
     private static MultipartFormDataContent NewApplicationForm(int dormitoryId, string idempotencyKey, string fullName = "Başvuru Adayı")
         => new()
         {
-            { new StringContent(idempotencyKey), "idempotencyKey" },
-            { new StringContent(fullName), "fullName" },
-            { new StringContent("basvuru@example.test"), "email" },
-            { new StringContent("12345678901"), "tcNo" },
-            { new StringContent("Ogrenci"), "applicantRole" },
-            { new StringContent("Yurt"), "accommodationType" },
-            { new StringContent(dormitoryId.ToString()), "dormitoryId" }
+            { new StringContent(idempotencyKey), "IdempotencyKey" },
+            { new StringContent(fullName), "FullName" },
+            { new StringContent("basvuru@example.test"), "Email" },
+            { new StringContent("12345678901"), "TcNo" },
+            { new StringContent("+905551112233"), "PhoneNumber" },
+            { new StringContent("OGR-42"), "StudentStaffNo" },
+            { new StringContent("Ogrenci"), "ApplicantRole" },
+            { new StringContent("Yurt"), "AccommodationType" },
+            { new StringContent(dormitoryId.ToString()), "DormitoryId" },
+            { new StringContent("true"), "Consent" }
         };
 
     private static async Task<string> ExtractLatestTokenAsync(WebApplicationFactory<Program> factory, string reference)

@@ -83,6 +83,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
                 .HasForeignKey(x => x.HousingUnitId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            entity.HasIndex(x => new { x.DormitoryId, x.BlockName }).IsUnique();
+            entity.HasIndex(x => new { x.HousingUnitId, x.BlockName }).IsUnique();
+
             entity.ToTable(t => t.HasCheckConstraint("CK_Buildings_OneFacilityOwner",
                 "([DormitoryId] IS NOT NULL AND [HousingUnitId] IS NULL) OR ([DormitoryId] IS NULL AND [HousingUnitId] IS NOT NULL)"));
         });
